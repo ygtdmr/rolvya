@@ -90,5 +90,3 @@ Security reporting instructions and a disclosure policy will be published before
 Rolvya is licensed under the **MIT License v3.0 (MIT)**. See [LICENSE](LICENSE) for the full license text.
 
 ---
-
-**One Plan. Many Agents.**
