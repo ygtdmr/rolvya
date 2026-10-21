@@ -1,66 +1,81 @@
 ---
-title: In-Flight Worker Budget Policy Options
+title: Bounded In-Flight Worker Execution Contract
 status: Proposed
 category: architecture
 last-reviewed: 2026-10-21
 tags: [budget, billing, cancellation, workers, approval]
 ---
 
-# In-flight worker budget policy options
+# Bounded in-flight worker execution contract
 
-## Already approved versus still open
+## Approved policy and design boundary
 
-**Approved:** when remaining approved budget is inadequate, do not start new billable attempts. Alert the owner, preserve completed work, await explicit human approval to raise the ceiling, and allow no automatic percentage overrun ([ADR 0002](../decisions/0002-hard-budget-approval.md)). **Open:** what happens to a *currently executing, previously authorized* worker when its metered spending approaches the ceiling, billing is delayed or new exposure cannot be bounded. Do not silently infer a policy.
+**Approved by owner on 2026-10-21:** [ADR 0010](../decisions/0010-inflight-budget.md) establishes **continue only inside an enforceably bounded, pre-reserved exposure; otherwise stop-on-risk** for already-running billable worker attempts. [ADR 0002](../decisions/0002-hard-budget-approval.md) still requires a hard stop on **new** billable work when available authorization is insufficient, explicit human approval to increase the ceiling, no percentage overrun and preservation of verified results.
 
-## Financial concepts
+This document describes **proposed mechanics**; cloud cancellation commands, billing caps, alert thresholds and timing are not deployed. A stop request does not guarantee a third-party provider's last invoice equals internal reservations.
 
-An admission reserves conservative exposure across AI API, cloud compute, storage and transfer, then provisions paid work if authorized. Costs can arrive late or diverge from estimates. Distinguish settled invoices, held reservations, provisional accrual and unknown provider liabilities. Provider retry defaults may cause extra physical executions outside Rolvya's attempt model; such retries must be disabled or fully authorized and reconciled.
+## Financial guard
 
-## Three candidate policies for owner review
+Use SQLite authority for approved ceiling, settled costs, held reservations, provisional accrual and conservative unknown liabilities, separated by AI API, compute, storage and transfer. The three forecast scenarios are estimates only and do not grant authorization.
 
-| Policy | Behavior | Benefit | Tradeoff |
+A running worker may continue **only if** its own remaining provider-enforced maximum and all other project liabilities remain inside already approved, non-double-counted exposure. A missing invoice may be labeled **unknown** yet continuation is defensible only if a credible, independently enforceable maximum still bounds that uncertainty. If upper exposure can no longer be established, **request cancellation and fence authority**, and block new risky paid admissions.
+
+## Decision algorithm (candidate)
+
+```text
+on cost, worker, provider, reservation, or cancellation signal:
+    read verified latest approved ceiling + SQLite liabilities
+    for each active paid attempt:
+        evaluate provider enforcement, maximum remaining spend, hold coverage
+        if continuation stays inside authoritative approved reserved exposure:
+            continue WITHIN that existing bound (no fresh authorization)
+        else:
+            persist stop_on_risk + audit event
+            fence lease and prevent additional privileged model/worker calls
+            request remote provider cancellation/termination
+            preserve validated/checkpointed artifacts
+            reconcile Git refs, cloud instance state and delayed charges
+    for any candidate NEW paid attempt:
+        admit only via separate atomic SQLite budget/lease/outbox transaction
+```
+
+Do not interpret provider-side `cancel accepted` as `billing has stopped`. Poll/reconcile until external state is known, and do not release possible charges merely because a worker has no heartbeat. Bounded completion and provider cancellation rules must be tested on chosen provider before paid deployment.
+
+## Operational state table
+
+| Signal | Existing paid attempt | New billable admission | Owner-facing UI |
 | --- | --- | --- | --- |
-| A — Stop on risk (recommended to evaluate) | Cancel/fence paid operations when future exposure cannot safely fit remaining authorization, using provider stop APIs/timeouts | Stronger budget risk mitigation | Minimum billing and late fees may still apply; work may be interrupted |
-| B — Finish within previously reserved bound | Allow an already admitted attempt to continue only while remaining reserved/provider-enforced maximum exposure covers it | Better completion, fewer lost builds | Requires verifiable enforceable upper bound and prompt metering/cancellation controls |
-| C — Let any running task finish unbounded | Continue regardless of exposure and reconcile afterward | Simplest UX | Incompatible with reliable hard-budget intent if exposure is not capped; **not recommended** |
+| Remaining reserved maximum fully supported and enforceable | May continue inside prior approved bound | Independently check headroom and all other gates | Show reservation, settled and provisional usage |
+| Insufficient headroom to reserve another attempt | Continue only if its existing bound still holds | **Reject new paid attempt** | Alert and show pending tasks |
+| Billing feed delayed but provider hard cap and total liability bound verifiable | May continue within that provable cap | Avoid speculative admission where exposure is uncertain | Mark delayed charges as **unknown** |
+| Reserved maximum exceeded or future cap cannot be enforced | **Stop-on-risk**, fence and reconcile | Block risky new paid attempts | Show stopping, possible final charges |
+| Provider launches unreserved retry or new billable container | Halt/contain and reconcile extra exposure; reject stale authority | Block and investigate | Warn of billing drift |
+| Owner explicitly approves a larger total ceiling | Recheck every bound and authorization; no automatic unlimited run | Scheduler may re-evaluate | Log exact approval event |
+| Attempt stopped after possible Git write | Reconcile remote ref and artifact ownership before a new attempt | Block unsafe duplicate launch | Show unverified external effects |
 
-**Neither A nor B is approved.** A usable policy may combine conservative reservations, provider-side hard time/compute bounds, stop-on-risk and validated checkpointing, but the mechanism must be reviewed against real provider limitations. Even strict internal stop logic cannot guarantee an external provider's final invoice never exceeds the ceiling.
+## Provider adapter obligations
 
-## Recommended safe default before approval (engineering hold)
+- Before paid launch, establish effective maximum compute runtime, resource billing interval, AI API/CLI usage controls where provider offers them, storage and transfer exposure.
+- Reserve conservative **full exposure**, not just an expected mean; use accurate provider-specific billing minima and refund behavior.
+- Disable/reconcile automatic provider retries that could create unreserved paid attempts.
+- Support provider-side cancellation/termination, remote worker cooperative stop and credentials/lease fencing.
+- Identify late invoices, remaining liabilities and possibly successful Git writes even after interruption.
+- Preserve already validated artifacts; partial work can be checkpointed only under security/retention rules and must not be called verified.
+- Do not assume internal estimates can absolutely prevent provider invoice overruns.
 
-Do not admit paid work with unbounded or unknown exposure. During design-only and synthetic tests, simulate A and B, evaluate resume/recovery and preserve artifacts. Do not use the existence of this document to authorize real billable workers or to declare an in-flight policy selected.
+## Verification cases
 
-## State/decision table (proposal)
+1. A budget-blocked new task cannot start while a separately bounded reserved attempt finishes.
+2. Loss of cost-bound enforceability triggers persisted stop-on-risk, lease fencing and external cancel request.
+3. Delayed invoice + still-verifiable hard maximum displays uncertainty without inventing zero spend.
+4. Delayed invoice + no verifiable remaining maximum triggers stop-on-risk.
+5. Duplicate stop acknowledgement or late worker result does not reopen fenced attempt.
+6. Cloud auto-retry and post-cancel minimum charges remain visible and reconciled.
+7. Already accepted task artifacts survive stop, budget pause and retry of an existing task.
+8. Only authenticated explicit human approval can increase budget ceiling.
 
-| Signal | New billable admissions | Running worker | Accounting/UI |
-| --- | --- | --- | --- |
-| Headroom sufficient and all holds bounded | May admit via SQLite atomic guard | Continue within approved bound | Show settled, held, provisional, unknown separately |
-| Headroom insufficient for next attempt | **Block** | Apply separately approved A/B policy | Notify owner, retain accepted artifacts |
-| Provider meter missing/stale | **Block risky new work** | Stop-or-finish policy must be explicitly configured/approved | Mark exposure **unknown**, never zero |
-| Worker provider secretly retries a failed container | Deny unreserved restart where controllable | Detect/fence/reconcile extra instance | Attribute actual compute and alert drift |
-| Owner explicitly increases total ceiling | Recheck all admission guards | Apply approved policy without assuming a new lease | Audit actor, prior and new ceiling |
-| Worker stopped after possible remote Git push | Do not blindly retry | Fence/inspect provider | Reconcile remote ref and late bill first |
+## Still-open engineering choices
 
-## Required provider controls for either viable policy
+Provider-specific enforceable caps and confidence model; cancellation latency, interval and post-stop charges; API token quota behavior; accounting currency conversion, taxes, partial artifact storage and alert delivery. **The Bounded-or-Stop decision itself is approved.**
 
-- Proven maximum execution duration/cancellation mechanism and a conservative estimate of cloud startup/minimum billing.
-- Token/request cost limits or constrained API execution where supported; provider modes lacking such caps require conservative risk classification.
-- Bounded data transfer and artifact retention; cleanup of billed idle/persistent resources.
-- Idempotent launch and worker lease fencing to avoid duplicate spend.
-- Accurate accrual/reconciliation audit and safe behavior on missing invoices.
-- No cloud provider automatic retries that bypass a new authorized Rolvya attempt.
-
-## Verification scenarios
-
-1. A paid attempt is authorized with reserve R, then an unrelated late invoice arrives: no new admission, running attempt follows policy A/B, previous success remains.
-2. Worker crashes after code push: release only confirmed unused exposure; reconcile Git and compute before retry.
-3. Cancellation response says success but provider still bills minimum time: post actual invoice and flag variance.
-4. API mode spends faster than estimation: stop/cap behavior is tested; no claim of mathematically guaranteed invoice ceiling without provider support.
-5. Alert dismissed without a new authenticated approval: approved ceiling unchanged.
-6. Cloud provider auto-retry creates second container: detect and attribute charge; halt unsafe new admissions.
-
-## Explicit owner question to resolve
-
-Should Rolvya **attempt to stop already-running billable workers when cost exposure nears the approved ceiling**, or **allow them to finish only within a demonstrably bounded, pre-reserved allowance**? The answer should be recorded in an ADR with exceptions for unknown provider metering, cancellation, refunds and checkpoint loss. Until then this topic remains **Open**.
-
-Related: [budget reservation and reconciliation](budget-reservation-reconciliation.md), [human approvals](approval-workflow.md), [worker protocol](worker-protocol.md), [failure recovery](failure-recovery.md), [decision readiness](../project/decision-readiness.md).
+Related: [ADR 0010](../decisions/0010-inflight-budget.md), [budget reconciliation](budget-reservation-reconciliation.md), [scheduler](scheduler.md), [human approvals](approval-workflow.md), [provider comparison](../operations/worker-provider-evaluation.md), [tests](../development/rust-sqlite-test-matrix.md).
