@@ -10,7 +10,7 @@ tags: [github, app, git, security, rust, repository]
 
 ## Status and prerequisites
 
-**Proposed; GitHub App model is NOT approved or installed by this document.** [ADR 0008](../decisions/0008-github-authentication.md) compares GitHub App, OAuth, deploy keys and PAT approaches. GitHub App is the working recommendation, not yet an owner decision.
+**GitHub App for GitHub authentication is Approved by [ADR 0008](../decisions/0008-github-authentication.md).** This file is a **Proposed detailed publication/API/security contract**; no App has been installed and no token or repository permission changes have been performed. The exact endpoint permissions, trusted Rust publication implementation and merge authorization remain to be validated.
 
 **Approved constraints:** only **remote Git services**; no user personal-computer repository access, Local Agent or Local Sync ([ADR 0003](../decisions/0003-remote-git-only.md)); Rust backend only; SQLite source of truth; complete immutable up-front DAG; non-executable parent group nodes. The worker cannot create new subtasks or merge protected branches. A provider authentication token is not an automatic authorization to edit an arbitrary ref.
 
@@ -103,7 +103,7 @@ It is **illustrative**; no real artifact URI, API implementation, branch or comm
 
 ## Open approvals and official sources
 
-Owner decision pending: GitHub App vs OAuth/etc, exact permission inventory, reviewer/merge authority, branch naming and provider support in MVP, private/self-hosted Git service boundaries. This document does not authorize installing a GitHub App or changing real repository protections.
+**GitHub App selection is Approved.** Still open: exact permission inventory, reviewer/merge authority, branch naming, installation/key management, provider support in MVP and private/self-hosted Git boundaries. This document does not itself authorize installing an App or changing real repository protections.
 
 - [Installation tokens and permission/repository restriction](https://docs.github.com/en/apps/creating-github-apps/authenticating-with-a-github-app/generating-an-installation-access-token-for-a-github-app)
 - [Permissions required for REST endpoints](https://docs.github.com/en/rest/authentication/permissions-required-for-github-apps)
