@@ -9,6 +9,8 @@ Rolvya is an AI-agent-orchestration project developed by AI coding agents under 
 4. [Documentation and Obsidian compatibility policy](docs/development/documentation-policy.md)
 5. [Engineering standards](docs/development/standards.md), [agent handoffs](docs/development/agent-handoffs.md) and [review process](docs/development/review-process.md)
 6. [Open design decisions](docs/project/open-questions.md)
+   - For orchestration changes also consult [orchestrator](docs/architecture/orchestrator.md), [task model](docs/architecture/task-model.md) and [agent contracts](docs/architecture/agents.md).
+   - For budget authority consult [approval workflow](docs/architecture/approval-workflow.md). For backend organization consult the [Rust workspace proposal](docs/architecture/rust-workspace.md).
 7. Relevant product, architecture, and operations specifications
 8. Source code and tests (when present)
 
