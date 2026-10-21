@@ -44,10 +44,14 @@ Three additional proposed specifications were recorded: [deployment](../operatio
 
 Three additional proposed specifications were recorded: [scheduler state machine](../architecture/scheduler.md), [worker control protocol](../architecture/worker-protocol.md), and [failure recovery](../architecture/failure-recovery.md). They define proposed transitions, logical messages, failure handling and test scenarios. No executable scheduler, communications service or recovery mechanism has been verified; actual transport, timing, retry limits and approval details remain open.
 
+## Engineering, operations, product-flow and decision backlog (2026-10-21)
+
+Nine additional **proposed** Markdown specifications were saved: [engineering standards](../development/standards.md), [agent handoff protocol](../development/agent-handoffs.md), [change review](../development/review-process.md), [observability and audit](../architecture/observability.md), [backup and disaster recovery](../operations/backup-recovery.md), [incident runbooks](../operations/runbooks.md), [owner panel user journeys](../product/user-flows.md), [operational configuration](../operations/configuration.md) and [open decisions](open-questions.md). All describe future behavior; none constitutes evidence that code, CI, production infrastructure, security controls or monitoring actually runs.
+
 ## Next documentation tasks
 1. Recover all prior approved architectural detail, confirm sources, and convert it into topic-specific specifications and ADRs.
 2. Resolve open questions (technologies, interfaces, deployment boundaries, worker providers, identity/security, persistence and approval UX) before implementation depends on them.
-3. Define acceptance criteria and testable vertical slices.
+3. Decompose acceptance criteria into implementation slices with measured performance limits and proof-of-completion checks; user journeys and criteria are drafted, not implemented.
 4. Keep this file synchronized with actual commits, tests and releases.
 
 **Rule:** Do not promote a planned item to implemented without a linked code artifact and verification evidence.
