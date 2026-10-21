@@ -10,7 +10,7 @@ tags: [scope, mvp, non-goals, phases]
 
 ## Status and intent
 
-**Proposed first-release scope**, not yet a human-approved product roadmap. Approved constraints remain binding regardless of which features ship first: complete immutable DAG planned up front, **non-executable group parents and executable leaves**, separate hierarchy/dependencies, dependent tasks wait, remote execution only, hard owner budget gate and **bounded-or-stop in-flight worker spending**, Rust backend only and SQLite database only. Refer to [ADRs](../decisions/README.md).
+**Proposed first-release scope**, not yet a human-approved product roadmap. Approved constraints remain binding regardless of which features ship first: complete immutable DAG planned up front, **non-executable group parents and executable leaves**, separate hierarchy/dependencies, dependent tasks wait, remote execution only, hard owner budget gate and **bounded-or-stop in-flight worker spending**, Rust backend only, SQLite database only, **HTTPS remote worker communication**, **GitHub App** for GitHub and **multi-provider remote worker adapter architecture**. Refer to [ADRs](../decisions/README.md).
 
 ## Candidate initial vertical slice
 
@@ -33,8 +33,8 @@ No live cloud, API key, subscription session or production GitHub App needs to b
 | Create and configure project | Register user goal, remote Git repo, resource constraints and budget | Identity UX, supported provider policy |
 | Up-front planning | Full versioned DAG and task hierarchy; per-task model+effort | Planner model and access mode |
 | Scheduler | Ready queue, dependency checks, isolation, lease fencing | Rust + SQLite transactional implementation |
-| Remote worker | Securely launch/provision a real remote executor, support CLI/API mode where permitted | Worker transport and cloud provider ADRs |
-| Remote Git | Read approved repo, publish isolated task result and obtain reviewable refs | Authentication and branch/merge ADR |
+| Remote worker | Securely launch/provision a real remote executor, support CLI/API mode where permitted | HTTPS worker transport **Approved**, multi-provider architecture **Approved**; initial concrete cloud adapters unselected |
+| Remote Git | Read approved repo, publish isolated task result and obtain reviewable refs | GitHub App **Approved** for GitHub; actual permission matrix and protected branch/merge policy open |
 | Verification | Tests/artifact provenance, failure classification, same-task retries | Result schema, validator policy |
 | Budget | Approved ceiling, holds/actuals, four categories and 3 scenarios, pause/approval | In-flight policy, cost source confidence |
 | Owner panel | Project DAG, blockers, worker state, artifacts, charges and alerts | Frontend framework, identity, accessibility |
