@@ -39,6 +39,18 @@ Each question should ultimately have an owner decision, dated rationale, alterna
 | OQ-017 | P1 | Parent task aggregation and failed descendant semantics? | Explicit hierarchy separate from dependency edges; deterministic verification | [DAG](../architecture/dag-planning.md) |
 | OQ-018 | P2 | Non-GitHub self-hosted remote Git adapters? | Provider compatibility and authorization, never local computer sync | [Git integration](../architecture/integration-github.md) |
 
+## Candidate decision packages (not approved)
+
+| Open question | Proposed ADR | Evidence required before owner approval |
+| --- | --- | --- |
+| OQ-001 | [ADR 0004: language](../decisions/0004-control-plane-language.md) | Rust/Go prototype on identical small-VPS workload; measured RAM, CPU, correctness and developer effort |
+| OQ-002 / OQ-003 | [ADR 0005: persistence](../decisions/0005-authoritative-database.md) | SQLite/PostgreSQL concurrent reservation race, durable crash replay, RAM/lock/restore benchmark |
+| OQ-006 | [ADR 0006: transport](../decisions/0006-worker-communication.md) | Remote HTTPS-pull vs alternatives under partitions, retries, auth and simulated load |
+| OQ-010 | [ADR 0007: hosting](../decisions/0007-remote-worker-hosting.md) | Real workloads on two provider modes, regional billable minimums and full cost categories |
+| OQ-007 | [ADR 0008: GitHub access](../decisions/0008-github-authentication.md) | Verified permission matrix, revocation, isolated refs and owner review |
+
+The [implementation slice proposal](implementation-slices.md) explicitly blocks production coding on unresolved critical choices. These ADRs have `status: Proposed` until explicit owner authorization is recorded.
+
 ## Decisions that are not open
 
 These have already been approved and must not be reopened by a worker without owner consent: one main agent creates a fully fixed task hierarchy and DAG before runtime; workers execute, not plan; dependencies govern parallelism; hard budget pause with explicit approval and no percentage overrun; preserve completed work; separate cost categories/scenarios; remote Git only; no Local Agent or personal-computer sync; GNU MIT license.
