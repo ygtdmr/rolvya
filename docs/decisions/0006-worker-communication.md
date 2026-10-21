@@ -1,67 +1,64 @@
 ---
-title: "ADR 0006: Worker Communication Transport"
-status: Proposed
+title: "ADR 0006: HTTPS Worker-Initiated Communication"
+status: Approved
 category: decision
 last-reviewed: 2026-10-21
-tags: [adr, protocol, workers, queue, security]
+tags: [adr, protocol, workers, https, security]
 ---
 
-# ADR 0006: Worker communication transport
+# ADR 0006: HTTPS worker-initiated communication
 
-## Status and authority
+## Status and approval
 
-**Proposed — NOT approved.** The [logical worker protocol](../architecture/worker-protocol.md) already specifies leases, fencing, idempotent results and redacted telemetry, without adopting HTTP, gRPC or a message broker. Remote workers can be cloud jobs or user-provided **remote** servers; direct personal-computer integration remains forbidden.
+**Approved by the project owner on 2026-10-21.** The worker-to-controller transport for Rolvya is **HTTPS with worker-initiated pull/claim, heartbeat, progress and result submission**. The earlier proposed alternatives (gRPC-first, external broker as the primary worker control channel and SSH-first execution) are not selected. This is a **design approval, not a deployed protocol or tested endpoint**.
 
-## Communication constraints
+## Context and rationale
 
-- Small controller (2–4 GB RAM discussed); many independent tasks may run simultaneously.
-- Worker admission is subject to immutable DAG, resource/credential checks and hard budget reservation.
-- No uncontrolled inbound connection into a user-provided remote host or exposed database is a prerequisite.
-- Workers must survive disconnection, expired leases, at-least-once delivery, crash and delayed external Git effects.
-- Budget approvals occur only in authenticated owner/control plane, never in a worker message.
+Rolvya has one Rust backend with SQLite as the only authoritative DB, expected to coordinate many independently ready **remote** workers from a modest control VPS. Workers may run on different cloud providers or user-supplied remote servers, including hosts behind NAT. No personal-computer Local Agent or local repository synchronization is allowed.
 
-## Transport comparison
+Worker-initiated HTTPS can operate using outbound connections without requiring a control-plane connection into each worker. It reduces the initial number of operational dependencies and provides ordinary request/response tracing. Adaptive idle backoff or bounded long polling is necessary to avoid busy-loop polling and excessive SQLite/API work. Network/HTTP stack, serialization, polling intervals and SLOs remain engineering choices.
 
-| Alternative | Advantages | Drawbacks for Rolvya |
-| --- | --- | --- |
-| HTTPS worker-initiated pull + controller-owned DB outbox | Easy egress through NAT, simple deployment, no separate broker initially, stable request tracing | Poll load and latency; needs adaptive backoff, lease fencing and scale testing |
-| Bidirectional gRPC streaming | Typed service contracts, low-latency push and heartbeats | Persistent connections, reconnect management, load balancing and remote host network constraints |
-| External queue/broker + callback | Durable delivery, routing/backpressure at scale, mature cloud integrations | Additional cost/service and replay behavior, broker credentials, not automatically exactly-once |
-| SSH-first remote execution | Directly reaches user-provided remote servers | Credential complexity, firewall/inbound policy, process supervision; not a general protocol replacement |
+## Decision
 
-A queue or gRPC link can still be added later behind a transport adapter. None changes the single authoritative database or active DAG invariants.
+1. **Worker control communication uses TLS-protected HTTPS initiated by enrolled remote workers.** The Rust controller publishes authenticated claim, heartbeat, progress, result and stop/lease-check operations. No worker opens SQLite directly.
+2. The controller first commits an **atomic SQLite** admission: validated executable-leaf task, budget reservation, fenced attempt identity, audit and durable dispatch/outbox entry **before a paid provider launch**. The outbox/dispatch provider API is separate from the worker HTTPS control channel.
+3. Workers claim only **pre-existing, eligible executable leaves**. Group parents are not leased ([ADR 0009](0009-parent-aggregation.md)). A claim never authorizes creating additional tasks, changing the immutable DAG or increasing a project budget.
+4. Every write/callback requires authenticated worker/project scope, current attempt identity, monotonic lease/fencing epoch, message idempotency and server-authoritative state checks.
+5. Worker-visible instructions/context contain immutable hashes and permitted scope, **not** long-lived GitHub/cloud keys or human approval capabilities.
+6. Duplicate messages, lost responses, expired leases, restart and external side-effect uncertainty are handled by **durable SQLite state and reconciliation**; HTTPS does not imply exactly-once remote execution.
+7. **ADR 0010** applies: previously authorized attempts may continue only within enforceable, pre-reserved exposure; otherwise the controller issues stop-on-risk/fencing, requests provider termination and reconciles late charges.
+8. HTTPS supports workers from **multiple cloud/provider adapters** without rewriting the task DAG or budget authority (see [ADR 0011](0011-multi-provider-worker-infrastructure.md)).
 
-## Working recommendation (subject to approval)
+## Transport boundaries
 
-Start with a **remote worker-initiated HTTPS pull/claim protocol**, backed by a **transactional outbox / durable DB state**, plus authenticated progress and result endpoints. Lease/heartbeat/dedupe rules are independent of transport, making an eventual managed queue possible without changing task identities.
+- **Approved:** worker-initiated HTTPS control channel and Rust/SQLite state authority.
+- **Not selected:** exact Rust HTTP/TLS crates, auth/enrollment mechanism, OpenAPI/JSON or other codec, URL paths, worker heartbeat/claim timing, long-poll settings and per-provider bootstrap.
+- A separate provider launch/inspect/cancel adapter may call a provider API via its native HTTPS/SDK/remote-host transport; that does **not** replace the worker's approved HTTPS controller channel.
+- A future gRPC or broker **replacement for the worker control channel** would require a superseding owner-approved ADR. A supplementary internal queue may be evaluated without bypassing SQLite authority or this HTTPS channel.
 
-Do not equate simple HTTP polling with constant rapid polling. Use exponential idle backoff or bounded long polling as supported, strict payload/rate limits, health checks and jitter. Cloud one-off job provisioning may use a provider launch API; the started remote job then authenticates to report progress and results. All billable launches need budget admission first.
+## Security and failure acceptance
 
-## Logical processing contract
+| Test | Required result |
+| --- | --- |
+| Worker has wrong project ID or invalid identity | Deny and audit without data disclosure |
+| Worker claims a group parent | Reject; no attempt or cloud launch |
+| Old attempt reports success after lease fenced | Reject authority; preserve validated later attempt |
+| Request/result duplicated or out of order | Idempotent logical state; no duplicate charge or accepted outcome |
+| SQLite admission cannot commit | No newly billable provider launch |
+| Provider created job but response was lost | Reconcile external operation before any second paid launch |
+| Many workers idle | Backoff/long poll prevents unbounded controller and DB pressure |
+| Budget no longer covers future worker exposure | Apply stop-on-risk policy, preserve verified artifacts and reconcile |
 
-1. Controller validates ready task with all predecessor results.
-2. Serialize reservation, attempt creation and fence-epoch increment.
-3. Write an outbox dispatch record **atomically** with the attempt.
-4. Remote worker authenticates and claims work using limited scopes and an attempt-specific lease.
-5. Worker heartbeats, runs scoped CLI/API agent and stores result manifest.
-6. Controller verifies evidence before task success; duplicate callbacks are deduplicated.
-7. Expired lease is fenced; reconcile Git/artifact/billing before retrying **same task**.
-8. Resuming budget pause requires explicit user-approved ceiling change.
+## Alternatives and consequences
 
-## Security measures
+gRPC streaming can reduce certain latency overheads but requires persistent connections/reconnect behavior; external brokers can help fan-out but add infrastructure and replay complexity; SSH-first is not a universal NAT-safe worker control channel. These were considered and are not approved as the initial worker-to-controller standard.
 
-Prefer outbound TLS, short-lived worker identity, per-project authorization and token revocation. Pin immutable task context hashes; never place raw API keys in a prompt or worker log. Do not trust worker timestamps for authority. Harden server against unbounded heartbeats, polling abuse and malformed envelopes.
+## Approval record
 
-## Benchmark and acceptance gate
+- **Choice:** remote-worker-initiated HTTPS pull/claim + heartbeat/progress/result and durable SQLite outbox.
+- **Status:** Approved.
+- **Approved by:** project owner in conversation, 2026-10-21.
+- **Pending implementation:** authenticated wire schema, Rust server/client code, bounds, telemetry, reliability tests and deployment.
+- **No implementation claim:** no live HTTPS worker interface has been verified.
 
-Use simulated remote workers over unreliable network conditions at representative concurrency. Measure ready-to-start latency, controller RSS/CPU, request/connection rate, pending work backlog, outbox lag, lease retries and recovered duplicates. Test network partitions, delayed responses, bad/missing auth, stale epoch, worker disappearance, controller crash and budget exhaustion. Compare gRPC/queue alternatives if candidate HTTPS exceeds the chosen SLO.
-
-The [candidate worker wire contract v0](../architecture/worker-wire-contract-draft.md) now details message envelope, claim, heartbeat, validation, stale lease handling, duplicate delivery and budget stop events. It remains a **Proposed** HTTPS-candidate contract, not approval of a transport. The [owner technology decision pack](../project/transport-git-hosting-decision-pack.md) summarizes the pending decision.
-
-## Open choices
-
-Transport, broker if any, schema (OpenAPI/Protobuf), poll cadence, lease TTL, payload boundaries, callback security, provider start API, worker deployment bootstrap and exact retry timings.
-
-For a more implementable **proposal**, see [worker transport design](../architecture/worker-transport-design.md). This does not change ADR status.
-
-Related: [OQ-006](../project/open-questions.md), [API contracts](../architecture/api-contracts.md), [scheduler](../architecture/scheduler.md), [worker lifecycle](../operations/worker-lifecycle.md), [failure recovery](../architecture/failure-recovery.md).
+Related: [logical protocol](../architecture/worker-protocol.md), [HTTPS implementation draft](../architecture/worker-wire-contract-draft.md), [worker transport design](../architecture/worker-transport-design.md), [multi-provider ADR](0011-multi-provider-worker-infrastructure.md), [integration tests](../development/remote-integration-test-matrix.md).
