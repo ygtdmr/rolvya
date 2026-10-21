@@ -10,7 +10,7 @@ tags: [deployment, control-plane, workers]
 
 ## Constraints
 
-Rolvya targets a lightweight remote control plane; a 2–4 GB RAM VPS was discussed, but **not benchmarked**. Computationally intensive coding agents run on remote cloud or user-supplied remote servers; the same VPS option was explored but is not preferred for concurrency. **No personal-computer Local Agent or Local Sync.** No cloud provider, operating system, container orchestrator, database engine or transport has been approved.
+Rolvya targets a lightweight remote control plane; a 2–4 GB RAM VPS was discussed, but **not benchmarked**. Computationally intensive coding agents run on remote cloud or user-supplied remote servers; the same VPS option was explored but is not preferred for concurrency. **No personal-computer Local Agent or Local Sync.** **Rust is approved as the sole backend language and SQLite as the sole authoritative database.** Cloud provider, operating system, container orchestrator, worker transport and concrete persistence configuration remain open.
 
 ## Logical topology
 
@@ -33,8 +33,8 @@ This represents logical flows, not finalized networking or services.
 
 ## Proposed environment boundaries
 
-- **Control plane:** API/UI access, authentication, orchestration, DAG validation, state transitions, budget authorization and lightweight coordination. Avoid running arbitrary project builds in the control process.
-- **Database:** one authoritative instance; durable tasks, attempts, approvals, reservations and events. Engine, backup technology and whether DB shares the control VPS remain open.
+- **Control plane:** Rust-only backend services provide API access, authentication, orchestration, DAG validation, state transitions, budget authorization and lightweight coordination. Frontend language is not set by the backend decision. Avoid running arbitrary project builds in the control process.
+- **Database:** **SQLite** is the single authoritative database engine; durable tasks, attempts, approvals, reservations and events are accessed only through Rust control-plane persistence. SQLite WAL/sync settings, backup technology and database file placement remain open.
 - **Workers:** ephemeral isolated workspaces with CPU/RAM limits, lease/heartbeat, command execution, CLI/API adapters, validated outputs and controlled network egress.
 - **Artifacts:** externally stored code/test outputs and logs with checksum, project ownership, retention policy and immutable manifest references.
 - **Remote Git:** authorized provider-hosted repositories only, with branch isolation and integration gates.
@@ -61,4 +61,4 @@ Control-plane idle/peak RAM and CPU, scheduler response time with large DAGs, co
 
 Cloud vendor, region, container or process model, networking/TLS ingress, single-node availability targets, deployment automation, schema migrations, backups, retention, rollout approval, monitoring stack and explicit disaster-recovery objectives.
 
-Related: [infrastructure alternatives](infrastructure-options.md), [workers](../architecture/workers.md), [data model](../architecture/data-model.md), [budget](../architecture/budget-costs.md), [security](../architecture/security.md).
+Related: [Rust + SQLite backend contract](../architecture/rust-sqlite-backend.md), [SQLite operations](sqlite-operations.md), [infrastructure alternatives](infrastructure-options.md), [workers](../architecture/workers.md), [data model](../architecture/data-model.md), [budget](../architecture/budget-costs.md), [security](../architecture/security.md).
