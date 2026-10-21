@@ -28,7 +28,7 @@ See the [Rust + SQLite backend implementation contract](../architecture/rust-sql
 
 ```mermaid
 flowchart TD
-  A[Approve critical technology/security ADRs] --> B[Domain types and immutable DAG validator]
+  A[Approve remaining critical transport/identity/security ADRs] --> B[Rust domain types and immutable DAG validator]
   A --> C[Persistence, audit and transactional budget ledger]
   B --> D[Deterministic scheduler and task state machine]
   C --> D
