@@ -37,7 +37,7 @@ The dotted edges illustrate decomposition; solid edges illustrate explicit prere
 | `project_id`, `plan_id`, `plan_hash` | Stable project and whole-plan version/hash; immutable at activation |
 | `task_id`, `parent_task_id` | Unique within graph; parent exists in same plan; hierarchy acyclic |
 | `dependency_ids` | Explicit predecessors within plan, unique; dependency DAG acyclic |
-| `kind` | Proposed `group` vs `executable`; whether nonleaf tasks may be executable is an **Open** decision |
+| `kind` | **Approved ADR 0009:** `group` for non-executable parents; `executable_leaf` for dispatchable leaves. An executable node must not have children. |
 | `goal`, `scope`, `exclusions` | Bounded and testable instructions; explicit allowed remote refs/paths |
 | `acceptance_criteria` | Observable conditions; nonempty for executable tasks |
 | `model`, `effort`, `access_mode` | Fixed up-front assignment; any fallback tracked as an attempt policy decision |
@@ -75,18 +75,17 @@ Exact enums, retry caps and timeout defaults need approval. `succeeded` requires
 
 For incremental validation use a linear-time topological traversal in edges+nodes; exact algorithm remains an implementation choice. Reject or escalate unsatisfiable dependencies rather than unilaterally rewriting the plan.
 
-The [plan activation policy](plan-activation-and-versioning.md) and [proposed ADR 0009](../decisions/0009-parent-aggregation.md) define the exact unresolved freeze and group-success decision gates. No parent model is approved yet.
+The [plan activation policy](plan-activation-and-versioning.md) freezes these node kinds and edges; **[ADR 0009](../decisions/0009-parent-aggregation.md) is Approved** for group-only parent nodes.
 
-## Parent completion is NOT automatic (open design)
+## Approved parent completion and aggregation
 
-The user approved arbitrary hierarchy, but a precise parent roll-up policy was not yet selected. Two models:
-
-| Model | Description | Tradeoff |
-| --- | --- | --- |
-| Group-only parent (recommended for first slice) | Parent is organizational; child results and an explicit validator determine aggregate completion | Clean separation, less ambiguity |
-| Executable parent with children | Parent may also run its own work; must define how its own attempt and descendant validation interact | More flexibility, harder dependency semantics |
-
-Do not mark a group parent completed just because all children exit; require verified acceptance, and define whether a dependent edge targeting the parent waits for aggregate validation.
+- A node with children is a **group** and never receives a worker lease or executable attempt; a worker-executable node is a **leaf**.
+- An integration step that actually runs code/tests is a separately planned executable leaf.
+- A group is **validated succeeded** only when all required children (including recursively required descendants) are independently validated and its applicable group acceptance criteria pass.
+- A required incomplete, failed or canceled descendant prevents success; verified siblings and artifacts remain preserved.
+- An explicit dependency on a group waits for that group's validated aggregate result. **Hierarchy does not imply dependency edges.**
+- The Rust backend uses authoritative SQLite evidence for idempotent group status transitions; no worker marks a group successful directly.
+- Optional-child support and the exact failure/cancellation enum remain future policy details. Until approved, plans with ambiguous optional semantics must be rejected or held.
 
 ## Failed descendants and project completion (proposed)
 
@@ -106,6 +105,6 @@ A requirement discovered mid-run that requires a brand-new task should be record
 
 ## Open decisions
 
-Exact `group` aggregation rule, executable parents, root layout, graph size/recursion/resource limits, plan-version supersession, id formats, schema/serialization, cross-plan dependencies (prohibited in initial proposal), fair scheduling and Git file-conflict analysis strategy.
+Optional-child semantics, group acceptance predicate serialization, failed/canceled state enums, root layout, graph size/depth limits, plan-version supersession, ID formats, cross-plan dependencies (prohibited in initial proposal), fair scheduling and Git conflict analysis. **Group-only parents and verified roll-up are approved.**
 
 Related: [main orchestrator](orchestrator.md), [DAG planning](dag-planning.md), [scheduler](scheduler.md), [SQLite schema draft](sqlite-schema-draft.md), [Rust+SQLite backend](rust-sqlite-backend.md), [open decisions](../project/open-questions.md).
