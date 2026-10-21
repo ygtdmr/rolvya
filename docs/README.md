@@ -58,6 +58,13 @@ These are **proposed architectural specifications**, not verified implementation
 
 The paths above are a **planned inventory**, not links to files that already exist. Create individual documents as their requirements are verified. Avoid empty placeholder documents masquerading as completed specifications.
 
+## Operations specifications now available
+
+- [Deployment architecture](operations/deployment.md)
+- [Remote worker lifecycle](operations/worker-lifecycle.md)
+- [Operational secrets](operations/secrets.md)
+- [Infrastructure alternatives](operations/infrastructure-options.md)
+
 ## Recorded architecture decisions
 
 - [ADR 0001 — Fixed upfront DAG](decisions/0001-fixed-upfront-dag.md)
