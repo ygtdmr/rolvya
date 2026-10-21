@@ -26,7 +26,6 @@ Each question should ultimately have an owner decision, dated rationale, alterna
 | OQ-006 | P0 | Worker communication protocol and queue transport? | HTTP polling, RPC, queues; leases, late callbacks, duplication and failure testing | [Worker protocol](../architecture/worker-protocol.md) |
 | OQ-007 | P0 | GitHub/provider authentication and merge authority? | GitHub App vs delegated OAuth; least privilege, isolated branches, review gates | [Git integration](../architecture/integration-github.md) |
 | OQ-008 | P0 | Provider-valid CLI subscription versus API access rules? | Terms, supported automation, tokens and billing by provider/model | [Model access](../architecture/model-access.md) |
-| OQ-009 | P0 | Hard cost exposure policy for running attempts and delayed invoices? | Stop-on-risk vs bounded finish, late invoices and provider caps; [ADR 0010](../decisions/0010-inflight-budget.md) | [Budget](../architecture/budget-costs.md) |
 | OQ-010 | P1 | Cloud worker providers and container/sandbox setup? | Cost vs startup/CPU isolation, reliability, region and user-provided remote servers | [Infrastructure](../operations/infrastructure-options.md) |
 | OQ-011 | P1 | Worker lease TTL, heartbeat/retry and timeouts? | Benchmark-backed defaults, fenced attempts, quotas and non-idempotent writes | [Recovery](../architecture/failure-recovery.md) |
 | OQ-012 | P1 | Context packaging, token quotas and task handoff format? | Provider-specific adapters, compact references, provenance, truncation detection | [Context](../architecture/context-memory.md) |
@@ -34,8 +33,12 @@ Each question should ultimately have an owner decision, dated rationale, alterna
 | OQ-014 | P1 | Backup RPO/RTO, encryption and retention? | Risk to approvals/ledger/artifacts, restore exercises, storage cost | [Backups](../operations/backup-recovery.md) |
 | OQ-015 | P1 | CI merge gates, review roles and release process? | Test scope, human security signoff, branch protection, MIT compliance | [Review](../development/review-process.md) |
 | OQ-016 | P1 | Alert delivery, monitoring stack and audit retention? | Low overhead, integrity, tenant privacy, noise controls | [Observability](../architecture/observability.md) |
-| OQ-017 | P1 | Parent task aggregation and failed descendant semantics? | Group-only vs executable parent; required children, acceptance evidence and dependent edges; [ADR 0009](../decisions/0009-parent-aggregation.md) | [Parent aggregation](../architecture/parent-task-aggregation.md) |
 | OQ-018 | P2 | Non-GitHub self-hosted remote Git adapters? | Provider compatibility and authorization, never local computer sync | [Git integration](../architecture/integration-github.md) |
+
+## Recently approved execution policies — no longer open
+
+- **OQ-009 closed 2026-10-21:** [ADR 0010 — Approved](../decisions/0010-inflight-budget.md). Already-running billable attempts continue only within verifiably enforceable pre-reserved exposure; if full exposure cannot safely be bounded, initiate stop-on-risk, fence/cancel and reconcile. Provider-specific caps, cancellation timing, billing lag and refund rules remain implementation details.
+- **OQ-017 closed 2026-10-21:** [ADR 0009 — Approved](../decisions/0009-parent-aggregation.md). Parent nodes are non-executable groups; only planned executable leaves receive workers. Verified required child outputs and group acceptance drive success. Optional-child semantics and group predicate serialization remain open implementation details.
 
 ## Approved technology choices — no longer open
 
@@ -55,7 +58,7 @@ The [implementation slice proposal](implementation-slices.md) explicitly blocks 
 
 ## Detailed evaluation specifications
 
-- [Budget authorization and provider invoice reconciliation](../architecture/budget-reservation-reconciliation.md) elaborates the still-open in-flight worker policy and cost reservation/reconciliation correctness; the explicit hard budget gate itself remains approved.
+- [Budget authorization and provider invoice reconciliation](../architecture/budget-reservation-reconciliation.md) implements the **Approved** bounded-or-stop running-work policy conceptually; actual provider limits and accounting details remain open.
 - [Worker transport design](../architecture/worker-transport-design.md) proposes message shapes and failure tests. It does **not** approve HTTPS as the final transport.
 - [Identity and authorization](../architecture/identity-authorization.md) describes proposed trust roles and explicit human approvals.
 - [GitHub App integration design](../architecture/github-app-integration-design.md) distinguishes repository token permissions from protected-branch write enforcement.
@@ -65,13 +68,13 @@ The [implementation slice proposal](implementation-slices.md) explicitly blocks 
 ## Explicit implementation readiness proposals
 
 - [Plan activation/version boundaries](../architecture/plan-activation-and-versioning.md): freezes complete planned task DAG and records a scope-change escalation process; version-supersession consent remains open.
-- [Parent completion policy options](../architecture/parent-task-aggregation.md) and [proposed ADR 0009](../decisions/0009-parent-aggregation.md): no group parent semantics approved yet.
-- [In-flight budget policy options](../architecture/inflight-cost-policy.md) and [proposed ADR 0010](../decisions/0010-inflight-budget.md): approved hard admission gate stays in place, while already-running work policy remains open.
+- [Parent group aggregation implementation contract](../architecture/parent-task-aggregation.md) and [Approved ADR 0009](../decisions/0009-parent-aggregation.md): group-only parents selected; optional-child and schema details remain open.
+- [In-flight execution implementation contract](../architecture/inflight-cost-policy.md) and [Approved ADR 0010](../decisions/0010-inflight-budget.md): enforceably bounded continuation or stop-on-risk selected; provider-specific caps and stop timing remain open.
 - [Initial Rust/SQLite engineering task packages](../development/initial-implementation-task-packages.md) and [test matrix](../development/rust-sqlite-test-matrix.md): proposals for future planning; not activated worker task nodes, not tested code.
 
 ## Decisions that are not open
 
-These have already been approved and must not be reopened by a worker without owner consent: Rust-only backend and SQLite-only authoritative database; one main agent creates a fully fixed task hierarchy and DAG before runtime; workers execute, not plan; dependencies govern parallelism; hard budget pause with explicit approval and no percentage overrun; preserve completed work; separate cost categories/scenarios; remote Git only; no Local Agent or personal-computer sync; GNU MIT license.
+These have already been approved and must not be reopened by a worker without owner consent: Rust-only backend and SQLite-only authoritative database; non-executable group parents and independently validated aggregate success; running workers limited to pre-reserved enforceable exposure or stop-on-risk; one main agent creates a fully fixed task hierarchy and DAG before runtime; workers execute, not plan; dependencies govern parallelism; hard budget pause with explicit approval and no percentage overrun; preserve completed work; separate cost categories/scenarios; remote Git only; no Local Agent or personal-computer sync; GNU MIT license.
 
 ## How to resolve a question
 
