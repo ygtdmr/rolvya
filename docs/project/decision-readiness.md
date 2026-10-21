@@ -25,7 +25,7 @@ Track which architectural decisions are approved and which are still proposals. 
 - [ADR 0009](../decisions/0009-parent-aggregation.md): Non-executable group parents aggregate independently validated child results; only planned executable leaves run workers.
 - [ADR 0010](../decisions/0010-inflight-budget.md): In-flight billable workers continue only within enforceably bounded, pre-reserved exposure; otherwise initiate stop-on-risk.
 
-## Engineering decisions awaiting owner approval
+## Open engineering implementation and rollout gates
 
 | Gate | Candidate approach | Evidence before approval |
 | --- | --- | --- |
