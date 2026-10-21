@@ -24,6 +24,8 @@ A worker receives a bounded task description, immutable DAG/task identity, compa
 ## Safety and reliability
 Remote workers should have project-scoped short-lived credentials, independent workspaces, memory/CPU quotas, network and command restrictions appropriate to code execution, redacted logs, auditable actions and revocable leases. Never put raw secrets in task prompts or commit them to Git. Runtime capacity must account for executable commands and CPU/RAM overhead—not only API latency.
 
+**Approved multi-provider architecture:** [ADR 0011](../decisions/0011-multi-provider-worker-infrastructure.md) requires multiple **remote** provider adapters behind one Rust scheduler/SQLite ledger, with the [approved HTTPS control channel](../decisions/0006-worker-communication.md). Any task routing/reassignment must respect its immutable plan, authorized provider accounts, attempt fencing, budget holds and model access mode. See [adapter contract](multi-provider-adapter-contract.md). Specific cloud adapters remain prospective, not deployed.
+
 ## Hosting candidates, not selections
 Third-party cloud workers, AWS and other provider services, and self-managed remote hosts were evaluated. Provider, operating system, sandbox tech, pooling/warm start and pricing models are still open. Any illustrative 20-worker or <=10-minute figures are **examples or planning targets**, not universal guarantees.
 
