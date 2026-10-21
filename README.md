@@ -29,7 +29,7 @@ These are planned capabilities. Their interfaces and implementation details will
 - **Backend:** Rust only for Rolvya-owned services and backend logic ([ADR 0004](docs/decisions/0004-control-plane-language.md)).
 - **Authoritative database:** SQLite only, accessed through the Rust backend ([ADR 0005](docs/decisions/0005-authoritative-database.md)).
 
-Other decisions, including worker communication, cloud provider, specific Rust crates, SQLite configuration and the frontend stack, remain under review. These choices are documented architectural approvals, **not yet implemented functionality**.
+Also **Approved**: worker-initiated HTTPS ([ADR 0006](docs/decisions/0006-worker-communication.md)), GitHub App authentication ([ADR 0008](docs/decisions/0008-github-authentication.md)) and extensible multi-provider remote workers ([ADR 0011](docs/decisions/0011-multi-provider-worker-infrastructure.md)). The **specific providers first shipped** ([ADR 0007](docs/decisions/0007-remote-worker-hosting.md)), Rust crates, HTTPS wire/auth settings, SQLite tuning and frontend stack remain under review. These architecture approvals are **not yet implemented functionality**.
 
 ## Core concepts (planned)
 
