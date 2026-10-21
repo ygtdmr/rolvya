@@ -1,6 +1,6 @@
 # Project status
 
-Last verified documentation checkpoint: 2026-10-20
+Last verified documentation checkpoint: 2026-10-21
 
 ## Phase
 **Specification / repository foundation.** No executable Rolvya orchestration implementation is verified by this document.
@@ -24,6 +24,9 @@ See [decision register](../decisions/README.md) for nuances.
 - Orchestrator, scheduler, worker runtime or adapters, UI, API, database or cloud infrastructure.
 - Production GitHub integrations, cost enforcement, approval workflow, or automated testing.
 - Deployment, releases, security and performance properties.
+
+## Architecture documentation progress (2026-10-21)
+Six proposed specifications were added: [overview](../architecture/overview.md), [DAG planning](../architecture/dag-planning.md), [execution](../architecture/execution.md), [workers](../architecture/workers.md), [budget and costs](../architecture/budget-costs.md), and [security](../architecture/security.md). These documents specify intended behavior only. Requirements coverage and historical decision reconciliation remain incomplete.
 
 ## Next documentation tasks
 1. Recover all prior approved architectural detail, confirm sources, and convert it into topic-specific specifications and ADRs.
