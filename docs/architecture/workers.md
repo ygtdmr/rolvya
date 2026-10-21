@@ -16,6 +16,8 @@ The main agent plans the full hierarchy once before execution, chooses an AI mod
 ## Access modes discussed
 CLI-based coding agents include Claude Code CLI and Codex CLI. A previously stated product constraint distinguished subscription-only users (CLI execution, where supported) from API-key users (API mode). The exact per-provider entitlement/legal constraints, security mechanism, compatibility, billing and model taxonomy need fresh verification before treating this as a complete adapter contract. Store model, effort and mode as explicit task fields.
 
+For the historical subscription-versus-API rule, entitlement boundaries and token optimization, see [CLI/API mode specification](model-access.md). Previous host sizing and cloud alternatives are described in [infrastructure options](../operations/infrastructure-options.md).
+
 ## Remote execution contract (proposed)
 A worker receives a bounded task description, immutable DAG/task identity, compact reference context, remote repository checkout scope, allowed operations, resource/time limits, secret references, verification criteria and output artifact destination. It returns lifecycle signals, test evidence, result manifests, Git refs, structured errors and measured billable usage.
 
