@@ -47,6 +47,8 @@ Authorization denied; invalid/expired lease; stale version; DAG validation error
 - Budget notification or acknowledgement never counts as approval.
 - Unauthorized worker cannot access another project's context.
 
+The optional transport-specific examples in [worker transport design](worker-transport-design.md) remain **Proposed**; no endpoints in that document are live. [Project identity and authorization](identity-authorization.md) describes proposed role boundaries and human approval authentication.
+
 ## Open decisions
 
 Transport and schema format, versioning, paging, streaming, authn/authz, rate limits, webhook semantics, worker polling vs push, and retry SLAs.
