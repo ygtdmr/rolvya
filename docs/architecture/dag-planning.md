@@ -58,4 +58,6 @@ For a failed node, the orchestrator diagnoses the error and may retry, alter eff
 4. Prevent a worker from inserting child tasks into the active DAG.
 5. Record reassignment and repeated attempts under the same task identity.
 
+The [task/attempt model](task-model.md) adds the proposed group-versus-executable policy and immutable-plan hashing; [main orchestrator](orchestrator.md) distinguishes planner model output from trusted Rust activation.
+
 Related: [architecture overview](overview.md), [execution](execution.md), [budget policy](budget-costs.md), [decision register](../decisions/README.md).
