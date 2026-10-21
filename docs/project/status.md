@@ -68,6 +68,12 @@ Ten new **Proposed** specifications were committed: [main orchestrator](../archi
 
 **These additions are documentation only.** The backend is still Rust-only by approved ADR 0004 and SQLite-only by approved ADR 0005. No executable software, SQLite migrations, live worker, GitHub App, or UI is verified. Parent-group aggregation, activation policy, Rust crate choices, in-flight worker budget behavior, HTTP/worker transport, hosting, authentication and MVP boundaries are still Open/Proposed.
 
+## Activation, hierarchical aggregation and first Rust/SQLite work packages (2026-10-21)
+
+Seven new documentation files were committed: [plan activation and versioning](../architecture/plan-activation-and-versioning.md), [parent task aggregation options](../architecture/parent-task-aggregation.md), [in-flight worker budget policy options](../architecture/inflight-cost-policy.md), [initial Rust and SQLite implementation task packages](../development/initial-implementation-task-packages.md), [Rust and SQLite verification matrix](../development/rust-sqlite-test-matrix.md), and **Proposed** [ADR 0009 — parent aggregation](../decisions/0009-parent-aggregation.md) and [ADR 0010 — in-flight worker budget](../decisions/0010-inflight-budget.md).
+
+These define candidate activation guards, distinct group vs dependency semantics, conservative billing choices, twelve future engineering packages (R00–R11) and 24 detailed future test cases (T-001–T-024). **No actual engineering task DAG has been activated; no backend implementation, migration, CI test or paid provider trial has been verified.** Rust-only backend and SQLite-only authoritative database remain approved. ADRs 0006–0010 and plan-version supersession/activation UX remain proposed or open.
+
 ## Next documentation tasks
 1. Recover all prior approved architectural detail, confirm sources, and convert it into topic-specific specifications and ADRs.
 2. Resolve remaining open questions (Rust crates/tooling, SQLite configuration, worker transport/providers, identities and approvals, deployment boundaries and UI) before implementation depends on them; Rust and SQLite selection are settled.
