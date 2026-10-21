@@ -20,9 +20,7 @@ Each question should ultimately have an owner decision, dated rationale, alterna
 
 | ID | Priority | Question | Candidate directions / decision criteria | Related specification |
 | --- | --- | --- | --- | --- |
-| OQ-001 | P0 | Main orchestrator implementation language/runtime? | Rust or other efficient compiled runtime; measured memory, deployment and maintainability | [Architecture](../architecture/overview.md) |
-| OQ-002 | P0 | Single authoritative DB engine and durability model? | SQLite / PostgreSQL / alternative; concurrent admissions, crash safety, 2–4 GB control VPS | [Data model](../architecture/data-model.md) |
-| OQ-003 | P0 | Atomic task lease + budget reservation transaction? | DB transaction/isolation, idempotent outbox, fencing epochs, delayed charges | [Scheduler](../architecture/scheduler.md) |
+| OQ-003 | P0 | SQLite-atomic task lease + budget reservation transaction? | Serialized SQLite write transaction, idempotent outbox, fencing epochs, delayed charges | [Scheduler](../architecture/scheduler.md) |
 | OQ-004 | P0 | Authentication, project roles and authorization? | Role policy, audit identity, tenant separation, human budget approval | [Security](../architecture/security.md) |
 | OQ-005 | P0 | Secrets storage and remote worker identity? | Secret-manager references, ephemeral worker identity, revocation, sandbox boundary | [Secrets](../operations/secrets.md) |
 | OQ-006 | P0 | Worker communication protocol and queue transport? | HTTP polling, RPC, queues; leases, late callbacks, duplication and failure testing | [Worker protocol](../architecture/worker-protocol.md) |
@@ -39,12 +37,16 @@ Each question should ultimately have an owner decision, dated rationale, alterna
 | OQ-017 | P1 | Parent task aggregation and failed descendant semantics? | Explicit hierarchy separate from dependency edges; deterministic verification | [DAG](../architecture/dag-planning.md) |
 | OQ-018 | P2 | Non-GitHub self-hosted remote Git adapters? | Provider compatibility and authorization, never local computer sync | [Git integration](../architecture/integration-github.md) |
 
+## Approved technology choices — no longer open
+
+- **OQ-001 closed 2026-10-21:** Rust is the **only** Rolvya backend language ([ADR 0004 — Approved](../decisions/0004-control-plane-language.md)). Rust frameworks/crates and performance benchmarks remain open implementation details.
+- **OQ-002 closed 2026-10-21:** SQLite is the **only** authoritative database engine ([ADR 0005 — Approved](../decisions/0005-authoritative-database.md)). SQLite transaction strategy, WAL configuration, schema, locking, backups and RPO/RTO are not yet approved.
+
 ## Candidate decision packages (not approved)
 
 | Open question | Proposed ADR | Evidence required before owner approval |
 | --- | --- | --- |
-| OQ-001 | [ADR 0004: language](../decisions/0004-control-plane-language.md) | Rust/Go prototype on identical small-VPS workload; measured RAM, CPU, correctness and developer effort |
-| OQ-002 / OQ-003 | [ADR 0005: persistence](../decisions/0005-authoritative-database.md) | SQLite/PostgreSQL concurrent reservation race, durable crash replay, RAM/lock/restore benchmark |
+| OQ-003 | [Approved ADR 0005: SQLite engine](../decisions/0005-authoritative-database.md) and [backend contract](../architecture/rust-sqlite-backend.md) | Test SQLite transactional lease/reservation, WAL/busy behavior, crash replay and ledger consistency; engine choice is closed |
 | OQ-006 | [ADR 0006: transport](../decisions/0006-worker-communication.md) | Remote HTTPS-pull vs alternatives under partitions, retries, auth and simulated load |
 | OQ-010 | [ADR 0007: hosting](../decisions/0007-remote-worker-hosting.md) | Real workloads on two provider modes, regional billable minimums and full cost categories |
 | OQ-007 | [ADR 0008: GitHub access](../decisions/0008-github-authentication.md) | Verified permission matrix, revocation, isolated refs and owner review |
@@ -53,7 +55,7 @@ The [implementation slice proposal](implementation-slices.md) explicitly blocks 
 
 ## Decisions that are not open
 
-These have already been approved and must not be reopened by a worker without owner consent: one main agent creates a fully fixed task hierarchy and DAG before runtime; workers execute, not plan; dependencies govern parallelism; hard budget pause with explicit approval and no percentage overrun; preserve completed work; separate cost categories/scenarios; remote Git only; no Local Agent or personal-computer sync; GNU MIT license.
+These have already been approved and must not be reopened by a worker without owner consent: Rust-only backend and SQLite-only authoritative database; one main agent creates a fully fixed task hierarchy and DAG before runtime; workers execute, not plan; dependencies govern parallelism; hard budget pause with explicit approval and no percentage overrun; preserve completed work; separate cost categories/scenarios; remote Git only; no Local Agent or personal-computer sync; GNU MIT license.
 
 ## How to resolve a question
 
