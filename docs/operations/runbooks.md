@@ -27,7 +27,7 @@ These are **pre-deployment operational playbooks**. They contain logic and safet
 
 **Expected behavior:** pause admission of new billable work; retain succeeded artifacts, pending task DAG and remaining cost ledger; display spent/reserved/remaining and the four cost categories.
 
-**Steps:** identify whether unknown invoice lag or unreconciled reservations caused the stop; verify actual approved ceiling; notify owner with optimistic/expected/pessimistic forecast and the specific increase requested; await explicit authenticated approval or retain paused state. Never add a percentage buffer or silently increase the ceiling. Any in-flight execution stop policy remains open and must not be fabricated.
+**Steps:** identify whether unknown invoice lag or unreconciled reservations caused the stop; verify actual approved ceiling; notify owner with optimistic/expected/pessimistic forecast and the specific increase requested; await explicit authenticated approval or retain paused state. Never add a percentage buffer or silently increase the ceiling. **Approved ADR 0010:** previously reserved running workers may continue only if their full remaining exposure is verifiably bounded and covered; otherwise persist stop-on-risk, fence the lease, request provider cancellation and reconcile delayed charges/Git side effects. Do not assume provider cancellation immediately ends billing.
 
 **Exit:** only a new approved ceiling, reconciled exposure, and all other eligibility checks can resume billable admission.
 
@@ -84,6 +84,6 @@ These are **pre-deployment operational playbooks**. They contain logic and safet
 
 ## Open decisions
 
-On-call ownership, alert destinations, escalation timing, specific provider commands, RPO/RTO, incident severity definitions, human authorization UX and in-flight cancellation policy.
+On-call ownership, alert destinations, escalation timing, specific provider commands, RPO/RTO, incident severity definitions, human authorization UX and provider-specific cancellation limits, latency and recovery mechanisms. The bounded-or-stop policy itself is approved.
 
 Related: [observability](../architecture/observability.md), [backup recovery](backup-recovery.md), [worker lifecycle](worker-lifecycle.md), [engineering standards](../development/standards.md).
