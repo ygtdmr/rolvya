@@ -47,7 +47,7 @@ stateDiagram-v2
   canceled --> [*]
 ```
 
-A budget pause prevents **new billable attempt admission**; it is not inherently a task failure. A running attempt may continue or be stopped based on a separately approved in-flight spending policy. That policy remains open, so no automatic rule is asserted here.
+A budget pause prevents **new billable attempt admission**; it is not inherently a task failure. **Approved ADR 0010:** an already-running attempt may continue only within a demonstrably enforceable pre-reserved exposure; if full future exposure can no longer be safely bounded, initiate stop-on-risk, fence the lease, cancel provider execution where possible and reconcile costs/side effects. External cancellation does not guarantee no final provider charge.
 
 ## Transition authorization and guards
 
@@ -62,7 +62,7 @@ A budget pause prevents **new billable attempt admission**; it is not inherently
 | any nonterminal → canceled | authorized user or policy request; remote side effects reconciled | controller |
 | any → failed | failure deemed terminal with recorded reason | orchestrator |
 
-No worker is allowed to write a task's authoritative terminal status directly. If the prerequisite graph contains parent tasks, define explicit aggregation rules rather than assuming hierarchy implies dependency.
+No worker is allowed to write a task's authoritative terminal status directly. **Approved ADR 0009:** only executable leaves may be leased. Group parents receive no execution attempt and become validated succeeded only after required child outcomes plus group acceptance are independently proven. An explicit predecessor edge to a group waits for validated aggregate success; hierarchy alone adds no prerequisite.
 
 ## Admission algorithm (illustrative pseudocode)
 
@@ -95,7 +95,7 @@ If reservation or capacity fails, record the specific blocker and keep the task 
 
 ## Fairness and throughput questions
 
-Priority rules, aging, per-project fairness, global and provider concurrency limits, starvation mitigation, batching, lease durations, worker warm-pool charges and cancellation semantics require ADRs before coding. A 10-minute worker task remains a *sizing target*, not an approved timeout.
+Priority rules, aging, per-project fairness, global and provider concurrency limits, starvation mitigation, batching, lease durations, warm-pool charges and **provider-specific stop implementation/timing** require further decisions. The *bounded-or-stop* spending policy is already approved. A 10-minute worker task remains a *sizing target*, not an approved timeout.
 
 ## Verification cases
 
@@ -108,5 +108,7 @@ Priority rules, aging, per-project fairness, global and provider concurrency lim
 - Worker never creates a new task node.
 
 The [main orchestrator](orchestrator.md) distinguishes model-led diagnosis from Rust-enforced admission, and the [human approval workflow](approval-workflow.md) distinguishes a pending request from an applied authenticated ceiling increase.
+
+See [approved parent aggregation](../decisions/0009-parent-aggregation.md) and [approved in-flight spending](../decisions/0010-inflight-budget.md) for mandatory scheduling rules.
 
 Related: [DAG planning](dag-planning.md), [execution](execution.md), [worker protocol](worker-protocol.md), [failure recovery](failure-recovery.md), [budget](budget-costs.md), [data model](data-model.md), [testing](../development/testing.md).
