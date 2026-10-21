@@ -40,6 +40,8 @@ tags: [testing, ci, reliability, security]
 
 Use deterministic fake model/CLI adapters, fake remote Git provider, virtual worker clocks and controllable cloud billing streams. Simulate late usage, duplicated callbacks, interrupted lease renewals and unreliable networks. Reserve live-provider tests for explicit controlled environments with an approved project cost cap. Never rely on a live provider to test denied approvals.
 
+The [remote worker transport design](../architecture/worker-transport-design.md), [GitHub App security design](../architecture/github-app-integration-design.md) and [budget reconciliation](../architecture/budget-reservation-reconciliation.md) add negative tests for provider automatic retries, ambiguous remote write outcomes, protected-branch access and unknown delayed invoices. Such tests are future requirements, **not executed evidence**.
+
 ## Example scenarios
 
 - Thousands of randomly generated small DAGs must reject cycles and accept valid dependency order.
