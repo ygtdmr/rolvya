@@ -15,7 +15,7 @@ A single main planning agent breaks a user request into a top-level task, arbitr
 - **Dependency:** directed prerequisite edge says one task must finish before another becomes eligible. Hierarchy is *not automatically* an execution dependency; the planner must represent both explicitly.
 - **Ready:** every required predecessor has met the documented success conditions; the task has valid execution resources and budget authorization.
 - **Parallelism:** ready tasks without conflicting dependencies may execute simultaneously, subject to resource and integration isolation.
-- **Completion:** executable leaf task success requires validated outputs; parent status follows an explicit aggregation rule. The exact implementation/state names remain to be approved.
+- **Completion:** executable leaf task success requires independently validated outputs. **Approved ADR 0009**: a parent is a non-executable group and becomes validated succeeded only after all required descendants and applicable group acceptance criteria are validated. No parent receives a worker attempt.
 
 ## Example (illustrative, not prescribed structure)
 ```mermaid
@@ -58,6 +58,6 @@ For a failed node, the orchestrator diagnoses the error and may retry, alter eff
 4. Prevent a worker from inserting child tasks into the active DAG.
 5. Record reassignment and repeated attempts under the same task identity.
 
-The [task/attempt model](task-model.md) adds the proposed group-versus-executable policy and immutable-plan hashing; [main orchestrator](orchestrator.md) distinguishes planner model output from trusted Rust activation.
+The [task/attempt model](task-model.md) defines the approved group-only parent versus executable-leaf policy and immutable-plan hashing; [main orchestrator](orchestrator.md) distinguishes planner model output from trusted Rust activation.
 
 Related: [architecture overview](overview.md), [execution](execution.md), [budget policy](budget-costs.md), [decision register](../decisions/README.md).
