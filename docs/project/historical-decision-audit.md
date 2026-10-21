@@ -58,6 +58,8 @@ A more detailed traceability matrix is now available at [Two-conversation covera
 
 The deeper audit also records previously under-detailed user discussions about **model subscription/API eligibility, scheduler ranking and cloud hardware, retry/escalation diagrams, main-planner and worker token optimization, synthetic multi-scenario billing arithmetic, brand evolution and the mistaken MIT reference**. The corresponding topic specifications are linked from the new matrix. It still **does not claim full line-by-line access to both original chat exports**.
 
+Historical diagrams also used individual illustrative model-duration figures (for example, a larger 30–60-minute planning activity alongside short ~2-minute worker examples) and named main-agent/orchestrator roles. A past mention of **“Rhynda”** as a question about who plans is **not evidence of a finalized component or product name**. Such examples must not override the Approved ~10-minute worker sizing preference, fixed up-front plan, non-executable group parents or settled Rolvya brand.
+
 ## Audit maintenance
 
 When another historical decision is recovered, record: approximate discussion date, claim, user approval evidence, current status, normative destination, verification/test linkage and unresolved implications. Do not copy illustrative pricing or provider capacity into binding requirements.
