@@ -23,10 +23,8 @@ Each question should ultimately have an owner decision, dated rationale, alterna
 | OQ-003 | P0 | SQLite-atomic task lease + budget reservation transaction? | Serialized SQLite write transaction, idempotent outbox, fencing epochs, delayed charges | [Scheduler](../architecture/scheduler.md) |
 | OQ-004 | P0 | Authentication, project roles and authorization? | Role policy, audit identity, tenant separation, human budget approval | [Security](../architecture/security.md) |
 | OQ-005 | P0 | Secrets storage and remote worker identity? | Secret-manager references, ephemeral worker identity, revocation, sandbox boundary | [Secrets](../operations/secrets.md) |
-| OQ-006 | P0 | Worker communication protocol and queue transport? | HTTP polling, RPC, queues; leases, late callbacks, duplication and failure testing | [Worker protocol](../architecture/worker-protocol.md) |
-| OQ-007 | P0 | GitHub/provider authentication and merge authority? | GitHub App vs delegated OAuth; least privilege, isolated branches, review gates | [Git integration](../architecture/integration-github.md) |
 | OQ-008 | P0 | Provider-valid CLI subscription versus API access rules? | Terms, supported automation, tokens and billing by provider/model | [Model access](../architecture/model-access.md) |
-| OQ-010 | P1 | Cloud worker providers and container/sandbox setup? | Cost vs startup/CPU isolation, reliability, region and user-provided remote servers | [Infrastructure](../operations/infrastructure-options.md) |
+| OQ-010 | P1 | Which concrete remote worker providers, regions and sandbox modes ship first? | Multi-provider architecture **Approved ADR 0011**; validate each vendor's cost bounds, isolation, startup and billed reconciliation | [ADR 0007 — initial provider selection](../decisions/0007-remote-worker-hosting.md) |
 | OQ-011 | P1 | Worker lease TTL, heartbeat/retry and timeouts? | Benchmark-backed defaults, fenced attempts, quotas and non-idempotent writes | [Recovery](../architecture/failure-recovery.md) |
 | OQ-012 | P1 | Context packaging, token quotas and task handoff format? | Provider-specific adapters, compact references, provenance, truncation detection | [Context](../architecture/context-memory.md) |
 | OQ-013 | P1 | UI stack, roles and plan approval interactions? | Budget approval security, task graph readability and accessibility | [User flows](../product/user-flows.md) |
@@ -34,6 +32,12 @@ Each question should ultimately have an owner decision, dated rationale, alterna
 | OQ-015 | P1 | CI merge gates, review roles and release process? | Test scope, human security signoff, branch protection, MIT compliance | [Review](../development/review-process.md) |
 | OQ-016 | P1 | Alert delivery, monitoring stack and audit retention? | Low overhead, integrity, tenant privacy, noise controls | [Observability](../architecture/observability.md) |
 | OQ-018 | P2 | Non-GitHub self-hosted remote Git adapters? | Provider compatibility and authorization, never local computer sync | [Git integration](../architecture/integration-github.md) |
+
+## Recently approved remote integration architecture — no longer open
+
+- **OQ-006 closed 2026-10-21:** [ADR 0006 — Approved](../decisions/0006-worker-communication.md). Worker control uses remote-worker-initiated HTTPS pull/claim/heartbeat/result with SQLite durable outbox; exact Rust library, authentication, payload and timing remain implementation choices.
+- **OQ-007 (GitHub auth selection) closed 2026-10-21:** [ADR 0008 — Approved](../decisions/0008-github-authentication.md). GitHub integration uses GitHub App installations with a trusted Rust Git publisher. Exact endpoint grants, merge authority and owner permissions remain open security details covered by OQ-004/005/015.
+- **Multi-provider architecture Approved:** [ADR 0011](../decisions/0011-multi-provider-worker-infrastructure.md) requires extensible Rust adapters supporting different remote providers, not a single cloud implementation. **OQ-010 remains open only for initial concrete vendors, regions, provider setup and benchmarking.**
 
 ## Recently approved execution policies — no longer open
 
@@ -50,15 +54,13 @@ Each question should ultimately have an owner decision, dated rationale, alterna
 | Open question | Proposed ADR | Evidence required before owner approval |
 | --- | --- | --- |
 | OQ-003 | [Approved ADR 0005: SQLite engine](../decisions/0005-authoritative-database.md) and [backend contract](../architecture/rust-sqlite-backend.md) | Test SQLite transactional lease/reservation, WAL/busy behavior, crash replay and ledger consistency; engine choice is closed |
-| OQ-006 | [ADR 0006: transport](../decisions/0006-worker-communication.md) | Remote HTTPS-pull vs alternatives under partitions, retries, auth and simulated load |
-| OQ-010 | [ADR 0007: hosting](../decisions/0007-remote-worker-hosting.md) | Real workloads on two provider modes, regional billable minimums and full cost categories |
-| OQ-007 | [ADR 0008: GitHub access](../decisions/0008-github-authentication.md) | Verified permission matrix, revocation, isolated refs and owner review |
+| OQ-010 | [ADR 0007: first provider rollout](../decisions/0007-remote-worker-hosting.md) with [Approved ADR 0011](../decisions/0011-multi-provider-worker-infrastructure.md) | Benchmark initial provider adapters on billable minimums, latency, isolation, region and four cost classes; extensibility itself is settled |
 
-The [implementation slice proposal](implementation-slices.md) explicitly blocks production coding on unresolved critical choices. These ADRs have `status: Proposed` until explicit owner authorization is recorded.
+The [implementation slice proposal](implementation-slices.md) explicitly blocks production coding on unresolved critical choices. ADR 0007 remains `status: Proposed` for initial provider rollout. ADR 0006 (HTTPS), ADR 0008 (GitHub App) and ADR 0011 (multi-provider) are now `status: Approved`; only their concrete contracts/enrollment and security details remain to be implemented.
 
 ## Decision package for remaining technology ADRs
 
-The [transport / Git / worker hosting decision pack](transport-git-hosting-decision-pack.md) summarizes owner choices for **OQ-006 / ADR 0006**, **OQ-007 / ADR 0008** and **OQ-010 / ADR 0007**. Its associated drafts are the [versioned worker wire contract](../architecture/worker-wire-contract-draft.md), [remote Git publisher contract](../architecture/git-remote-integration-contract.md), [worker lifecycle and cost reconciliation](../operations/remote-worker-lifecycle-contract.md) and [remote integration test suite](../development/remote-integration-test-matrix.md). All remain **Proposed**, not approved implementation choices. Paid benchmarks require independent explicit test-budget authorization.
+The [transport / Git / worker hosting decision pack](transport-git-hosting-decision-pack.md) records **Approved ADR 0006 (HTTPS), ADR 0008 (GitHub App) and ADR 0011 (multi-provider architecture)**, while tracking the **still-open OQ-010 / Proposed ADR 0007** initial provider rollout. Its associated drafts are the [versioned worker wire contract](../architecture/worker-wire-contract-draft.md), [remote Git publisher contract](../architecture/git-remote-integration-contract.md), [worker lifecycle and cost reconciliation](../operations/remote-worker-lifecycle-contract.md) and [remote integration test suite](../development/remote-integration-test-matrix.md). Their detailed wire/configuration schemas remain **Proposed**, while the core transport/authentication/multi-provider architecture choices are **Approved**. Paid benchmarks require independent explicit test-budget authorization.
 
 ## Detailed evaluation specifications
 
