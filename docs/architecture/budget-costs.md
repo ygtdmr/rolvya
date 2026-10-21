@@ -31,7 +31,7 @@ For each task: model/API token range, chosen effort, anticipated retries, worker
 Show estimated optimistic/expected/pessimistic overall and category-level costs, ceiling, spent/reserved/remaining, the exact reason admission paused, completed tasks, and an explicit budget increase action. Approval must not be inferred from a notification acknowledgment.
 
 ## Open technical decisions
-Currency conversion, taxes, pricing source freshness, reservation release policy, prepaid/CLI subscription attribution, in-flight overrun behavior, cost correction/refunds, multi-project budget isolation, offline provider metering and the exact transaction isolation of the ledger.
+Currency conversion, taxes, pricing source freshness, reservation release policy, prepaid/CLI subscription attribution, **provider-specific enforcement of Approved bounded-or-stop ADR 0010**, cost correction/refunds, multi-project budget isolation, offline provider metering and detailed SQLite transaction implementation. **The in-flight policy choice itself is closed.**
 
 ## Required future acceptance tests
 - Two concurrent admissions never collectively reserve beyond remaining budget.
@@ -41,6 +41,6 @@ Currency conversion, taxes, pricing source freshness, reservation release policy
 - Cost reports distinguish four categories and three forecast scenarios.
 - No configured percentage buffer bypasses the hard gate.
 
-Detailed **Proposed** accounting safeguards—including SQLite atomic holds, unknown provider invoices, cloud automatic retries and the open in-flight worker policy—are in [budget reservation and reconciliation](budget-reservation-reconciliation.md). The hard explicit-approval policy itself is **Approved**.
+Detailed **Proposed** accounting mechanics—including SQLite atomic holds, unknown provider invoices and cloud automatic retries, implementing **Approved ADR 0010**—are in [budget reservation and reconciliation](budget-reservation-reconciliation.md). A transparent hypothetical 40-task, four-category, three-scenario example and separate hard admission calculations are in [worked cost examples](cost-scenario-worked-examples.md). The hard explicit-approval policy itself is **Approved**.
 
 Related: [overview](overview.md), [execution](execution.md), [decision register](../decisions/README.md).
