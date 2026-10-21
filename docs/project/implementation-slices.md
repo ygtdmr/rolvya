@@ -16,6 +16,8 @@ No code implementation, worker deployment, provider integration or passing CI is
 
 The [decision readiness checklist](decision-readiness.md) separates approved architecture from transport/provider/security approvals, and the [worker provider evaluation](../operations/worker-provider-evaluation.md) specifies billable benchmark requirements.
 
+**Updated approved choices (2026-10-21):** [ADR 0006](../decisions/0006-worker-communication.md) fixes worker-initiated HTTPS; [ADR 0008](../decisions/0008-github-authentication.md) fixes GitHub App; [ADR 0011](../decisions/0011-multi-provider-worker-infrastructure.md) requires extensible multi-provider Rust adapters. [ADR 0007](../decisions/0007-remote-worker-hosting.md) remains Proposed for **which specific providers/regions to implement first**, not the common architecture. See [multi-provider adapter contract](../architecture/multi-provider-adapter-contract.md). Exact identity, permissions and wire/configuration remain implementation choices.
+
 ## Mandatory foundations before implementation
 
 1. **Rust-only backend and SQLite database are approved** by [ADR 0004](../decisions/0004-control-plane-language.md) and [ADR 0005](../decisions/0005-authoritative-database.md). Resolve remaining worker communication and initial hosting choices using [proposed ADRs 0006–0008](../decisions/README.md) and the [open-decision register](open-questions.md).
