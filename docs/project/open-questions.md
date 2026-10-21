@@ -23,15 +23,18 @@ Each question should ultimately have an owner decision, dated rationale, alterna
 | OQ-003 | P0 | SQLite-atomic task lease + budget reservation transaction? | Serialized SQLite write transaction, idempotent outbox, fencing epochs, delayed charges | [Scheduler](../architecture/scheduler.md) |
 | OQ-004 | P0 | Authentication, project roles and authorization? | Role policy, audit identity, tenant separation, human budget approval | [Security](../architecture/security.md) |
 | OQ-005 | P0 | Secrets storage and remote worker identity? | Secret-manager references, ephemeral worker identity, revocation, sandbox boundary | [Secrets](../operations/secrets.md) |
-| OQ-008 | P0 | Provider-valid CLI subscription versus API access rules? | Terms, supported automation, tokens and billing by provider/model | [Model access](../architecture/model-access.md) |
+| OQ-008 | P0 | Provider-valid subscription CLI vs API usage on unattended third-party remote workers? | Check official current terms, owner entitlement, secure CLI/OAuth delegation, no silent paid fallback | [CLI/API entitlement contract](../architecture/model-access-entitlement-contract.md), [dated official evidence](../reference/provider-cli-api-policy-evidence.md) |
 | OQ-010 | P1 | Which concrete remote worker providers, regions and sandbox modes ship first? | Multi-provider architecture **Approved ADR 0011**; validate each vendor's cost bounds, isolation, startup and billed reconciliation | [ADR 0007 — initial provider selection](../decisions/0007-remote-worker-hosting.md) |
-| OQ-011 | P1 | Worker lease TTL, heartbeat/retry and timeouts? | Benchmark-backed defaults, fenced attempts, quotas and non-idempotent writes | [Recovery](../architecture/failure-recovery.md) |
-| OQ-012 | P1 | Context packaging, token quotas and task handoff format? | Provider-specific adapters, compact references, provenance, truncation detection | [Context](../architecture/context-memory.md) |
+| OQ-011 | P1 | Worker lease TTL, heartbeat/retry limits/timeouts and model/resource escalation? | Historical 1/3/10 minute & three-attempt graphic is nonbinding; test idempotency, provider costs, fair retry policy | [Retry and escalation](../architecture/retry-escalation-policy.md) |
+| OQ-012 | P1 | Planner and worker context packaging, token quotas and handoffs? | Minimize tokens in **both** phases, retain required constraints, version hashes and prior verified artifacts | [Token efficiency](../architecture/token-context-efficiency.md) |
 | OQ-013 | P1 | UI stack, roles and plan approval interactions? | Budget approval security, task graph readability and accessibility | [User flows](../product/user-flows.md) |
 | OQ-014 | P1 | Backup RPO/RTO, encryption and retention? | Risk to approvals/ledger/artifacts, restore exercises, storage cost | [Backups](../operations/backup-recovery.md) |
 | OQ-015 | P1 | CI merge gates, review roles and release process? | Test scope, human security signoff, branch protection, MIT compliance | [Review](../development/review-process.md) |
 | OQ-016 | P1 | Alert delivery, monitoring stack and audit retention? | Low overhead, integrity, tenant privacy, noise controls | [Observability](../architecture/observability.md) |
 | OQ-018 | P2 | Non-GitHub self-hosted remote Git adapters? | Provider compatibility and authorization, never local computer sync | [Git integration](../architecture/integration-github.md) |
+
+| OQ-019 | P2 | Which exact accepted logo source file/SVG, final no-gold HEX values and brand-use policy are authoritative? | Obtain original approved asset and provenance; avoid redrawing, superseded brass and trademark assumptions | [Brand history](../product/brand-history-license-governance.md) |
+| OQ-020 | P1 | Which scheduler ranking/fairness weights, Spot/On-Demand fallback and capacity limits are permitted? | Evaluate priority, duration, CPU/RAM, quota, region, latency, reliability and enforceable costs; no diagram's 20-worker limit treated as default | [Selection policy](../architecture/scheduler-selection-policy.md) |
 
 ## Recently approved remote integration architecture — no longer open
 
@@ -93,6 +96,6 @@ These have already been approved and must not be reopened by a worker without ow
 
 ## Coverage limitations
 
-Previous conversation summaries and diagrams may omit specific wording. The [historical decision audit](historical-decision-audit.md) documents the currently available evidence and its limitations; missing provenance must be marked unknown, not invented.
+Previous conversation summaries and diagrams may omit specific wording. The [historical decision audit](historical-decision-audit.md) and [2026-10-22 two-conversation evidence matrix](two-conversation-coverage-audit.md) document recovered evidence and its limits; full original chat exports were **not accessible** for literal message-by-message verification. Missing provenance must be marked unknown, not invented.
 
 Related: [documentation index](../README.md), [project status](status.md), [review process](../development/review-process.md), [decision register](../decisions/README.md).
