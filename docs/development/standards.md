@@ -10,7 +10,7 @@ tags: [engineering, agents, standards, security]
 
 ## Purpose and decision boundary
 
-Rolvya will be implemented by AI coding agents under human direction. This document proposes **engineering execution standards**, not a final programming language, framework, repository layout, or deployed CI configuration. The [approved decision register](../decisions/README.md), [product requirements](../product/requirements.md) and [agent instructions](../../AGENTS.md) supersede unapproved examples here.
+Rolvya will be implemented by AI coding agents under human direction. This document proposes **engineering execution standards**. **Rust is the approved sole backend implementation language and SQLite the approved authoritative database**; specific Rust crates/framework, SQLite settings, repository layout and deployed CI configuration remain undecided. The [approved decision register](../decisions/README.md), [product requirements](../product/requirements.md) and [agent instructions](../../AGENTS.md) supersede unapproved examples here.
 
 ## Pre-work reading and authorization
 
@@ -73,4 +73,4 @@ An agent must not claim completion unless its deliverables, reproducible tests, 
 
 ## Open decisions
 
-Concrete implementation language, style/linter tooling, code-owner/branch protection policy, approved commit convention, coverage thresholds, performance SLOs and automated CI enforcement remain unselected.
+Rust edition/toolchain, framework/crates, SQLite driver/WAL/migrations, style/linter tooling, code-owner/branch protection policy, approved commit convention, coverage thresholds, performance SLOs and automated CI enforcement remain unselected. **Backend Rust and SQLite database engines are settled.**
