@@ -18,7 +18,7 @@ The backend is definitively Rust, the authoritative database SQLite. Other runti
 
 | Phase | Goal | Entry gate | Exit evidence |
 | --- | --- | --- | --- |
-| P0 — Decision readiness | Resolve high-risk auth, transport, in-flight budget and remote Git write policies | Approved Rust/SQLite baseline | Owner-approved ADRs, threat model and explicit test budget |
+| P0 — Decision readiness | Resolve high-risk auth, transport and remote Git writes; implement the **already Approved** group-only and bounded-or-stop policy | Approved Rust/SQLite and ADRs 0009/0010 | Remaining owner-approved ADRs, threat model and explicit test budget |
 | P1 — Rust+SQLite deterministic core | Immutable graph, task/attempt domain, budget admission, outbox and persistence | Defined domain and SQLite transaction contract | Property and concurrency tests on fake workload, crash replay |
 | P2 — Fake remote-worker integration | Validate network and execution protocol without paid providers | P1 passes, authenticated test channel | Independent fake tasks complete, dependent task waits, stale responses fenced |
 | P3 — Real remote worker and Git sandbox | Run an isolated remote worker, publish reviewable remote Git refs | Provider/legal access, live-spend approval and remote Git authorization | Actual job and Git refs, measured cost, clean worker termination, no local sync |
