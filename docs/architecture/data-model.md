@@ -10,7 +10,7 @@ tags: [database, persistence, dag, ledger]
 
 ## Decision boundary
 
-**Approved decisions:** the backend is **Rust only** ([ADR 0004](../decisions/0004-control-plane-language.md)), and the one authoritative database is **SQLite only** ([ADR 0005](../decisions/0005-authoritative-database.md)). Low memory/energy usage and fast requests matter; persist full upfront DAG plans, context, model/effort assignments, states, attempts, costs and approvals. The main control VPS target discussed was 2–4 GB RAM. **Open implementation details:** SQLite physical schema, WAL/durability configuration, foreign-key/index strategy, tenancy, migration and backup intervals, transaction code and remote database file placement. This file proposes a logical schema; see the [Rust + SQLite backend contract](rust-sqlite-backend.md) for detailed design.
+**Approved decisions:** the backend is **Rust only** ([ADR 0004](../decisions/0004-control-plane-language.md)), and the one authoritative database is **SQLite only** ([ADR 0005](../decisions/0005-authoritative-database.md)). Low memory/energy usage and fast requests matter; persist full upfront DAG plans, context, model/effort assignments, states, attempts, costs and approvals. The main control VPS target discussed was 2–4 GB RAM. **Open implementation details:** SQLite physical schema, WAL/durability configuration, foreign-key/index strategy, tenancy, migration and backup intervals, transaction code and remote database file placement. This file proposes a logical schema; see the [Rust + SQLite backend contract](rust-sqlite-backend.md) and [SQLite schema draft](sqlite-schema-draft.md) for detailed but still proposed implementation design.
 
 ## Domain entities and relationships
 
