@@ -18,6 +18,8 @@ All Markdown documentation follows the [Obsidian-compatible documentation policy
 
 ## Historical decision reconciliation
 
+- [Two-conversation decision coverage audit (2026-10-22)](project/two-conversation-coverage-audit.md)
+
 - [Historical conversation-to-document audit](project/historical-decision-audit.md)
 - [Brand, repository and MIT positioning](product/brand-positioning.md)
 - [CLI/API mode constraints](architecture/model-access.md)
@@ -26,6 +28,7 @@ All Markdown documentation follows the [Obsidian-compatible documentation policy
 ## Product and quality specifications now available
 
 - [Product vision and success principles](product/vision.md)
+- [Brand evolution, superseded gold palette and MIT correction](product/brand-history-license-governance.md)
 - [Product scope, exclusions and MVP candidates](product/scope.md)
 
 - [Product requirements](product/requirements.md)
@@ -37,6 +40,7 @@ All Markdown documentation follows the [Obsidian-compatible documentation policy
 
 - [System overview](architecture/overview.md)
 - [Main orchestrator responsibilities](architecture/orchestrator.md)
+- [Retry escalation and recovery policy](architecture/retry-escalation-policy.md)
 - [Plan activation and version boundaries](architecture/plan-activation-and-versioning.md)
 - [Approved group-parent aggregation implementation contract](architecture/parent-task-aggregation.md)
 - [Hierarchy and task/attempt model](architecture/task-model.md)
@@ -44,6 +48,7 @@ All Markdown documentation follows the [Obsidian-compatible documentation policy
 - [DAG planning](architecture/dag-planning.md)
 - [Execution lifecycle](architecture/execution.md)
 - [Scheduler state machine](architecture/scheduler.md)
+- [Multi-provider scheduler eligibility and selection](architecture/scheduler-selection-policy.md)
 - [Worker control protocol](architecture/worker-protocol.md)
 - [Remote worker transport design](architecture/worker-transport-design.md)
 - [Multi-provider Rust worker adapter contract](architecture/multi-provider-adapter-contract.md)
@@ -53,6 +58,7 @@ All Markdown documentation follows the [Obsidian-compatible documentation policy
 - [Remote workers and models](architecture/workers.md)
 - [Budget and costs](architecture/budget-costs.md)
 - [Budget reservation and reconciliation](architecture/budget-reservation-reconciliation.md)
+- [Worked three-scenario, four-category cost examples](architecture/cost-scenario-worked-examples.md)
 - [Approved bounded in-flight worker policy contract](architecture/inflight-cost-policy.md)
 - [Security model](architecture/security.md)
 - [Project identity and authorization](architecture/identity-authorization.md)
@@ -64,7 +70,9 @@ All Markdown documentation follows the [Obsidian-compatible documentation policy
 - [Rust + SQLite backend contract](architecture/rust-sqlite-backend.md)
 - [Proposed Rust workspace boundaries](architecture/rust-workspace.md)
 - [SQLite schema and atomic admission draft](architecture/sqlite-schema-draft.md)
+- [Model entitlement and CLI/API access](architecture/model-access-entitlement-contract.md)
 - [Agent context and memory](architecture/context-memory.md)
+- [Planner and worker token efficiency](architecture/token-context-efficiency.md)
 - [API and event contracts](architecture/api-contracts.md)
 
 These are **proposed architectural specifications**, not verified implementations or evidence that every prior decision has been recovered.
@@ -122,6 +130,7 @@ The paths above are a **planned inventory**, not links to files that already exi
 - [Product delivery roadmap](project/roadmap.md)
 - [Milestone definitions and evidence gates](project/milestones.md)
 - [Architecture glossary](reference/glossary.md)
+- [Current Claude/Codex CLI and API terms evidence](reference/provider-cli-api-policy-evidence.md)
 
 **Approved 2026-10-21:** ADR 0004 (Rust), 0005 (SQLite), 0006 (worker HTTPS), 0008 (GitHub App), 0009 (group-only parents), 0010 (bounded-or-stop) and 0011 (multi-provider worker adapters). **ADR 0007 remains Proposed only for initial provider/vendor rollout and cost benchmarking**; concrete HTTP/security/adapter implementation details are also open. See [open technical questions](project/open-questions.md).
 
