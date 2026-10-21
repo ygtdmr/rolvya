@@ -107,4 +107,6 @@ Priority rules, aging, per-project fairness, global and provider concurrency lim
 - Late, fenced attempt cannot publish a successful terminal outcome.
 - Worker never creates a new task node.
 
+The [main orchestrator](orchestrator.md) distinguishes model-led diagnosis from Rust-enforced admission, and the [human approval workflow](approval-workflow.md) distinguishes a pending request from an applied authenticated ceiling increase.
+
 Related: [DAG planning](dag-planning.md), [execution](execution.md), [worker protocol](worker-protocol.md), [failure recovery](failure-recovery.md), [budget](budget-costs.md), [data model](data-model.md), [testing](../development/testing.md).
