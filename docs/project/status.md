@@ -31,6 +31,9 @@ The initial six proposed specifications were added: [overview](../architecture/o
 ## Product and verification specifications (2026-10-21)
 Three proposed documents were added: [product requirements](../product/requirements.md), [acceptance criteria](../product/acceptance-criteria.md) and [testing strategy](../development/testing.md). They establish traceable future behavior and verification cases, **not** completed implementation or executed tests.
 
+## Git integration and recorded ADRs (2026-10-21)
+The proposed [remote Git integration specification](../architecture/integration-github.md) and three approved-decision ADRs were documented: [fixed upfront DAG](../decisions/0001-fixed-upfront-dag.md), [hard budget approvals](../decisions/0002-hard-budget-approval.md), and [remote Git only](../decisions/0003-remote-git-only.md). These capture decisions and planned contracts, not implemented integrations.
+
 ## Next documentation tasks
 1. Recover all prior approved architectural detail, confirm sources, and convert it into topic-specific specifications and ADRs.
 2. Resolve open questions (technologies, interfaces, deployment boundaries, worker providers, identity/security, persistence and approval UX) before implementation depends on them.
