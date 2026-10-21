@@ -54,6 +54,8 @@ Exact GitHub App permissions, authentication grant flow and rotation process req
 - App installation revoked mid-run → block new privileged actions and preserve validated sibling work.
 - No operation may reach a local repository or personal-computer agent.
 
+The [trusted remote Git publication contract](../architecture/git-remote-integration-contract.md) details repo identity, scoped App token handling, branch policy, lost-write response and privileged integration. This remains a **Proposed** GitHub App candidate; the [owner decision pack](../project/transport-git-hosting-decision-pack.md) requests an explicit choice.
+
 ## Decision gate
 
 Owner must approve GitHub App model and requested permission matrix, confirmation UI, merge policy, and self-hosted compatibility boundary. Tests should use a dedicated throwaway remote repository and separate fake-provider adapters before any production repository is touched.
