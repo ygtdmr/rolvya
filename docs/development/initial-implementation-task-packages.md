@@ -19,7 +19,7 @@ This is a **proposed engineering work breakdown** for future AI coding agents de
 - **Documentation can proceed now.** Synthetic pure Rust domain/graph experiments can be scoped without choosing cloud or GitHub authentication, but they still need an approved toolchain and remote development environment.
 - **Schema-changing or security-relevant code** requires explicit interface/authorization and transaction choices, plus an isolated remote test setup.
 - **Live worker/Git/API integration** requires provider permissions, transport choices and separately approved spending. CLI subscription entitlement cannot be guessed.
-- **Group-only parent semantics** and plan activation/supersession are *not yet approved*. Tests and interfaces should allow a decision without silently choosing a specific behavior.
+- **Group-only parent semantics and verified aggregation are Approved** ([ADR 0009](../decisions/0009-parent-aggregation.md)); **bounded-or-stop in-flight budget policy is Approved** ([ADR 0010](../decisions/0010-inflight-budget.md)). Validate both in fake-worker tests. Plan activation UX/supersession, optional-child behavior and provider-specific cancellation limits remain open.
 
 ## Candidate task list and dependency graph
 
@@ -88,7 +88,7 @@ The graph is an **illustrative future development sequence**, not a Rolvya runni
 
 **Accept:** reject missing/duplicate/cross-plan IDs, parent cycles, dependency cycles, undefined predecessor, unsupported group policy, missing criteria and invalid unplanned write conflicts. Accept A and B independent, C depending on both; validate nested hierarchy without automatically adding edges. Keep complexity bounded and measured.
 
-**Dependency on policy:** parent group aggregation must remain an explicit policy input or a blocked validator option until the owner decides; never hardcode “all direct children” as approved.
+**Approved policy:** a node with children is a non-executable group, only planned leaves execute, and group success requires independently validated required descendants plus applicable group acceptance criteria. Optional children still require a separate approved contract; reject ambiguous optional semantics.
 
 ### R03 — SQLite schema and migrations
 
@@ -128,7 +128,7 @@ The graph is an **illustrative future development sequence**, not a Rolvya runni
 
 ### R09 — Synthetic DAG end-to-end
 
-**Goal:** run a small fixed plan with two independent fake executable tasks and one dependent integration task, optionally with organizational parent policy set explicitly for the fixture.
+**Goal:** run a small fixed plan with two independent fake executable leaves and one dependent integration leaf, organized under **non-executable group parents** per Approved ADR 0009.
 
 **Accept:** dependent start only after both predecessor artifacts independently pass acceptance; validated remote-style artifact hashes; run survives restart; task/attempt counts and plan hash intact.
 
@@ -172,7 +172,7 @@ R02 (validation), R03 (schema) and R07 (fake contracts) may progress independent
 
 ## Blocked decisions and escalation
 
-Sole backend Rust and SQLite engine are settled; edition/toolchain/crates/SQLite configuration and group policy are not. Unresolved provider transport, Git authentication, first cloud host and in-flight paid-worker policy **do not authorize any live integration**. If an implemented package requires a consequential unapproved choice, the worker stops and reports the blocker rather than selecting by convenience.
+Sole backend Rust, SQLite, **group-only parents** and **bounded-or-stop in-flight worker policy** are settled. Edition/toolchain/crates/SQLite configuration, optional-child details and provider-specific stop enforcement remain open. Unresolved provider transport, Git authentication, first cloud host and live-spend approval **do not authorize live integration**. If an implemented package requires a consequential unapproved choice, the worker stops and reports the blocker rather than selecting by convenience.
 
 ## Traceability and references
 
