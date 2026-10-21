@@ -16,6 +16,13 @@ See the [compatibility audit](development/obsidian-audit.md) for the inspected f
 
 All Markdown documentation follows the [Obsidian-compatible documentation policy](development/documentation-policy.md): GitHub-compatible links, portable YAML metadata where useful, and optional Mermaid diagrams. GitHub remains the source of truth.
 
+## Historical decision reconciliation
+
+- [Historical conversation-to-document audit](project/historical-decision-audit.md)
+- [Brand, repository and MIT positioning](product/brand-positioning.md)
+- [CLI/API mode constraints](architecture/model-access.md)
+- [Infrastructure candidates and historical cost examples](operations/infrastructure-options.md)
+
 ## Product and quality specifications now available
 
 - [Product requirements](product/requirements.md)
