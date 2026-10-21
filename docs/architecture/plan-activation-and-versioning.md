@@ -12,7 +12,7 @@ tags: [dag, planning, versions, activation, sqlite]
 
 **Approved:** one main agent constructs the **entire hierarchical task set and dependency DAG before execution**; no runtime task insertion by planner, scheduler or worker. Workers execute only assigned tasks; the Rust backend enforces policy with SQLite authority. Other approved invariants include dependency-gated parallelism, remote Git only, completed-work preservation and a hard owner-approved budget.
 
-**Proposed:** exact plan-activation consent flow, storage state names, plan supersession, aggregate parent semantics and schema details. This document does not approve an automatic plan-version replacement or authorize a worker to initiate replanning.
+**Approved additionally by ADR 0009:** parents are non-executable group nodes; only planned executable leaves run workers, and a group succeeds only after required validated child outcomes and applicable group acceptance evidence. **Proposed:** plan activation consent flow, storage state names, plan supersession, optional-child semantics and schema details. This document does not approve an automatic plan-version replacement or authorize a worker to initiate replanning.
 
 ## Immutable objects versus runtime records
 
@@ -54,7 +54,7 @@ This is a *suggested* state diagram; exact enum and approval requirements need a
 2. **Completeness:** main agent supplied every planned node (including nested levels), explicit dependencies and all mandatory planned execution settings, acceptance criteria and context hashes.
 3. **Hierarchy:** one canonical root or approved forest policy; no missing parents, cycles, cross-plan parent references or unbounded depth/size beyond a **defined** resource policy.
 4. **Dependencies:** no missing predecessors, cycles or cross-plan edges; hierarchy links do not silently imply prerequisite edges.
-5. **Group semantics:** distinguish organizational parents from executable work; parent completion and dependency-to-parent targets must satisfy an explicit aggregation policy. This policy is currently open; a validator must **reject or defer** ambiguous plans.
+5. **Group semantics:** **ADR 0009 is approved:** a nonleaf is a non-executable group, an executable node is a leaf, and dependencies pointing to groups wait for validated aggregate success. Reject malformed executable parents, missing required child/criteria evidence or unsupported optional-child behavior.
 6. **Conflict/isolation:** identify write overlap in remote Git refs/paths, unsafe shared state, concurrent migrations and other side effects. Isolate or add required edges **before activation**; do not add them during runtime.
 7. **Model/provider eligibility:** every executable task has model, effort, access mode and permitted remote resource; unsupported unattended CLI entitlement is a blocker rather than automatic paid fallback.
 8. **Budget and resource forecasts:** three project cost scenarios with four categories, available approved budget and conservative candidate exposure. Forecasts are not spending authorization. Live billable provisioning remains a separate admission gate.
@@ -78,7 +78,7 @@ The exact supersession protocol is **Open**: whether active execution is paused/
 - A complete plan of 3 tasks with A and B independent and C dependent on both may activate if its roles, conflicts and costs pass policy. C stays blocked until A and B are *validated*, not merely finished.
 - A worker output says “add task D”: record a scope-change request; graph hash, node count and active edges remain unchanged.
 - A new attempt changes model after failed run: plan's originally assigned model stays in the snapshot; the attempt records approved fallback.
-- A parent with a dependent child but no explicit aggregation definition: activation fails or is held for policy approval; never infer readiness.
+- A parent group whose required children or acceptance evidence are missing: activation rejects or holds the incomplete plan; the approved group-only aggregation semantics are never optional.
 - An activation request is duplicated following network loss: the existing version is returned without adding another graph or spending authorization.
 
 ## Acceptance tests
@@ -91,13 +91,13 @@ The exact supersession protocol is **Open**: whether active execution is paused/
 | PA-04 | Activation with stale version/hash rejected |
 | PA-05 | After activation attempts and outcomes do not change static graph hash |
 | PA-06 | New task or edge write to active plan rejected in Rust policy and SQLite storage |
-| PA-07 | Ambiguous parent aggregation blocks activation rather than silently guessing |
+| PA-07 | Group-only parents: executable node with children rejected; an edge targeting a group waits for independently validated required children plus group criteria |
 | PA-08 | Budget-paused active plan retains prior success artifacts and unchanged graph |
 | PA-09 | No cloud/provider call occurs as an implicit side effect of a mere draft validation |
 | PA-10 | A second active plan for the same project is prohibited under the initial single-active-version proposal |
 
 ## Open decisions
 
-Activation UX, authorized actor roles, group task semantics, plan hash/serialization, whether one active plan per project is mandatory, plan supersession, graph limits, conflict classifier and provider-entitlement validation.
+Activation UX, authorized actor roles, optional-child semantics and group predicate encoding, plan hash/serialization, whether one active plan per project is mandatory, plan supersession, graph limits, conflict classifier and provider-entitlement validation. **Group-only parent policy is approved.**
 
 Related: [task model](task-model.md), [parent aggregation](parent-task-aggregation.md), [orchestrator](orchestrator.md), [scheduler](scheduler.md), [SQLite model](sqlite-schema-draft.md), [approvals](approval-workflow.md), [decision register](../decisions/README.md).
