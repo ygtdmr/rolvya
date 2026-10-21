@@ -38,6 +38,6 @@ Report active/ready/running/failed tasks; model/effort, worker/provider, duratio
 
 ## Open decisions
 
-Vendor selection, worker pooling, orchestration transport, use of containers, resource limits, low-level implementation language (Rust was sketched but not approved), shared database engine, regions, network security, per-worker startup economics, secrets/SSH policy, backup/recovery and benchmarks.
+Vendor selection, worker pooling, orchestration transport, use of containers, resource limits, Rust framework/crate choices, SQLite WAL/transactions and migration details, regions, network security, per-worker startup economics, secrets/SSH policy, backup/recovery and benchmarks. **Backend language Rust and authoritative database SQLite are now approved; they are not open alternatives.**
 
-Related: [workers](../architecture/workers.md), [budget](../architecture/budget-costs.md), [security](../architecture/security.md), [historical audit](../project/historical-decision-audit.md).
+Related: [approved Rust ADR](../decisions/0004-control-plane-language.md), [approved SQLite ADR](../decisions/0005-authoritative-database.md), [workers](../architecture/workers.md), [budget](../architecture/budget-costs.md), [security](../architecture/security.md), [historical audit](../project/historical-decision-audit.md).
