@@ -16,11 +16,13 @@ No code implementation, worker deployment, provider integration or passing CI is
 
 ## Mandatory foundations before implementation
 
-1. Confirm database engine, language, worker communication and initial hosting model using [proposed ADRs 0004–0008](../decisions/README.md) and the [open-decision register](open-questions.md).
+1. **Rust-only backend and SQLite database are approved** by [ADR 0004](../decisions/0004-control-plane-language.md) and [ADR 0005](../decisions/0005-authoritative-database.md). Resolve remaining worker communication and initial hosting choices using [proposed ADRs 0006–0008](../decisions/README.md) and the [open-decision register](open-questions.md).
 2. Decide budget reservation/settlement semantics and provider-side bill limits (especially in-flight attempts and delayed invoices). Approved invariant: **no percentage overrun, explicit human approval for higher ceiling**.
 3. Approve security/identity and Git merge authority and define tenant isolation.
 4. Establish a sandboxed remote development/test environment using fake provider adapters first; no user's local computer worker or repository access.
 5. Define measurable acceptance/benchmark thresholds and capture exact toolchain versions in the handoff.
+
+See the [Rust + SQLite backend implementation contract](../architecture/rust-sqlite-backend.md) for approved engine boundaries, atomic admission requirements and proposed SQLite lifecycle. The [SQLite operations](../operations/sqlite-operations.md) document covers the safety and recovery requirements.
 
 ## Suggested dependency-aware sequence
 
@@ -47,9 +49,9 @@ The diagram's edges are **development dependencies**, not an actual activated Ro
 
 | Slice | Outcome | Minimum evidence to complete |
 | --- | --- | --- |
-| S0 — Decision gates | Owner-approved stack/ADR records, threat boundaries and benchmark envelope | Explicit approval history, reasons, known costs and rejected alternatives |
-| S1 — Core domain & validator | Project/plan/task/edge types; immutable active DAG and graph checks | Reject cycles, unknown IDs, mutable active nodes; hierarchy not equal dependency |
-| S2 — Persistence & budget ledger | Durable attempts, events, approvals and atomic admission | Simultaneous reservations never exceed approved headroom; crash replay safe |
+| S0 — Decision gates | Rust + SQLite recorded as approved; owner-approved remaining transport/hosting/identity ADRs, threat boundaries and benchmark envelope | Explicit approval history, reasons, known costs and rejected alternatives |
+| S1 — Rust core domain & validator | Rust project/plan/task/edge types; immutable active DAG and graph checks | Reject cycles, unknown IDs, mutable active nodes; hierarchy not equal dependency |
+| S2 — SQLite persistence & budget ledger | SQLite schema/migrations, durable attempts, events, approvals and atomic admission | Simultaneous reservations never exceed approved headroom; crash replay safe |
 | S3 — Deterministic scheduler | Ready queue, dependency guards, attempt state and fencing | Independent tasks parallel-eligible; dependents wait for validation |
 | S4 — Remote fake-worker protocol | Authenticated lease, heartbeat, results, idempotency using fake executors | Stale/duplicate callback rejected; simulated partition recovery |
 | S5 — Minimal E2E run | Test project with 3–5 tasks across two branches of a DAG | Verified artifacts, source hashes, attempt histories and accurate cost state |
@@ -78,6 +80,6 @@ Do not advance from fake providers to paid live cloud/model testing without expl
 
 ## Known gaps
 
-Formal timeline, owner choices, tenant model, performance SLOs, exact API schema, retry caps, official CLI automation permissions, provider credentials and implementation language/database are unresolved. Track them in [open questions](open-questions.md).
+Formal timeline, remaining owner choices, Rust framework/crates, SQLite configuration/schema details, tenant model, performance SLOs, exact API schema, retry caps, official CLI automation permissions and provider credentials remain unresolved. **Rust and SQLite choices are fixed.** Track them in [open questions](open-questions.md).
 
 Related: [documentation index](../README.md), [project status](status.md), [open questions](open-questions.md), [architecture overview](../architecture/overview.md), [testing](../development/testing.md).
