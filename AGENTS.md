@@ -17,6 +17,8 @@ Rolvya is an AI-agent-orchestration project developed by AI coding agents under 
 ## Non-negotiable rules
 - Implement every **Rolvya-owned backend service or backend logic in Rust only**; see [approved ADR 0004](docs/decisions/0004-control-plane-language.md). Do not add Go, Python or Node.js/TypeScript backend services without a new explicit owner-approved ADR. User-project tools running on remote workers are outside the Rolvya backend implementation rule.
 - Use **SQLite as the only authoritative database engine**, through the Rust backend; see [approved ADR 0005](docs/decisions/0005-authoritative-database.md). Do not introduce PostgreSQL or another alternate source of truth without explicit owner approval. Specific SQLite tuning, SQL schema and migration tooling remain proposed.
+- Treat every parent/non-leaf task as a **non-executable group**; only planned executable leaves may receive worker attempts. Group success requires verified required children and applicable group acceptance. See [Approved ADR 0009](docs/decisions/0009-parent-aggregation.md).
+- A running paid worker may continue only if **full remaining exposure is enforceably bounded and pre-reserved**; otherwise initiate stop-on-risk/fencing and external cost reconciliation. Do not start new billable attempts without approved headroom. See [Approved ADR 0010](docs/decisions/0010-inflight-budget.md).
 - Never represent a proposal, design goal, or unimplemented feature as working code.
 - Do not silently resolve undecided technology, architecture, security, or product questions. Record the question and request a human decision when consequential.
 - Preserve approved decisions. Changes require documented rationale and explicit owner approval.
