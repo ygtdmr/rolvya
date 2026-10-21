@@ -90,9 +90,17 @@ The project owner approved [ADR 0006 — remote-worker-initiated HTTPS control](
 
 This **supersedes earlier chronological notes above** that described ADR 0006 or ADR 0008 as Proposed; those were accurate when written but are not the current decision status. **ADR 0007 stays Proposed only for first cloud vendors, regions and benchmark/evidence selection**, not for whether Rolvya may support multiple providers. No GitHub App installation, HTTPS API server, working provider adapter, live cloud benchmark, billed resource or Rust/SQLite implementation is verified. Next open decisions include concrete GitHub permissions and merge policy, worker enrollment/TLS/schema and initial provider rollout.
 
+## Two-conversation documentation coverage audit and detailed gap remediation (2026-10-22)
+
+An audit of **available** Rolvya historical chat excerpts/summaries, historical diagram descriptions and the GitHub repository is recorded in [two-conversation coverage audit](two-conversation-coverage-audit.md). **A full line-by-line export of both conversations was not accessible**, so total verbatim completeness is **not certified**. At the audit start the repository contained **90 tracked files: 89 Markdown plus LICENSE**. The documents did not constitute working Rust software.
+
+The audit identified important under-specified or previously summary-only areas. Detailed **Proposed** documents were added for [Claude/Codex CLI vs API entitlement](../architecture/model-access-entitlement-contract.md), [multi-provider scheduler placement dimensions](../architecture/scheduler-selection-policy.md), [failure retry/escalation and nonbinding historical 1/3/10 minute examples](../architecture/retry-escalation-policy.md), [planner and worker token/context efficiency](../architecture/token-context-efficiency.md), [worked hypothetical 40-task cost scenarios](../architecture/cost-scenario-worked-examples.md), [brand/gold-palette/MIT correction provenance](../product/brand-history-license-governance.md), and [dated official provider access policy evidence](../reference/provider-cli-api-policy-evidence.md).
+
+These additions preserve approved architecture but **do not finalize** CLI entitlement, subscription automation permission, retry counts, Spot/On-Demand fallback, scheduler weights, concrete cloud providers, logo source assets or unresolved technical parameters. Neither UI acceptance/Obsidian rendering nor live cloud/provider tests were performed. No original complete chat export or original logo master was available to this audit.
+
 ## Next documentation tasks
-1. Recover all prior approved architectural detail, confirm sources, and convert it into topic-specific specifications and ADRs.
-2. Resolve remaining open questions (Rust crates/tooling, SQLite configuration, worker transport/providers, identities and approvals, deployment boundaries and UI) before implementation depends on them; Rust and SQLite selection are settled.
+1. For **literal complete two-chat coverage**, acquire full original chat exports and any original architecture/logo assets, then compare every message against [the evidence matrix](two-conversation-coverage-audit.md). Continue keeping unrecoverable details explicitly unknown.
+2. Resolve remaining open **implementation** choices (Rust crates/tooling, SQLite WAL/migrations, HTTPS schema/identity, exact GitHub App permissions/merge policy, first cloud provider rollout, subscription CLI entitlement, provider cost caps and UI) before dependent work. Rust, SQLite, HTTPS, GitHub App and multi-provider architecture selections are already Approved.
 3. Decompose acceptance criteria into implementation slices with measured performance limits and proof-of-completion checks; user journeys and criteria are drafted, not implemented.
 4. Keep this file synchronized with actual commits, tests and releases.
 
