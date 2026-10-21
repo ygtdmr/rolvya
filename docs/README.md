@@ -30,6 +30,7 @@ All Markdown documentation follows the [Obsidian-compatible documentation policy
 - [Remote workers and models](architecture/workers.md)
 - [Budget and costs](architecture/budget-costs.md)
 - [Security model](architecture/security.md)
+- [Remote GitHub integration](architecture/integration-github.md)
 - [Persistence and data model](architecture/data-model.md)
 - [Agent context and memory](architecture/context-memory.md)
 - [API and event contracts](architecture/api-contracts.md)
@@ -49,6 +50,12 @@ These are **proposed architectural specifications**, not verified implementation
 | `reference/` | glossary, diagrams, examples, and interface references |
 
 The paths above are a **planned inventory**, not links to files that already exist. Create individual documents as their requirements are verified. Avoid empty placeholder documents masquerading as completed specifications.
+
+## Recorded architecture decisions
+
+- [ADR 0001 — Fixed upfront DAG](decisions/0001-fixed-upfront-dag.md)
+- [ADR 0002 — Hard budget approval](decisions/0002-hard-budget-approval.md)
+- [ADR 0003 — Remote Git only](decisions/0003-remote-git-only.md)
 
 ## Coverage checklist
 
