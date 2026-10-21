@@ -54,6 +54,8 @@ See the [historical conversation audit](../project/historical-decision-audit.md)
 - [ADR 0006 — Remote worker communication transport](0006-worker-communication.md)
 - [ADR 0007 — Remote worker hosting and cost model](0007-remote-worker-hosting.md)
 - [ADR 0008 — GitHub provider authentication](0008-github-authentication.md)
+- [ADR 0009 — Parent task aggregation: group-only vs executable parents](0009-parent-aggregation.md) — **Proposed**.
+- [ADR 0010 — In-flight worker spending and cancellation](0010-inflight-budget.md) — **Proposed**.
 
 Selection gates, unresolved questions and evidence requirements are in the [open-decision register](../project/open-questions.md). Implementation order after approval is in the [proposed implementation slices](../project/implementation-slices.md).
 
