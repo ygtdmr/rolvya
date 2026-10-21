@@ -12,6 +12,8 @@ tags: [testing, ci, reliability, security]
 
 **Not implemented:** no claim is made that the CI pipeline or tests described here currently exist. Test requirements derive from [product acceptance criteria](../product/acceptance-criteria.md), [execution](../architecture/execution.md), [budget](../architecture/budget-costs.md) and [security](../architecture/security.md).
 
+The [initial Rust/SQLite verification matrix](rust-sqlite-test-matrix.md) catalogs detailed future fixtures, concurrency tests and fault-injection points; [engineering task packages](initial-implementation-task-packages.md) assign candidate ownership and dependencies. These are planning artifacts, **not tests that have already run**.
+
 ## Test layers
 
 | Layer | Focus | Examples |
