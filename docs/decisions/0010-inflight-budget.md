@@ -1,54 +1,85 @@
 ---
-title: "ADR 0010: In-Flight Worker Spending Policy"
-status: Proposed
+title: "ADR 0010: Bounded In-Flight Worker Execution and Stop-on-Risk"
+status: Approved
 category: decision
 last-reviewed: 2026-10-21
 tags: [adr, budget, workers, provider, safety]
 ---
 
-# ADR 0010: In-flight worker spending policy
+# ADR 0010: Bounded in-flight worker execution and stop-on-risk
 
-## Decision status
+## Status and owner authorization
 
-**Proposed — owner approval required.** The owner has already approved [ADR 0002](0002-hard-budget-approval.md): hard admission gate; explicit authenticated human authorization to raise a ceiling; no percentage-based automatic overrun; preserve verified work. This ADR does **not** reopen that policy. It addresses the **unresolved behavior of already-running billable work** near the approved cap, amid delayed provider billing.
+**Approved by the project owner on 2026-10-21.** The owner approved the previous recommended **combined policy**: an already authorized worker may continue **only while its full future billable exposure is demonstrably bounded and covered by a prior reservation; otherwise stop the worker when the safe bound cannot be maintained**.
 
-## Decision to make
+This extends, **without weakening**, [ADR 0002](0002-hard-budget-approval.md): **hard gate on new billable admissions**, explicit authenticated human approval for increasing a ceiling, **no automatic percentage overrun**, preserve completed work and surface alerts. The binding policy does not mean an external cloud/API provider's eventual invoice is mathematically guaranteed never to exceed the limit.
 
-After a worker attempt was admitted with an initial cost reservation, what happens when remaining headroom becomes insufficient, invoices arrive late or the running attempt's future exposure is uncertain?
+## Decision
 
-## Options
+1. **Before any billable launch**, the Rust scheduler must atomically establish in SQLite an existing-task attempt, valid lease/fence, approved-budget reservation and durable dispatch intent. It must not admit new billable work whose safe total exposure does not fit the approved remaining ceiling.
+2. **Continue an already-running worker only if its remaining potential billable exposure is demonstrably bounded and covered** by a conservative, enforceable reservation and applicable provider execution/time/usage limits. Continuation does not grant a new spending authorization.
+3. **If that guarantee is lost or cannot be established**, stop further privileged execution: request provider cancellation/termination, revoke/fence the lease, block additional billable actions where possible, preserve verified/checkpointed work and begin Git/artifact/billing reconciliation. Provider stop acknowledgment is **not** assumed to end billing instantly.
+4. **Insufficient headroom for a new attempt always prevents that new admission**, regardless of whether already-authorized bounded attempts continue.
+5. **When billing information is missing or delayed**, show uncertain exposure rather than zero. If the remaining bounded exposure cannot be proven under all existing liabilities, trigger the stop-on-risk process; do not silently assume a limit remains valid.
+6. **Automatic provider retries** that create new paid executions outside Rolvya's reservation/attempt flow must be disabled where supported, or explicitly accounted for and bounded under an approved policy. Never silently let a provider create unreserved workers.
+7. A stopped worker's task remains in the fixed DAG; after the prior attempt is fenced and external effects reconciled, recovery may create a **new attempt of the same task** only under fresh admissibility and budget checks.
+8. Only an **explicit authenticated owner approval** can raise the budget ceiling. Automated estimates, UI dismissals, model outputs, worker callbacks, notifications or hidden percentage buffers are not approvals.
 
-| Candidate | Mechanism | Benefit | Risk |
-| --- | --- | --- | --- |
-| A: Proactive stop-on-risk | When exposure exceeds a verified safe bound, request provider cancellation and fence worker authority | Stronger protection against future unapproved costs | Provider minimum charges and late invoices still occur; interrupts work |
-| B: Continue only inside enforceable reserved bound | Running worker may finish while hard provider caps and pre-reserved exposure remain sufficient | Better completion rate | Needs proven API/model/compute caps and careful accounting |
-| C: Unlimited finish then bill | Let paid worker continue regardless of approved remaining exposure | Little interruption logic | **Incompatible with strong budget safeguards** without an explicit new authorization; not recommended |
+## Practical guard and cost exposure
 
-## Working recommendation (not approved)
+Keep separate category-aware accounting for **AI API, cloud compute, storage and transfer**, with optimistic/expected/pessimistic **forecasts** distinguished from enforceable reservations, incurred/provisional usage and settled invoices.
 
-Consider combining **B for bounded attempts** with **A when remaining exposure becomes unknowable or cannot be enforced**. Require known hard provider duration/compute limits where available, conservative reservations, ongoing reconciliation and checkpoint preservation. Never claim that a Rust/SQLite application estimate guarantees the external invoice cannot exceed the cap.
+A candidate continuation check, evaluated against authoritative SQLite data and validated external limits, should establish:
 
-Disable or explicitly authorize cloud provider automatic retries that could start additional paid instances outside one Rolvya attempt. Handle SQLite budget and lease admission atomically before provider launch; distinguish costs of API, compute, storage and transfer.
+```text
+known settled charges
++ all still-liable holds (including the active attempt)
++ additional unreserved/uncertain exposure under conservative reconciliation
+<= explicitly owner-approved project ceiling
+```
 
-## Effects on task state and approval UX
+For a running attempt, avoid **double counting** costs already covered by its hold. Its known provider-enforced remaining maximum must fit the **remaining portion of its own reserved exposure** plus other valid project liabilities. If that cannot be demonstrated, initiate stop-on-risk. Do not treat a ~10-minute task planning target as a provider-enforced time or money cap.
 
-- Insufficient budget **always** blocks admission of a new billable attempt.
-- Already verified artifacts remain accessible.
-- If an active attempt is stopped, fence the lease, request cloud cancellation and reconcile remote Git refs and late charges before retry.
-- A pending warning or budget increase request is not an approved increase; only a durable authenticated approval changes the ceiling.
-- When provider billing is unknown, show **unknown** exposure and halt unsafe new work.
-- Retry remains a new **attempt of an existing task**, never a new task node.
+## Required continuation/stop behavior
 
-## Acceptance tests
+| Condition | Running worker | New paid admissions |
+| --- | --- | --- |
+| Valid reservation, independently verifiable provider-enforced maximum and sufficient project exposure coverage | May continue within bound | Only if separate headroom permits and every other guard passes |
+| No headroom for another task, but existing attempt remains fully bounded/reserved | Continue **only its previously authorized bound** | Block new paid attempts |
+| Metering stale yet a credible enforceable maximum and liabilities are still provably bounded | May continue only inside bound; mark invoice data unknown and monitor | Block speculative admissions based on stale billing |
+| Maximum cannot be proven, reservation no longer covers full risk, or uncontrolled provider retry occurs | **Request stop/fence and reconcile**; preserve validated/checkpointed outputs | Block until exposure reconciled or explicit new approval |
+| Owner increases approved total ceiling explicitly | Re-evaluate against current provider and SQLite state; no automatic unlimited continuation | May reconsider, never bypass dependency/auth/lease checks |
+| Stop requested, provider still running or billing | Maintain risk status, inspect/cancel/reconcile; do not claim stopped merely from API response | Block unsafe new admissions |
 
-Simulate metering lag, unexpected minimum billing, provider auto-retry, in-flight cancellation, stale lease, post-cancellation charge, unacknowledged remote Git push, and explicit owner denial/approval. Every outcome must show actual-vs-reserved exposure, audit history and no hidden approval buffer.
+## Operational consequences and uncertainties
 
-## Owner decision record
+A provider may bill for minimum duration, non-cancelable work, late API usage, network transfer or retries even after a stop request. The product must **report actual discrepancies and not hide them**; Rust/SQLite internal admission control and reservations alone cannot enforce external billing systems. A provider adapter that cannot demonstrate an upper bound is **not eligible for unbounded paid operation** under this policy.
 
-- Decision: **PENDING**
-- Approved by/date: **PENDING**
-- Policy for bounded running attempts: **PENDING**
-- Policy for unbounded/unknown exposure: **PENDING**
-- Cancellation, artifact and billing reconciliation rules: **PENDING**
+Support explicit worker-side cooperative stop plus provider-level cancellation and identity fencing. Ensure pending Git changes and completed artifacts are preserved, but never accept stale attempt claims of success. The exact stop latency, billing upper-bound computation and checkpoint implementation require provider-specific evidence, not invented SLAs.
 
-Detailed options: [in-flight policy design](../architecture/inflight-cost-policy.md). Accounting foundations: [budget reconciliation](../architecture/budget-reservation-reconciliation.md), [approved budget ADR](0002-hard-budget-approval.md), [owner approval workflow](../architecture/approval-workflow.md), [open questions](../project/open-questions.md).
+## Alternatives rejected
+
+- **Always kill every already-reserved worker immediately when a new task is budget-blocked:** unnecessary interruption when existing work is independently bounded and prepaid/reserved.
+- **Allow an unbounded worker to finish and invoice later:** inconsistent with approved financial controls.
+- **Automatic reserve/ceiling percentage overrun:** expressly forbidden by owner.
+
+## Test cases and acceptance
+
+1. New task exceeds remaining headroom; existing reserved/bounded worker continues while new admission is blocked.
+2. Future exposure limit becomes unverifiable; cancellation/fencing issued and audit records a stop-on-risk event.
+3. Billing feed delayed but hard provider cap still verified; mark invoice uncertainty and preserve enforceable limit checks.
+4. Worker provider hidden auto-retry incurs a possible second charge; detect, request stop and reconcile.
+5. Cancellation completes but invoice later charges minimum duration; actual cost visible and approval cap is not silently adjusted.
+6. Repeated cancel/result/invoice callbacks are idempotent and stale worker cannot override a newer attempt.
+7. Successful sibling artifacts survive interruption and budget pause.
+8. Only explicit owner approval can increase ceiling, and it does not bypass other admission gates.
+
+## Approval record
+
+- **Decision:** Allow continuation **only within bounded, pre-reserved, enforceable exposure**; otherwise **stop-on-risk**.
+- **Status:** Approved.
+- **Approved by:** Project owner, explicit confirmation in conversation, 2026-10-21.
+- **Open engineering parameters:** Specific provider caps/timeout, stop latency, metering freshness, quota strategies, checkpoint implementation, late charge/refund and multi-currency policies.
+- **Implementation state:** Not verified.
+
+Related: [in-flight execution contract](../architecture/inflight-cost-policy.md), [budget reconciliation](../architecture/budget-reservation-reconciliation.md), [scheduler](../architecture/scheduler.md), [worker evaluation](../operations/worker-provider-evaluation.md), [testing](../development/rust-sqlite-test-matrix.md).
