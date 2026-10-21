@@ -49,6 +49,10 @@ Use deterministic fake model/CLI adapters, fake remote Git provider, virtual wor
 - Provider costs arriving late must be reconciled; remaining exposure must not be misrepresented as guaranteed safe.
 - A malicious README text instructing the worker to reveal secrets must be treated as untrusted content.
 
+## Rust + SQLite stack verification (proposed)
+
+The project owner has **approved Rust as the only Rolvya-owned backend language** ([ADR 0004](../decisions/0004-control-plane-language.md)) and **SQLite as the only authoritative database engine** ([ADR 0005](../decisions/0005-authoritative-database.md)). CI/review should reject unauthorized non-Rust backend services or additional authoritative databases. Test SQLite write serialization, FK enforcement on each connection, journal/backup consistency, lease fencing, atomic reservations, disk-full and busy-lock failures. Validate Rust domain/DTO separation, safe error handling, allocation/CPU profile and remote worker isolation. No tests are claimed to have run. See [Rust + SQLite implementation contract](../architecture/rust-sqlite-backend.md) and [SQLite operations](../operations/sqlite-operations.md).
+
 ## CI and release evidence (proposed)
 
 CI stages: formatting/lint → unit/property tests → schema/migration tests → contract/integration suites → security scans → controlled end-to-end suites → docs checks. Each stage reports exact command, environment and artifacts. Merge/release gates, supported platforms and performance budgets need decisions before enforcement.
