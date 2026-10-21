@@ -10,7 +10,7 @@ tags: [git, github, integration, security]
 
 ## Approved product boundaries
 
-Rolvya operates on **remote Git repositories and services**, including possible self-hosted Git providers. There is no Local Agent, Local Sync, or access/synchronization to the user's personal-computer repositories. GitHub is the initial documented provider, but provider support and authentication implementation are not approved.
+Rolvya operates on **remote Git repositories and services**, including possible self-hosted Git providers. There is no Local Agent, Local Sync, or access/synchronization to the user's personal-computer repositories. GitHub is the initial documented Git provider; **GitHub App authentication is Approved in [ADR 0008](../decisions/0008-github-authentication.md)**, but concrete installation, permission scopes and merge integration are not yet implemented. Other remote Git providers require separate adapters.
 
 ## Integration responsibilities
 
@@ -68,10 +68,10 @@ Authorization revocation, missing repository, force-pushed target ref, merge con
 - Authorization revocation prevents subsequent privileged operations.
 - Secrets and untrusted repository text do not gain instruction authority.
 
-The [GitHub App authorization and branch isolation design](github-app-integration-design.md) clarifies the independent controls needed for repository permissions and protected refs. Selecting GitHub App authentication still requires owner approval.
+The [GitHub App authorization and branch isolation design](github-app-integration-design.md) clarifies the independent controls needed for repository permissions and protected refs. **GitHub App selection is Approved**. Exact permissions, trusted publication implementation, branch/merge policy and App onboarding remain to be defined and tested.
 
 ## Open decisions
 
-Initial provider coverage, GitHub App vs OAuth/token flow, required permissions, branch and PR strategy, signing, merge authority, fork support, self-hosted provider adapters, quotas and retention. These are not approved solely by appearing here.
+Initial remote Git provider coverage beyond GitHub; **GitHub App installation/token permissions**, branch and PR strategy, signing, merge authority, fork support, self-hosted provider adapters, quotas and retention. These are not approved solely by appearing here.
 
 Related: [system overview](overview.md), [execution](execution.md), [security](security.md), [data model](data-model.md), [API contracts](api-contracts.md), [requirements](../product/requirements.md).
