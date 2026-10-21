@@ -24,6 +24,13 @@ Rolvya is intended to be open-source, extensible, and transparent about executio
 
 These are planned capabilities. Their interfaces and implementation details will be established and documented as development progresses.
 
+## Confirmed technology decisions
+
+- **Backend:** Rust only for Rolvya-owned services and backend logic ([ADR 0004](docs/decisions/0004-control-plane-language.md)).
+- **Authoritative database:** SQLite only, accessed through the Rust backend ([ADR 0005](docs/decisions/0005-authoritative-database.md)).
+
+Other decisions, including worker communication, cloud provider, specific Rust crates, SQLite configuration and the frontend stack, remain under review. These choices are documented architectural approvals, **not yet implemented functionality**.
+
 ## Core concepts (planned)
 
 | Concept | Intended role |
