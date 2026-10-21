@@ -14,6 +14,8 @@ Translate current Rolvya architecture and accepted constraints into an **ordered
 
 No code implementation, worker deployment, provider integration or passing CI is implied by the presence of this document.
 
+The [decision readiness checklist](decision-readiness.md) separates approved architecture from transport/provider/security approvals, and the [worker provider evaluation](../operations/worker-provider-evaluation.md) specifies billable benchmark requirements.
+
 ## Mandatory foundations before implementation
 
 1. **Rust-only backend and SQLite database are approved** by [ADR 0004](../decisions/0004-control-plane-language.md) and [ADR 0005](../decisions/0005-authoritative-database.md). Resolve remaining worker communication and initial hosting choices using [proposed ADRs 0006–0008](../decisions/README.md) and the [open-decision register](open-questions.md).
