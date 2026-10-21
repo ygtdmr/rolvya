@@ -32,6 +32,8 @@ When an attempt fails, the orchestrator may diagnose and alter worker/model/effo
 
 Treat retrieved repository text and model outputs as untrusted input, not higher-priority instructions. Redact sensitive fields from logs and persisted prompts. Test for stale references, wrong predecessor revisions, cross-project contamination, oversized prompts and loss of acceptance criteria during compression.
 
+The [planner and worker token-efficiency contract](token-context-efficiency.md) elaborates proposed compact prompt packaging, versioned prerequisite artifacts, token/accounting measurements and failure cases. The originally accepted worker token-saving guidelines have **not** been recovered as a complete verbatim list, so no proposed tactic is falsely recorded as an exact user quotation.
+
 ## Open decisions
 
 Context format/token budgets, summarization trigger, storage backend, retrieval model, model-specific adapters, content provenance and retention, prompt injection defenses, and visibility of attempt transcripts.
