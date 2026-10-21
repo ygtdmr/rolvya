@@ -84,6 +84,12 @@ Five new **Proposed** documentation artifacts have been committed: [worker wire 
 
 The new drafts detail message identity, SQLite lease/outbox and duplicate delivery, GitHub token-vs-branch authorization, cloud auto-retry/idempotency, provider stop-on-risk and late cost reconciliation. Relevant GitHub, Cloud Run Jobs and AWS ECS official documents were checked as engineering context. **ADR 0006 (wire transport), ADR 0007 (remote worker hosting) and ADR 0008 (GitHub authentication) remain Proposed and need explicit owner decisions. No cloud jobs, GitHub App installation, Rust endpoints, real invoices or passing tests were created by this documentation work.**
 
+## Owner-approved HTTPS, GitHub App and multi-provider remote worker architecture (2026-10-21)
+
+The project owner approved [ADR 0006 — remote-worker-initiated HTTPS control](../decisions/0006-worker-communication.md) and [ADR 0008 — GitHub App authentication](../decisions/0008-github-authentication.md). The owner additionally approved an **extensible multi-provider worker architecture** in new [ADR 0011](../decisions/0011-multi-provider-worker-infrastructure.md). A [Rust multi-provider adapter contract](../architecture/multi-provider-adapter-contract.md) proposes provider capability, launch, cancellation, cost accounting, worker identity and cross-provider attempt rules.
+
+This **supersedes earlier chronological notes above** that described ADR 0006 or ADR 0008 as Proposed; those were accurate when written but are not the current decision status. **ADR 0007 stays Proposed only for first cloud vendors, regions and benchmark/evidence selection**, not for whether Rolvya may support multiple providers. No GitHub App installation, HTTPS API server, working provider adapter, live cloud benchmark, billed resource or Rust/SQLite implementation is verified. Next open decisions include concrete GitHub permissions and merge policy, worker enrollment/TLS/schema and initial provider rollout.
+
 ## Next documentation tasks
 1. Recover all prior approved architectural detail, confirm sources, and convert it into topic-specific specifications and ADRs.
 2. Resolve remaining open questions (Rust crates/tooling, SQLite configuration, worker transport/providers, identities and approvals, deployment boundaries and UI) before implementation depends on them; Rust and SQLite selection are settled.
