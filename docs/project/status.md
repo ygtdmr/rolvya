@@ -98,6 +98,10 @@ The audit identified important under-specified or previously summary-only areas.
 
 These additions preserve approved architecture but **do not finalize** CLI entitlement, subscription automation permission, retry counts, Spot/On-Demand fallback, scheduler weights, concrete cloud providers, logo source assets or unresolved technical parameters. Neither UI acceptance/Obsidian rendering nor live cloud/provider tests were performed. No original complete chat export or original logo master was available to this audit.
 
+## Full current Markdown file-link structural check (2026-10-22)
+
+At the end of the historical documentation remediation, current repo tree verification showed **90 tracked files: 89 Markdown plus LICENSE**. A static audit fetched all **89 Markdown files**, evaluated **1,213 file-relative Markdown link occurrences** against repository file targets, and found **no missing file targets** or odd Markdown code-fence delimiter counts. A missing YAML frontmatter in this status note is permitted under the project documentation policy. Fragment-anchor resolution, Obsidian GUI behavior, rendered Mermaid/YAML parsing, external URL health and actual software execution were **not tested**; do not equate structural source checks with those outcomes.
+
 ## Next documentation tasks
 1. For **literal complete two-chat coverage**, acquire full original chat exports and any original architecture/logo assets, then compare every message against [the evidence matrix](two-conversation-coverage-audit.md). Continue keeping unrecoverable details explicitly unknown.
 2. Resolve remaining open **implementation** choices (Rust crates/tooling, SQLite WAL/migrations, HTTPS schema/identity, exact GitHub App permissions/merge policy, first cloud provider rollout, subscription CLI entitlement, provider cost caps and UI) before dependent work. Rust, SQLite, HTTPS, GitHub App and multi-provider architecture selections are already Approved.
