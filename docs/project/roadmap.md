@@ -12,13 +12,13 @@ tags: [roadmap, phases, delivery, milestones]
 
 This is a **proposed software development roadmap**, not an approved date-based schedule, and **not** a runtime Rolvya task DAG. The user-approved product rule requires each *actual Rolvya project execution* to have one fully preplanned immutable task graph. Developers may refine the **future product delivery roadmap** between releases with owner approval; that does not authorize changing the graph of an already activated project.
 
-The backend is definitively Rust, the authoritative database SQLite. Other runtime providers, transports, auth mechanisms and frontend stack remain subject to selection. No implementation milestone is marked complete without evidence.
+The backend is definitively Rust, authoritative DB SQLite, worker control **HTTPS**, GitHub authentication **GitHub App**, and remote worker architecture **multi-provider** (Approved ADRs 0004, 0005, 0006, 0008 and 0011). **Which concrete cloud providers ship first**, exact credentials/protocol implementation and frontend stack remain open. No implementation milestone is marked complete without evidence.
 
 ## Delivery phases
 
 | Phase | Goal | Entry gate | Exit evidence |
 | --- | --- | --- | --- |
-| P0 — Decision readiness | Resolve high-risk auth, transport and remote Git writes; implement the **already Approved** group-only and bounded-or-stop policy | Approved Rust/SQLite and ADRs 0009/0010 | Remaining owner-approved ADRs, threat model and explicit test budget |
+| P0 — Decision readiness | Detail approved Rust/SQLite, worker HTTPS, GitHub App and multi-provider contracts; resolve remaining identity, wire, branch and first-provider rollout details | Approved ADRs 0004/0005/0006/0008/0009/0010/0011 | Security/permission matrix, threat model, no unapproved live spend |
 | P1 — Rust+SQLite deterministic core | Immutable graph, task/attempt domain, budget admission, outbox and persistence | Defined domain and SQLite transaction contract | Property and concurrency tests on fake workload, crash replay |
 | P2 — Fake remote-worker integration | Validate network and execution protocol without paid providers | P1 passes, authenticated test channel | Independent fake tasks complete, dependent task waits, stale responses fenced |
 | P3 — Real remote worker and Git sandbox | Run an isolated remote worker, publish reviewable remote Git refs | Provider/legal access, live-spend approval and remote Git authorization | Actual job and Git refs, measured cost, clean worker termination, no local sync |
@@ -35,7 +35,7 @@ The sequence is a *suggested dependency order*; unrelated development tasks with
 
 **Provider eligibility:** User-owned CLI subscriptions are not automatically licensed for unattended remote cloud execution. Verify model/provider rules before enabling real adapters.
 
-**Git security:** Remote-only; protected integration writes require authorization and independent validation. GitHub App installation remains proposed, not selected.
+**Git security:** Remote-only; **GitHub App is Approved** as GitHub authentication, while protected integration writes require separate authorization, independent validation and an owner-authorized installation/permission setup. No App is installed by this documentation.
 
 **Production reliability:** SQLite lock/busy, WAL and checkpoint, backups, crash consistency, audit, and delayed billing must be proven in tests rather than inferred.
 
