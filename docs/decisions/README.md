@@ -15,6 +15,8 @@ This register separates **approved user decisions** from **earlier design concep
 | D-008 | Approved | Budget is a hard approval gate. | Pause new billable tasks when funds insufficient; require explicit increase; preserve completed work; no percentage overrun. |
 | D-009 | Approved | Cost planning separates AI API, cloud workers, storage and transfer, with optimistic/expected/pessimistic scenarios. | Design estimators around these categories. |
 | D-010 | Approved | No Local Agent, Local Sync, or direct access/synchronization with Git repositories on user's personal machine. | Support remote Git services rather than personal-computer access. |
+| D-011 | Approved 2026-10-21 | Backend implementation language is **Rust only**. | All Rolvya-owned backend services and logic must be Rust; see [ADR 0004](0004-control-plane-language.md). |
+| D-012 | Approved 2026-10-21 | Authoritative database engine is **SQLite only**. | Rust persistence layer and remote-worker API boundary; see [ADR 0005](0005-authoritative-database.md). |
 
 ## Previously explored architecture; validate before treating details as binding
 - Main orchestrator decomposes hierarchical tasks, selects AI models and effort levels, manages queue, dependencies and contextual memory.
@@ -25,7 +27,7 @@ This register separates **approved user decisions** from **earlier design concep
 - An earlier diagram referenced a local VPS and an illustrative 20-worker limit. These are **not confirmed production limits**, and a VPS-hosted orchestrator does **not** authorize a personal-computer Local Agent.
 
 ## Outstanding decisions / research
-- Detailed product flows, concrete component boundaries, Rust and UI stack commitment, persistence and data isolation.
+- Detailed product flows, Rust framework/crates and UI stack, SQLite physical schema/WAL configuration, persistence transaction tuning and data isolation. Rust and SQLite themselves are **approved**, not open choices.
 - Graph/task contracts, concurrency policy, worker adapters, failure/retry/idempotency behavior.
 - Provider choice, infrastructure and credential models.
 - Concrete authentication/authorization, secrets, threat model, API schemas, budget enforcement and approval UX.
@@ -40,12 +42,15 @@ This register separates **approved user decisions** from **earlier design concep
 
 See the [historical conversation audit](../project/historical-decision-audit.md) for a topic-by-topic reconciliation of available prior discussions, including exploratory cloud options and brand/legal concerns.
 
-## Proposed technology ADRs — owner approval pending
+## Technology ADRs — approved and pending
 
-The following documents compare options and recommend validation experiments. **They are not approved technology selections and must not be used to claim deployed implementation.**
+**Approved technology decisions:**
 
-- [ADR 0004 — Control-plane language: Rust vs Go](0004-control-plane-language.md)
-- [ADR 0005 — Authoritative database: SQLite vs PostgreSQL](0005-authoritative-database.md)
+- [ADR 0004 — Rust-only backend](0004-control-plane-language.md) — **Approved 2026-10-21**.
+- [ADR 0005 — SQLite authoritative database](0005-authoritative-database.md) — **Approved 2026-10-21**.
+
+**Other proposed technology decisions:**
+
 - [ADR 0006 — Remote worker communication transport](0006-worker-communication.md)
 - [ADR 0007 — Remote worker hosting and cost model](0007-remote-worker-hosting.md)
 - [ADR 0008 — GitHub provider authentication](0008-github-authentication.md)
