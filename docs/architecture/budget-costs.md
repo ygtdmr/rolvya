@@ -41,4 +41,6 @@ Currency conversion, taxes, pricing source freshness, reservation release policy
 - Cost reports distinguish four categories and three forecast scenarios.
 - No configured percentage buffer bypasses the hard gate.
 
+Detailed **Proposed** accounting safeguards—including SQLite atomic holds, unknown provider invoices, cloud automatic retries and the open in-flight worker policy—are in [budget reservation and reconciliation](budget-reservation-reconciliation.md). The hard explicit-approval policy itself is **Approved**.
+
 Related: [overview](overview.md), [execution](execution.md), [decision register](../decisions/README.md).
