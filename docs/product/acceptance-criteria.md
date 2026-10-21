@@ -27,6 +27,8 @@ This is a **future implementation test contract**, not evidence tests have run. 
 | AC-013 | Crash after provider writes but before local acknowledgement. | Reconciliation/idempotency prevents duplicate write and double reservation. | PR-008, PR-012 |
 | AC-014 | Attempt to leak credentials via logs or model output. | Sensitive values redacted; access rejected and security event tracked. | PR-013 |
 | AC-015 | Inspect docs in GitHub and repository-root Obsidian Vault. | Existing links resolve; proposed versus implemented status is explicit. | PR-013 |
+| AC-016 | Inspect/build all Rolvya-owned backend services. | Backend services and application logic are Rust-only; no unapproved parallel Go/Python/Node backend. External user project tools remain permitted. | PR-014 |
+| AC-017 | Initialize authoritative persistence and concurrently submit budget reservations, then crash/recover it. | SQLite is the only authoritative engine; transactional budget integrity, foreign keys, approved-ceiling protection and restored successful artifacts hold. | PR-008, PR-012, PR-015 |
 
 ## Evidence rules
 
