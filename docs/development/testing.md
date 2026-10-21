@@ -14,6 +14,8 @@ tags: [testing, ci, reliability, security]
 
 The [initial Rust/SQLite verification matrix](rust-sqlite-test-matrix.md) catalogs detailed future fixtures, concurrency tests and fault-injection points; [engineering task packages](initial-implementation-task-packages.md) assign candidate ownership and dependencies. These are planning artifacts, **not tests that have already run**.
 
+The [remote integration test matrix](remote-integration-test-matrix.md) defines RI-001–RI-030 (future, not executed) across remote authentication, duplicate worker messages, Git branch protection, provider hidden retries, spending bounds and billing reconciliation. Use [proposed wire](../architecture/worker-wire-contract-draft.md), [remote Git](../architecture/git-remote-integration-contract.md) and [remote worker lifecycle](../operations/remote-worker-lifecycle-contract.md) contracts only under the eventual selected ADRs.
+
 ## Test layers
 
 | Layer | Focus | Examples |
