@@ -75,6 +75,8 @@ Exact enums, retry caps and timeout defaults need approval. `succeeded` requires
 
 For incremental validation use a linear-time topological traversal in edges+nodes; exact algorithm remains an implementation choice. Reject or escalate unsatisfiable dependencies rather than unilaterally rewriting the plan.
 
+The [plan activation policy](plan-activation-and-versioning.md) and [proposed ADR 0009](../decisions/0009-parent-aggregation.md) define the exact unresolved freeze and group-success decision gates. No parent model is approved yet.
+
 ## Parent completion is NOT automatic (open design)
 
 The user approved arbitrary hierarchy, but a precise parent roll-up policy was not yet selected. Two models:
