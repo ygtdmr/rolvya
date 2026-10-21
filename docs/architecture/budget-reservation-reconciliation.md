@@ -12,7 +12,7 @@ tags: [budget, sqlite, reconciliation, approvals, billing]
 
 The product owner has **approved** the project budget as a hard admission gate: when funds are insufficient, stop starting **new billable work**; alert the owner; preserve completed work; resume new billable admission only after explicit approval to increase the limit. No automatic percentage overrun is allowed ([ADR 0002](../decisions/0002-hard-budget-approval.md)). The backend is **Rust only** ([ADR 0004](../decisions/0004-control-plane-language.md)); authoritative persistence is **SQLite only** ([ADR 0005](../decisions/0005-authoritative-database.md)).
 
-This document proposes financial state transitions and provider integration. In-flight cancellation semantics, refund/late-billing policy, accounting currency, taxes, exchange rates and service-level cost limits are **not yet approved**. An application-layer reservation cannot physically prevent a provider from submitting late or larger charges: product UI must distinguish *authorized spend*, *reserved exposure*, *provisional accrued cost*, *settled billed cost* and *unknown exposure*.
+This document proposes financial state transitions and provider integration. **Approved ADR 0010** selects *bounded, pre-reserved continuation or stop-on-risk*. Provider-specific cancellation/limits, refund/late-billing mechanics, accounting currency, taxes, exchange rates and service-level cost parameters are **not yet selected**. An application-layer reservation cannot physically prevent a provider from submitting late or larger charges: product UI must distinguish *authorized spend*, *reserved exposure*, *provisional accrued cost*, *settled billed cost* and *unknown exposure*.
 
 ## Terms and cost dimensions
 
@@ -58,18 +58,15 @@ A denied transaction must not create a billable cloud job, an API call or an idl
 
 Approval request states: `pending → approved / denied / expired`. Only a separately authenticated actor with explicit budget-increase authority may transition to approved; recorded amount, currency, previous and new ceilings, actor, reason, timestamp and idempotency key are mandatory. Alert dismissal, worker status and proposal acceptance must not change approved ceiling.
 
-The standalone [in-flight worker policy options](inflight-cost-policy.md) and [proposed ADR 0010](../decisions/0010-inflight-budget.md) make the still-open owner decision explicit. The hard admission gate remains approved.
+## Approved in-flight execution policy (ADR 0010)
 
-## In-flight operations: decision deliberately open
+The owner approved [ADR 0010](../decisions/0010-inflight-budget.md): **an already-running attempt may continue only if its remaining potential charges are verifiably covered by its existing reservation and enforceable provider-side limit; otherwise stop-on-risk**. Consult the [detailed execution contract](inflight-cost-policy.md). Insufficient project headroom **always blocks new billable attempts** even while previously authorized bounded attempts continue.
 
-The previously agreed rule stops **new billable admissions** on insufficient headroom; it does not yet define whether an already running paid worker must be killed or allowed to finish. Two policies need explicit owner evaluation:
+Continuation must recheck **remaining** reserved coverage while avoiding double counting paid portions of the same hold. If an upper bound cannot be proven, record risk, fence current attempt privileges, request remote provider cancellation, preserve verified artifacts/checkpoints, reconcile cloud/Git/late bills and do not claim the provider stopped charging merely because cancellation was acknowledged.
 
-| Candidate | Benefit | Risk |
-| --- | --- | --- |
-| Stop/terminate in-flight attempts when exposure nears ceiling | Stronger attempt-level cap | May lose uncheckpointed effort, still incur minimum or delayed fees |
-| Allow already authorized reserved attempts to finish within bounded reserved exposure | Preserves progress | Requires trustworthy provider-side duration/size enforcement and conservative reservations |
+Delayed invoice data may be marked **unknown**, but no system may pretend unknown charges are zero. If a credible external maximum remains enforceable and the complete project exposure is conservatively covered, the existing attempt may stay within its original reservation. Otherwise stop it. Provider retry defaults that silently start extra paid executions must be disabled or explicitly admitted and accounted.
 
-Neither is approved. The implementation must not silently choose or promise zero overrun without provider-side enforcement. A cancellation must fence lease authority, persist artifacts and reconcile cloud charges/Git side effects.
+The **choice of policy is Approved**; exact provider controls, cancellation latencies, billing rounding/refunds, FX and implementation settings remain open.
 
 ## Example (illustrative exact integers, no live rate)
 
@@ -107,6 +104,6 @@ Build deterministic fake billing providers, randomize completion/invoice orderin
 
 ## Open decisions and sources
 
-Owner approval required for **in-flight cancellation**, currency conversions, liability/hold limits, provider-specific caps and refund semantics. Implementation choices: SQLite transaction locking, exact schema, billing driver, stale reservation expiry, provider ledger reconciliation latency and alert thresholds.
+Owner policy for in-flight handling is **Approved**. Still requiring design/approval: currency conversion, liability/hold parameters, provider-specific caps/cancellation timing and refund mechanics. Implementation choices: SQLite transaction locking, exact schema, billing driver, stale reservation expiry, provider ledger reconciliation latency and alert thresholds.
 
 Related: [approved budget ADR](../decisions/0002-hard-budget-approval.md), [SQLite blueprint](sqlite-schema-draft.md), [scheduler](scheduler.md), [failure recovery](failure-recovery.md), [worker provider evaluation](../operations/worker-provider-evaluation.md), [user flows](../product/user-flows.md), [open questions](../project/open-questions.md).
