@@ -19,7 +19,7 @@ The [decision readiness checklist](decision-readiness.md) separates approved arc
 ## Mandatory foundations before implementation
 
 1. **Rust-only backend and SQLite database are approved** by [ADR 0004](../decisions/0004-control-plane-language.md) and [ADR 0005](../decisions/0005-authoritative-database.md). Resolve remaining worker communication and initial hosting choices using [proposed ADRs 0006–0008](../decisions/README.md) and the [open-decision register](open-questions.md).
-2. Decide budget reservation/settlement semantics and provider-side bill limits (especially in-flight attempts and delayed invoices). Approved invariant: **no percentage overrun, explicit human approval for higher ceiling**.
+2. **Implement Approved ADR 0010**: previously admitted workers can continue only within enforceably bounded pre-reserved exposure, otherwise stop-on-risk; assess actual provider-side bill limits and delayed invoices. Approved invariant: **no percentage overrun, explicit human approval for higher ceiling**.
 3. Approve security/identity and Git merge authority and define tenant isolation.
 4. Establish a sandboxed remote development/test environment using fake provider adapters first; no user's local computer worker or repository access.
 5. Define measurable acceptance/benchmark thresholds and capture exact toolchain versions in the handoff.
@@ -47,7 +47,7 @@ flowchart TD
 
 The diagram's edges are **development dependencies**, not an actual activated Rolvya task graph. Parallelize nonconflicting implementation work after prerequisites are approved and isolated.
 
-Candidate packages R00–R11, with explicit future agent handoffs, are in [initial Rust/SQLite engineering tasks](../development/initial-implementation-task-packages.md); acceptance/fault cases T-001–T-024 are in [test matrix](../development/rust-sqlite-test-matrix.md). These are **not** an activated Rolvya DAG. Parent group policy and already-running billing remain pending owner decisions in [ADR 0009](../decisions/0009-parent-aggregation.md) and [ADR 0010](../decisions/0010-inflight-budget.md).
+Candidate packages R00–R11, with explicit future agent handoffs, are in [initial Rust/SQLite engineering tasks](../development/initial-implementation-task-packages.md); acceptance/fault cases T-001–T-030 are in [test matrix](../development/rust-sqlite-test-matrix.md). These are **not** an activated Rolvya DAG. **Group-only parent aggregation** ([Approved ADR 0009](../decisions/0009-parent-aggregation.md)) and **bounded-or-stop running worker spending** ([Approved ADR 0010](../decisions/0010-inflight-budget.md)) are mandatory. Optional-child behavior, provider-specific limits and detailed implementation interfaces remain open.
 
 ## Slices and acceptance gates
 
