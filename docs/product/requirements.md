@@ -29,6 +29,8 @@ Rolvya is an open-source orchestration system for AI coding agents. This specifi
 | PR-011 | Worker tasks should be moderately scoped, with ~10-minute runtime as a planning target, not a guarantee or hard timeout. | Estimates and runtime metrics remain separate. |
 | PR-012 | Persist authoritative project/task/attempt/budget states in a single database instance where practical; prioritize efficiency. | Recovery and budget integrity tests after restart. |
 | PR-013 | Use Obsidian-compatible, GitHub-readable Markdown documentation; agent handoffs and current project status must be maintained. | Relative links and historical decisions are traceable. |
+| PR-014 | All Rolvya-owned backend services and backend logic are implemented **only in Rust**. | Backend build and source inspection show no alternative-language backend services; approved [ADR 0004](../decisions/0004-control-plane-language.md). |
+| PR-015 | The sole authoritative database engine is **SQLite**, accessed through the Rust backend. | SQLite transactions, foreign keys, restore and budget-admission tests; approved [ADR 0005](../decisions/0005-authoritative-database.md). |
 
 ## Core end-to-end user flow (proposed)
 
@@ -55,4 +57,4 @@ Not included: personal-computer worker/sync integration, runtime expansion of th
 
 ## Traceability
 
-Technical elaboration: [DAG](../architecture/dag-planning.md), [execution](../architecture/execution.md), [workers](../architecture/workers.md), [budget](../architecture/budget-costs.md), [data model](../architecture/data-model.md), [security](../architecture/security.md). Testing: [acceptance criteria](acceptance-criteria.md), [test strategy](../development/testing.md).
+Technical elaboration: [Rust + SQLite backend](../architecture/rust-sqlite-backend.md), [DAG](../architecture/dag-planning.md), [execution](../architecture/execution.md), [workers](../architecture/workers.md), [budget](../architecture/budget-costs.md), [data model](../architecture/data-model.md), [security](../architecture/security.md). Testing: [acceptance criteria](acceptance-criteria.md), [test strategy](../development/testing.md).
