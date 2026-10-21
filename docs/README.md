@@ -46,6 +46,7 @@ All Markdown documentation follows the [Obsidian-compatible documentation policy
 - [Scheduler state machine](architecture/scheduler.md)
 - [Worker control protocol](architecture/worker-protocol.md)
 - [Remote worker transport design](architecture/worker-transport-design.md)
+- [Proposed worker wire contract v0](architecture/worker-wire-contract-draft.md)
 - [Failure classification and recovery](architecture/failure-recovery.md)
 - [Monitoring and audit architecture](architecture/observability.md)
 - [Remote workers and models](architecture/workers.md)
@@ -57,6 +58,7 @@ All Markdown documentation follows the [Obsidian-compatible documentation policy
 - [Human approval state machine](architecture/approval-workflow.md)
 - [Remote GitHub integration](architecture/integration-github.md)
 - [GitHub App security design](architecture/github-app-integration-design.md)
+- [Remote Git publication contract](architecture/git-remote-integration-contract.md)
 - [Persistence and data model](architecture/data-model.md)
 - [Rust + SQLite backend contract](architecture/rust-sqlite-backend.md)
 - [Proposed Rust workspace boundaries](architecture/rust-workspace.md)
@@ -87,6 +89,7 @@ The paths above are a **planned inventory**, not links to files that already exi
 - [Review and ADR governance](development/review-process.md)
 - [Initial Rust + SQLite implementation task packages](development/initial-implementation-task-packages.md)
 - [Rust + SQLite core test matrix](development/rust-sqlite-test-matrix.md)
+- [Remote integration verification matrix](development/remote-integration-test-matrix.md)
 - [Open decisions and architectural questions](project/open-questions.md)
 
 ## Operations specifications now available
@@ -100,6 +103,7 @@ The paths above are a **planned inventory**, not links to files that already exi
 - [Incident response runbooks](operations/runbooks.md)
 - [Infrastructure alternatives](operations/infrastructure-options.md)
 - [Worker provider benchmark protocol](operations/worker-provider-evaluation.md)
+- [Remote worker provisioning and billing lifecycle](operations/remote-worker-lifecycle-contract.md)
 
 ## Architecture evaluation and implementation planning
 
@@ -112,6 +116,7 @@ The paths above are a **planned inventory**, not links to files that already exi
 - [Approved ADR 0010 — Bounded worker continuation or stop-on-risk](decisions/0010-inflight-budget.md)
 - [Evidence-driven implementation slices](project/implementation-slices.md)
 - [Pre-implementation decision readiness](project/decision-readiness.md)
+- [Transport, Git and hosting owner decision pack](project/transport-git-hosting-decision-pack.md)
 - [Product delivery roadmap](project/roadmap.md)
 - [Milestone definitions and evidence gates](project/milestones.md)
 - [Architecture glossary](reference/glossary.md)
