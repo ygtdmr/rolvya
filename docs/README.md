@@ -37,12 +37,16 @@ All Markdown documentation follows the [Obsidian-compatible documentation policy
 - [Execution lifecycle](architecture/execution.md)
 - [Scheduler state machine](architecture/scheduler.md)
 - [Worker control protocol](architecture/worker-protocol.md)
+- [Remote worker transport design](architecture/worker-transport-design.md)
 - [Failure classification and recovery](architecture/failure-recovery.md)
 - [Monitoring and audit architecture](architecture/observability.md)
 - [Remote workers and models](architecture/workers.md)
 - [Budget and costs](architecture/budget-costs.md)
+- [Budget reservation and reconciliation](architecture/budget-reservation-reconciliation.md)
 - [Security model](architecture/security.md)
+- [Project identity and authorization](architecture/identity-authorization.md)
 - [Remote GitHub integration](architecture/integration-github.md)
+- [GitHub App security design](architecture/github-app-integration-design.md)
 - [Persistence and data model](architecture/data-model.md)
 - [Rust + SQLite backend contract](architecture/rust-sqlite-backend.md)
 - [SQLite schema and atomic admission draft](architecture/sqlite-schema-draft.md)
@@ -82,6 +86,7 @@ The paths above are a **planned inventory**, not links to files that already exi
 - [SQLite operations and recovery](operations/sqlite-operations.md)
 - [Incident response runbooks](operations/runbooks.md)
 - [Infrastructure alternatives](operations/infrastructure-options.md)
+- [Worker provider benchmark protocol](operations/worker-provider-evaluation.md)
 
 ## Architecture evaluation and implementation planning
 
@@ -91,8 +96,9 @@ The paths above are a **planned inventory**, not links to files that already exi
 - [Proposed ADR 0007 — Remote worker hosting](decisions/0007-remote-worker-hosting.md)
 - [Proposed ADR 0008 — GitHub authentication](decisions/0008-github-authentication.md)
 - [Evidence-driven implementation slices](project/implementation-slices.md)
+- [Pre-implementation decision readiness](project/decision-readiness.md)
 
-**ADR 0004 and ADR 0005 are approved (2026-10-21); ADRs 0006–0008 remain proposed.** The [owner's open technical decisions](project/open-questions.md) must be resolved explicitly; no provider, runtime or DB engine is approved by a document's existence.
+**ADR 0004 and ADR 0005 are approved (2026-10-21); ADRs 0006–0008 remain proposed.** The [owner's open technical decisions](project/open-questions.md) must be resolved explicitly; only Rust and SQLite are approved stack selections; other platform/provider choices await explicit approval.
 
 ## Recorded architecture decisions
 
