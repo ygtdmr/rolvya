@@ -54,6 +54,8 @@ The full tagline is quoted here once for historical precision. That is not permi
 
 No legal opinion or trademark registration is implied. Future organization transfer, dual licensing, contributor agreements, source attribution and brand/logo usage rules require separate legal review and explicit owner decisions.
 
+The user also discussed proposed GitHub repository discovery topics such as `ai-agents`, `multi-agent`, `orchestration`, `coding-agents`, `developer-tools`, `open-source` and `DAG`. These are **historical suggested metadata**, not proof that all topics were actually configured on the repository. The repository About/topics require separate authorized settings changes and review.
+
 ## Initial repository and possible future organization
 
 - Approved initial publishing arrangement: public personal GitHub account, repository `ygtdmr/rolvya`, branch `main`; GNU MIT.
