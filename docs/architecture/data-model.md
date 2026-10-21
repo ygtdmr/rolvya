@@ -10,7 +10,7 @@ tags: [database, persistence, dag, ledger]
 
 ## Decision boundary
 
-**Approved constraints:** one authoritative database instance is preferred; low memory/energy usage and fast requests matter; the system must persist full upfront DAG plans, task instructions, model/effort assignments, states, worker attempts, project costs and approvals. The main control VPS target discussed was 2–4 GB RAM. **Open:** database engine, physical schema, tenancy model, durability configuration, backup frequency, transaction technology and database hosting. This file proposes a logical schema; it does **not** approve PostgreSQL, SQLite or any other engine.
+**Approved decisions:** the backend is **Rust only** ([ADR 0004](../decisions/0004-control-plane-language.md)), and the one authoritative database is **SQLite only** ([ADR 0005](../decisions/0005-authoritative-database.md)). Low memory/energy usage and fast requests matter; persist full upfront DAG plans, context, model/effort assignments, states, attempts, costs and approvals. The main control VPS target discussed was 2–4 GB RAM. **Open implementation details:** SQLite physical schema, WAL/durability configuration, foreign-key/index strategy, tenancy, migration and backup intervals, transaction code and remote database file placement. This file proposes a logical schema; see the [Rust + SQLite backend contract](rust-sqlite-backend.md) for detailed design.
 
 ## Domain entities and relationships
 
@@ -89,6 +89,6 @@ Document schema versions, forward/backward compatibility, backup and restore str
 
 ## Pending ADRs
 
-Choose database engine and schema strategy; ownership/multitenancy; isolation level and budget locking; object storage; event retention and backup RPO/RTO; graph storage representation.
+Choose SQLite schema strategy, WAL/journal durability and busy/locking policies; ownership/multitenancy; atomic budget locking; artifact storage; event retention and backup RPO/RTO; graph storage representation. **Database engine selection is closed: SQLite.**
 
 Related: [overview](overview.md), [DAG planning](dag-planning.md), [execution](execution.md), [budget](budget-costs.md), [security](security.md), [decision register](../decisions/README.md).
