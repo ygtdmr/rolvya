@@ -58,6 +58,8 @@ A denied transaction must not create a billable cloud job, an API call or an idl
 
 Approval request states: `pending → approved / denied / expired`. Only a separately authenticated actor with explicit budget-increase authority may transition to approved; recorded amount, currency, previous and new ceilings, actor, reason, timestamp and idempotency key are mandatory. Alert dismissal, worker status and proposal acceptance must not change approved ceiling.
 
+The standalone [in-flight worker policy options](inflight-cost-policy.md) and [proposed ADR 0010](../decisions/0010-inflight-budget.md) make the still-open owner decision explicit. The hard admission gate remains approved.
+
 ## In-flight operations: decision deliberately open
 
 The previously agreed rule stops **new billable admissions** on insufficient headroom; it does not yet define whether an already running paid worker must be killed or allowed to finish. Two policies need explicit owner evaluation:
