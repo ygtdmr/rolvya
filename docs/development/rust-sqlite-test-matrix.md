@@ -10,7 +10,7 @@ tags: [rust, sqlite, tests, acceptance, safety]
 
 ## Status and test evidence policy
 
-**Proposed future test specification only. No Rust tests, CI pipeline, SQLite migration or fault test is represented as executed.** Rust-only backend and SQLite-only authoritative DB are approved decisions. The scenarios below make core invariants testable for [initial work packages](initial-implementation-task-packages.md). Source requirements: [ADR 0001](../decisions/0001-fixed-upfront-dag.md), [ADR 0002](../decisions/0002-hard-budget-approval.md), [ADR 0004](../decisions/0004-control-plane-language.md), [ADR 0005](../decisions/0005-authoritative-database.md), [product acceptance criteria](../product/acceptance-criteria.md).
+**Proposed future test specification only. No Rust tests, CI pipeline, SQLite migration or fault test is represented as executed.** Rust-only backend and SQLite-only authoritative DB are approved decisions. The scenarios below make core invariants testable for [initial work packages](initial-implementation-task-packages.md). Source requirements: [ADR 0001](../decisions/0001-fixed-upfront-dag.md), [ADR 0002](../decisions/0002-hard-budget-approval.md), [ADR 0004](../decisions/0004-control-plane-language.md), [ADR 0005](../decisions/0005-authoritative-database.md), [ADR 0009](../decisions/0009-parent-aggregation.md), [ADR 0010](../decisions/0010-inflight-budget.md), [product acceptance criteria](../product/acceptance-criteria.md).
 
 ## Deterministic fixture catalogue
 
@@ -27,7 +27,7 @@ tags: [rust, sqlite, tests, acceptance, safety]
 | F9: stale worker | A attempt1 epoch 1 reports success after epoch 2 issued | Reject stale authority; no false task success |
 | F10: conflicting Git writes | Independent tasks both propose protected branch write | Block or use declared isolated refs; never silent race |
 | F11: unauthorized approval | Worker/fake user submits increased ceiling | Reject; store denial audit only |
-| F12: unimplemented group rule | Edge points to group without approved aggregation | Activation blocked, not guessed |
+| F12: group dependency | Group G contains required leaves A and B; dependent C has explicit G → C edge | C waits until both leaves and group acceptance validate; G never leases a worker |
 | F13: provider auto-retry | Fake provider secretly launches twice | Detect second execution/spend; no silently approved attempt |
 
 All money and billing amounts in fixtures are synthetic exact integer minor units. Use stable fixture IDs, seeds and content hashes; never include secrets or real user repositories.
@@ -61,7 +61,20 @@ All money and billing amounts in fixtures are synthetic exact integer minor unit
 | T-023 | Performance | Synthetic thousands-node DAG and independent ready queue | Measured CPU/RSS/query p95; **no invented pass threshold** |
 | T-024 | Boundary | Rolvya backend has non-Rust service or alternate authoritative DB | Review/build gate rejects forbidden stack |
 
-Tests under a *proposed* group or plan-activation policy should be marked **blocked** until owner approval; they must not be “passed” by silently choosing an implementation.
+**Approved:** group-only parent aggregation and bounded-or-stop worker spending are required test targets, not policy choices. **Still open:** exact activation approval UX, optional children, provider-specific limits and implementation schema. Tests depending on those unapproved details must be marked blocked rather than passed by inventing a choice.
+
+## Additional approved-policy tests
+
+| ID | Layer | Test | Pass criterion |
+| --- | --- | --- | --- |
+| T-025 | Group aggregation | Create group with required children A/B, validate A only | Group remains incomplete; G → C dependent waits |
+| T-026 | Group worker exclusion | Attempt to lease group or add executable children under executable parent | Plan or lease rejected; only planned executable leaves run |
+| T-027 | Group roll-up replay | Validate required A/B and group predicate; replay callbacks | Exactly one logical group success transition and no graph hash change |
+| T-028 | Bounded worker continuation | New attempt exceeds headroom; existing attempt is fully reserved/provider-limited | New admission denied; old worker continues **only within its approved bound** |
+| T-029 | Stop-on-risk | Provider maximum becomes unverifiable while worker runs | Persist risk, fence lease, issue cancellation, preserve validated artifacts |
+| T-030 | Late billing | Post-cancel provider minimum charge and duplicated invoice callback | Reconcile once and report any variance; no hidden ceiling change |
+
+These are **specified future tests, not executed evidence**. Cloud-provider stop tests need separately authorized live spend after fake tests pass.
 
 ## Required fault-injection points
 
@@ -81,7 +94,7 @@ At every point verify the authoritative SQLite state, current attempt epoch, bud
 ## Property-based invariants
 
 - Graph node count and active plan hash are stable for all valid state changes and failed attempts.
-- No task becomes eligible before every required predecessor is validated under the chosen group policy.
+- No task becomes eligible before every required predecessor is validated under Approved ADR 0009 group-only aggregation.
 - `settled + held + unreserved_uncertain + new_exposure` must not be admitted beyond the human-approved ceiling; duplicates must not create new authorized exposure.
 - Only one current fenced attempt has authority for a given task; stale workers cannot force success.
 - Owner-approved ceiling changes are human-authenticated, version-checked and auditable.
