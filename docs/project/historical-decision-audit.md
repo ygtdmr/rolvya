@@ -48,6 +48,10 @@ For current source-of-truth priorities, see [decision register](../decisions/REA
 5. Database engine, indexing implementation, migrations, RPO/RTO and retention are not selected.
 6. Full historical coverage requires source-by-source comparison with complete original transcripts and any additional diagrams; no invented decisions should fill missing evidence.
 
+## Decision update after the historical checkpoint (2026-10-21)
+
+The owner **subsequently approved Rust as the sole backend language** ([ADR 0004](../decisions/0004-control-plane-language.md)) and **SQLite as the sole authoritative database** ([ADR 0005](../decisions/0005-authoritative-database.md)). Entries above describing an undecided engine or historical Rust sketches reflect the earlier conversation state, **not the current architecture**. See the [Rust + SQLite backend contract](../architecture/rust-sqlite-backend.md). Framework/crates, SQLite WAL/migration settings and runtime infrastructure remain open details.
+
 ## Audit maintenance
 
 When another historical decision is recovered, record: approximate discussion date, claim, user approval evidence, current status, normative destination, verification/test linkage and unresolved implications. Do not copy illustrative pricing or provider capacity into binding requirements.
