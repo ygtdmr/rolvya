@@ -17,6 +17,9 @@ This register separates **approved user decisions** from **earlier design concep
 | D-010 | Approved | No Local Agent, Local Sync, or direct access/synchronization with Git repositories on user's personal machine. | Support remote Git services rather than personal-computer access. |
 | D-011 | Approved 2026-10-21 | Backend implementation language is **Rust only**. | All Rolvya-owned backend services and logic must be Rust; see [ADR 0004](0004-control-plane-language.md). |
 | D-012 | Approved 2026-10-21 | Authoritative database engine is **SQLite only**. | Rust persistence layer and remote-worker API boundary; see [ADR 0005](0005-authoritative-database.md). |
+| D-013 | Approved 2026-10-21 | Worker control communication is worker-initiated **HTTPS pull/claim**. | Authenticated remote workers, durable SQLite outbox; [ADR 0006](0006-worker-communication.md). |
+| D-014 | Approved 2026-10-21 | **GitHub App** is the GitHub repository authorization method. | Rust trusted publisher, scoped installation, protected refs; [ADR 0008](0008-github-authentication.md). |
+| D-015 | Approved 2026-10-21 | Remote worker architecture supports **multiple provider adapters**. | No cloud lock-in; common provider-neutral Rust interfaces; [ADR 0011](0011-multi-provider-worker-infrastructure.md). |
 
 ## Previously explored architecture; validate before treating details as binding
 - Main orchestrator decomposes hierarchical tasks, selects AI models and effort levels, manages queue, dependencies and contextual memory.
@@ -28,8 +31,8 @@ This register separates **approved user decisions** from **earlier design concep
 
 ## Outstanding decisions / research
 - Detailed product flows, Rust framework/crates and UI stack, SQLite physical schema/WAL configuration, persistence transaction tuning and data isolation. Rust and SQLite themselves are **approved**, not open choices.
-- Graph/task contracts, concurrency policy, worker adapters, failure/retry/idempotency behavior.
-- Provider choice, infrastructure and credential models.
+- Graph/task implementation contracts, scheduler fairness, **multi-provider adapter implementation**, failure/retry/idempotency behavior.
+- Initial remote provider lineup/region and exact per-provider identity, permissions and cost caps (multi-provider architecture is Approved).
 - Concrete authentication/authorization, secrets, threat model, API schemas, budget enforcement and approval UX.
 - Roadmap milestones, test strategy, support and release process.
 - Legal/commercial implications of MIT and a separate future trademark policy. MIT does not generally prohibit commercial competing use; brand restrictions must not be falsely described as MIT requirements.
@@ -48,17 +51,18 @@ See the [historical conversation audit](../project/historical-decision-audit.md)
 
 - [ADR 0004 — Rust-only backend](0004-control-plane-language.md) — **Approved 2026-10-21**.
 - [ADR 0005 — SQLite authoritative database](0005-authoritative-database.md) — **Approved 2026-10-21**.
+- [ADR 0006 — Worker-initiated HTTPS control](0006-worker-communication.md) — **Approved 2026-10-21**.
+- [ADR 0008 — GitHub App authorization](0008-github-authentication.md) — **Approved 2026-10-21**.
+- [ADR 0011 — Extensible multi-provider remote workers](0011-multi-provider-worker-infrastructure.md) — **Approved 2026-10-21**.
 
 **Additional owner-approved operational ADRs (2026-10-21):**
 
 - [ADR 0009 — Group-only parent tasks and verified aggregation](0009-parent-aggregation.md) — **Approved**.
 - [ADR 0010 — Bounded in-flight worker execution or stop-on-risk](0010-inflight-budget.md) — **Approved**.
 
-**Other proposed technology decisions:**
+**Remaining proposed provider rollout decision:**
 
-- [ADR 0006 — Remote worker communication transport](0006-worker-communication.md)
-- [ADR 0007 — Remote worker hosting and cost model](0007-remote-worker-hosting.md)
-- [ADR 0008 — GitHub provider authentication](0008-github-authentication.md)
+- [ADR 0007 — Initial remote worker providers, regions and cost comparison](0007-remote-worker-hosting.md) — **Proposed**; it does not reopen approved multi-provider support.
 
 
 Selection gates, unresolved questions and evidence requirements are in the [open-decision register](../project/open-questions.md). Implementation order after approval is in the [proposed implementation slices](../project/implementation-slices.md).
