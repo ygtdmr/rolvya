@@ -10,14 +10,14 @@ tags: [configuration, deployment, security, cost]
 
 ## Purpose
 
-Describe configuration domains that a future deployment must support. This is **not** a concrete `.env` template, product API, or approved runtime defaults: storage engine, language, secret manager, provider adapter, authentication and transport remain open.
+Describe configuration domains that a future deployment must support. This is **not** a concrete `.env` template, product API, or approved runtime defaults: backend **Rust** and authoritative database **SQLite** are approved, while the Rust framework/driver, SQLite journal mode, secret manager, provider adapter, authentication and transport remain open.
 
 ## Configuration classes
 
 | Class | Examples | Security / ownership rule |
 | --- | --- | --- |
 | Control server | bind address, TLS/proxy, instance ID, health probe, scheduler loop | Operators only; secure defaults and validated startup |
-| Persistence | DB connection reference, schema version, pool and durability policy | Store authentication as secret reference, never in tracked file |
+| Persistence | **SQLite** database path/volume, schema version, pool/busy timeout and journal/durability policy | Only Rust control-plane access; restrict local DB file and back it up consistently |
 | Worker pools | remote endpoint class, CPU/RAM limit, image/version, quota, region | User-authorized remote servers only; no desktop Local Agent |
 | Adapter access | provider, approved model, effort, CLI/API mode, identity ref | Provider licensing/entitlements must be verified |
 | Remote Git | provider, installation reference, permitted repositories/branches | Least privilege and isolation of task refs |
