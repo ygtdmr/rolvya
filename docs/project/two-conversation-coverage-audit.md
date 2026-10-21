@@ -167,6 +167,14 @@ Latest explicit owner decision supersedes incompatible earlier creative/technica
 5. Run exhaustive relative link / Markdown metadata checks and, when feasible, GitHub/Obsidian rendering, Mermaid parse and actual code/tests. This audit does not claim those tools were run simply because the documents have diagrams.
 6. Publish remaining action list and verified coverage counts **based on the true total of source statements**, not an invented percentage.
 
+## Repository structural validation performed (2026-10-22)
+
+At the end of this remediation, GitHub's current commit tree reported **90 tracked files (89 Markdown documents plus LICENSE)**. The pre-remediation baseline was **82 files (81 Markdown plus LICENSE)**; eight new detailed Markdown documents were created during this pass.
+
+A connector-backed static audit fetched **all 89 Markdown files** and checked **1,213 relative Markdown link occurrences** against tracked repository file targets. **No missing file target was detected** by that checker. The audit also counted Markdown code fence delimiters and found no odd/unbalanced count in the inspected files. Existing `docs/project/status.md` lacks YAML frontmatter, but the [documentation policy](../development/documentation-policy.md) explicitly makes YAML metadata **optional**, so this is not a validation failure.
+
+**Limits of these checks:** they do not prove fragment/heading anchors resolve, validate every unusual Markdown link syntax, run a real Markdown/Mermaid renderer, open a real Obsidian Vault, lint YAML with a full parser, test external URLs, or execute code. The verification was on current repository files, **not complete original chat transcript coverage**.
+
 ## Change-control and safety notes
 
 - Do not modify the original final logo, add gold, or migrate the public repository account.
