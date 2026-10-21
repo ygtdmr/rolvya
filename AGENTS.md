@@ -27,6 +27,7 @@ Rolvya is an AI-agent-orchestration project developed by AI coding agents under 
 - Distinguish estimated AI API, cloud worker, storage, and data-transfer costs. Keep optimistic, expected, and pessimistic estimates distinct.
 - Never expose credentials, secrets, or sensitive user data in commits, logs, test fixtures, or agent messages.
 - Do not represent an unresolved question in [the open-decision register](docs/project/open-questions.md) as an approved implementation choice.
+- The [worker wire draft](docs/architecture/worker-wire-contract-draft.md), [Git publication contract](docs/architecture/git-remote-integration-contract.md) and [remote worker lifecycle](docs/operations/remote-worker-lifecycle-contract.md) are **Proposed**, not approved transport, authentication or cloud provider choices. Consult the [decision pack](docs/project/transport-git-hosting-decision-pack.md) before implementing those integrations.
 - Perform work in reviewable, scoped changes. Add or update tests for behavior changed, and document what was actually tested.
 - Synchronize documentation with implementation; update the project status and impacted specifications or ADRs in the same change.
 - Follow [the documentation policy](docs/development/documentation-policy.md): GitHub-compatible relative Markdown links, optional portable YAML frontmatter, Mermaid where helpful, and Obsidian-friendly organization.
