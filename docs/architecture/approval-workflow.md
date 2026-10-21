@@ -103,6 +103,8 @@ Authenticate the owner and enforce project-scoped authorization server side. Pro
 - Confirm a budget-paused project retains immutable DAG, completed artifacts, settled ledger and attempt history.
 - Verify later approval does not bypass a dependency or policy blocker.
 
+An approved project budget increase and a policy for already-running workers are distinct decisions. See [in-flight worker policy options](inflight-cost-policy.md) and [ADR 0010](../decisions/0010-inflight-budget.md), both unapproved proposals.
+
 ## Open decisions
 
 Identity provider, reviewer role delegation, session/2FA and audit signing, request expiry, currency conversion and tax treatment, UI confirmation format, maximum available ceiling, in-flight cancellation behavior and other human-review gates.
