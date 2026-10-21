@@ -16,7 +16,7 @@ Milestones below are **proposed future deliverables**, **not completed work**, f
 
 | ID | Milestone | Deliverable and independent verification | Current status |
 | --- | --- | --- | --- |
-| M0 | Approved architecture and risk gates | Rust/SQLite recorded; remaining transport, Git authorization, worker hosting and budget in-flight policies resolved before dependent paid work | **Partially specified** |
+| M0 | Approved architecture and risk gates | Rust/SQLite recorded; **Approved ADR 0009/0010** group and in-flight worker policy recorded; remaining transport, Git authorization, worker hosting and provider-specific enforcement resolved before dependent paid work | **Partially specified** |
 | M1 | Fixed DAG validator | Versioned hierarchy and dependency graph; reject cycles, dangling refs, runtime graph mutation | **Not verified** |
 | M2 | SQLite financial ledger and durable outbox | Atomic lease/reservation and explicit human approvals; two simultaneous contenders cannot over-admit budget | **Not verified** |
 | M3 | Rust scheduler and attempt lifecycle | Prerequisite guards, independent fake-worker concurrency, stale lease fencing and retry of same task ID | **Not verified** |
