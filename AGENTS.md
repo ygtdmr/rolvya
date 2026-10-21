@@ -8,7 +8,7 @@ Rolvya is an AI-agent-orchestration project developed by AI coding agents under 
 3. [Decision register](docs/decisions/README.md)
 4. [Documentation and Obsidian compatibility policy](docs/development/documentation-policy.md)
 5. [Engineering standards](docs/development/standards.md), [agent handoffs](docs/development/agent-handoffs.md) and [review process](docs/development/review-process.md)
-6. [Open design decisions](docs/project/open-questions.md)
+6. [Open design decisions](docs/project/open-questions.md) and [historical conversation coverage audit](docs/project/two-conversation-coverage-audit.md)
    - For orchestration changes also consult [orchestrator](docs/architecture/orchestrator.md), [task model](docs/architecture/task-model.md) and [agent contracts](docs/architecture/agents.md).
    - For budget authority consult [approval workflow](docs/architecture/approval-workflow.md). For backend organization consult the [Rust workspace proposal](docs/architecture/rust-workspace.md).
 7. Relevant product, architecture, and operations specifications
@@ -23,6 +23,9 @@ Rolvya is an AI-agent-orchestration project developed by AI coding agents under 
 - Treat every parent/non-leaf task as a **non-executable group**; only planned executable leaves may receive worker attempts. Group success requires verified required children and applicable group acceptance. See [Approved ADR 0009](docs/decisions/0009-parent-aggregation.md).
 - A running paid worker may continue only if **full remaining exposure is enforceably bounded and pre-reserved**; otherwise initiate stop-on-risk/fencing and external cost reconciliation. Do not start new billable attempts without approved headroom. See [Approved ADR 0010](docs/decisions/0010-inflight-budget.md).
 - Never represent a proposal, design goal, or unimplemented feature as working code.
+- For model access, preserve the historical subscription-only Claude CLI / authorized API-key mode distinction, but **do not assume subscription terms permit third-party unattended cloud orchestration**. Verify [model entitlement](docs/architecture/model-access-entitlement-contract.md) and [dated official provider policy](docs/reference/provider-cli-api-policy-evidence.md), failing closed when uncertain.
+- Apply [scheduler eligibility policy](docs/architecture/scheduler-selection-policy.md) before ranking by price/priority. Historical 20 workers, cloud prices, 1/3/10-minute retry delays and three attempts are **illustrations**, never universal configuration. See [retry historical analysis](docs/architecture/retry-escalation-policy.md).
+- Preserve the finalized no-gold wordless logo and **GNU MIT**, not superseded gold-brass styles or MIT; see [brand provenance](docs/product/brand-history-license-governance.md).
 - Do not silently resolve undecided technology, architecture, security, or product questions. Record the question and request a human decision when consequential.
 - Preserve approved decisions. Changes require documented rationale and explicit owner approval.
 - Do not add a Local Agent, Local Sync, or direct access to/synchronization with Git repositories on the user's personal computer. Remote Git services are the integration scope.
