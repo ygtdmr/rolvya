@@ -6,6 +6,12 @@
 
 Start at [the repository README](../README.md), read [AGENTS.md](../AGENTS.md) if you are a coding agent, and consult [current status](project/status.md) plus the [decision register](decisions/README.md) before starting an implementation task.
 
+## Obsidian navigation
+
+Open the repository root as an Obsidian Vault so links to the root README and AGENTS.md remain reachable. Begin with the [architecture overview](architecture/overview.md), follow the related-document links, and consult the [decision register](decisions/README.md). Use ordinary relative Markdown links so the same navigation works on GitHub without an Obsidian plugin.
+
+See the [compatibility audit](development/obsidian-audit.md) for the inspected files, checks, and remaining limitations.
+
 ## Documentation format
 
 All Markdown documentation follows the [Obsidian-compatible documentation policy](development/documentation-policy.md): GitHub-compatible links, portable YAML metadata where useful, and optional Mermaid diagrams. GitHub remains the source of truth.
