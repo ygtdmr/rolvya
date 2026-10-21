@@ -54,9 +54,13 @@ Five **proposed, not approved** ADRs were added for [control-plane language](../
 
 **Open:** owner decisions, physical schema, protocol, credentials, deployment setup, performance targets and CI. No compiled control plane, running database, live worker, production GitHub App or end-to-end test is verified.
 
+## Owner-approved backend and database stack (2026-10-21)
+
+The project owner explicitly chose **Rust as the only Rolvya-owned backend language** ([ADR 0004 — Approved](../decisions/0004-control-plane-language.md)) and **SQLite as the only authoritative database engine** ([ADR 0005 — Approved](../decisions/0005-authoritative-database.md)). The [Rust + SQLite implementation contract](../architecture/rust-sqlite-backend.md) and [SQLite operations](../operations/sqlite-operations.md) specify proposed module responsibilities, atomic task/budget admission, crash consistency and recovery. Other technology ADRs (worker transport, cloud hosting, GitHub authentication), Rust crate choices and SQLite configuration remain **Proposed/Open**; these decisions are not proof of any compiled Rust code or running SQLite DB.
+
 ## Next documentation tasks
 1. Recover all prior approved architectural detail, confirm sources, and convert it into topic-specific specifications and ADRs.
-2. Resolve open questions (technologies, interfaces, deployment boundaries, worker providers, identity/security, persistence and approval UX) before implementation depends on them.
+2. Resolve remaining open questions (Rust crates/tooling, SQLite configuration, worker transport/providers, identities and approvals, deployment boundaries and UI) before implementation depends on them; Rust and SQLite selection are settled.
 3. Decompose acceptance criteria into implementation slices with measured performance limits and proof-of-completion checks; user journeys and criteria are drafted, not implemented.
 4. Keep this file synchronized with actual commits, tests and releases.
 
