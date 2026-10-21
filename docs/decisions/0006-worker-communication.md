@@ -56,6 +56,8 @@ Prefer outbound TLS, short-lived worker identity, per-project authorization and 
 
 Use simulated remote workers over unreliable network conditions at representative concurrency. Measure ready-to-start latency, controller RSS/CPU, request/connection rate, pending work backlog, outbox lag, lease retries and recovered duplicates. Test network partitions, delayed responses, bad/missing auth, stale epoch, worker disappearance, controller crash and budget exhaustion. Compare gRPC/queue alternatives if candidate HTTPS exceeds the chosen SLO.
 
+The [candidate worker wire contract v0](../architecture/worker-wire-contract-draft.md) now details message envelope, claim, heartbeat, validation, stale lease handling, duplicate delivery and budget stop events. It remains a **Proposed** HTTPS-candidate contract, not approval of a transport. The [owner technology decision pack](../project/transport-git-hosting-decision-pack.md) summarizes the pending decision.
+
 ## Open choices
 
 Transport, broker if any, schema (OpenAPI/Protobuf), poll cadence, lease TTL, payload boundaries, callback security, provider start API, worker deployment bootstrap and exact retry timings.
