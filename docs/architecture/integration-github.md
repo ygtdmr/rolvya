@@ -68,6 +68,8 @@ Authorization revocation, missing repository, force-pushed target ref, merge con
 - Authorization revocation prevents subsequent privileged operations.
 - Secrets and untrusted repository text do not gain instruction authority.
 
+The [GitHub App authorization and branch isolation design](github-app-integration-design.md) clarifies the independent controls needed for repository permissions and protected refs. Selecting GitHub App authentication still requires owner approval.
+
 ## Open decisions
 
 Initial provider coverage, GitHub App vs OAuth/token flow, required permissions, branch and PR strategy, signing, merge authority, fork support, self-hosted provider adapters, quotas and retention. These are not approved solely by appearing here.
