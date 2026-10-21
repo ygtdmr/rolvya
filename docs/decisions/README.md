@@ -40,6 +40,18 @@ This register separates **approved user decisions** from **earlier design concep
 
 See the [historical conversation audit](../project/historical-decision-audit.md) for a topic-by-topic reconciliation of available prior discussions, including exploratory cloud options and brand/legal concerns.
 
+## Proposed technology ADRs — owner approval pending
+
+The following documents compare options and recommend validation experiments. **They are not approved technology selections and must not be used to claim deployed implementation.**
+
+- [ADR 0004 — Control-plane language: Rust vs Go](0004-control-plane-language.md)
+- [ADR 0005 — Authoritative database: SQLite vs PostgreSQL](0005-authoritative-database.md)
+- [ADR 0006 — Remote worker communication transport](0006-worker-communication.md)
+- [ADR 0007 — Remote worker hosting and cost model](0007-remote-worker-hosting.md)
+- [ADR 0008 — GitHub provider authentication](0008-github-authentication.md)
+
+Selection gates, unresolved questions and evidence requirements are in the [open-decision register](../project/open-questions.md). Implementation order after approval is in the [proposed implementation slices](../project/implementation-slices.md).
+
 ## ADR process
 Create `NNNN-short-decision-title.md` for consequential decisions. Include context, options, chosen decision, owner/approval date, consequences, rejected alternatives, related requirements, migration notes and supersession links. Never mark an item approved just because an earlier assistant suggested it.
 
