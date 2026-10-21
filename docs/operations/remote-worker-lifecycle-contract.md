@@ -10,9 +10,11 @@ tags: [workers, provider, lifecycle, billing, cloud, recovery]
 
 ## Status
 
-**Proposed implementation contract, not a selected cloud provider.** [ADR 0007](../decisions/0007-remote-worker-hosting.md) remains Proposed. AWS ECS Fargate, Google Cloud Run Jobs and user-supplied remote servers are candidates. The user's personal computer is never a worker. Rolvya backend and controller are Rust-only, authoritative database SQLite-only.
+**Approved [ADR 0011](../decisions/0011-multi-provider-worker-infrastructure.md) requires extensible multi-provider remote execution**, using **Approved [ADR 0006](../decisions/0006-worker-communication.md) HTTPS** for worker control. This remains a **Proposed provider-specific lifecycle contract**, with first vendors/regions and cost benchmarking still **Proposed in [ADR 0007](../decisions/0007-remote-worker-hosting.md)**. AWS ECS Fargate, Google Cloud Run Jobs and enrolled user-provided remote servers are candidates, not shipped implementations. The user's personal computer is never a worker. Rolvya backend is Rust-only, authoritative DB SQLite-only.
 
 **Already Approved:** no new billable work without atomic reservation; a bounded previously admitted worker may continue inside enforceable pre-reserved exposure; otherwise stop-on-risk and reconcile ([ADR 0010](../decisions/0010-inflight-budget.md)). Non-executable group parents never provision workers ([ADR 0009](../decisions/0009-parent-aggregation.md)).
+
+The cross-vendor [multi-provider Rust adapter contract](../architecture/multi-provider-adapter-contract.md) is the canonical proposed abstraction; this document elaborates vendor-specific provisioning, billing and cancellation. Adding a provider cannot bypass fixed DAG eligibility, SQLite budget admission or HTTPS worker identity.
 
 ## Provider adapter boundary (proposal)
 
@@ -114,6 +116,6 @@ For identical synthetic workloads on comparable remote resource classes: record 
 
 ## Open choices
 
-ADR 0007 provider/region/size and first-release set, provider credentials/IAM, worker image/runtime sandbox, quotas, provider autoscaling, retry defaults, cloud pricing changes, cancellation and cost upper-bound evidence, artifact retention and alert thresholds.
+ADR 0007 first provider/region/size and release list, provider credentials/IAM, worker image/runtime sandbox, quotas, provider autoscaling, retry defaults, cloud pricing changes, cancellation and cost upper-bound evidence, artifact retention and alert thresholds. **Multi-provider capability is already Approved in ADR 0011.**
 
 Related: [provider evaluation](worker-provider-evaluation.md), [worker lifecycle overview](worker-lifecycle.md), [budget reconciliation](../architecture/budget-reservation-reconciliation.md), [approved in-flight policy](../decisions/0010-inflight-budget.md), [remote wire draft](../architecture/worker-wire-contract-draft.md), [open decisions](../project/open-questions.md).
