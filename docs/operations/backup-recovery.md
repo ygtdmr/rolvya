@@ -10,7 +10,7 @@ tags: [backup, recovery, database, resilience]
 
 ## Scope and guarantees
 
-Rolvya prefers one fast, efficient authoritative database instance. Single-instance design simplifies coordination but creates a failure boundary; backups and verified restore procedures are essential. This document is a **proposed policy**, not evidence that snapshots, retention, storage providers or restore tests exist.
+Rolvya uses **SQLite as its approved single authoritative database** ([ADR 0005](../decisions/0005-authoritative-database.md)), accessed through the **Rust-only backend** ([ADR 0004](../decisions/0004-control-plane-language.md)). Single-instance design simplifies coordination but creates a failure boundary; backups and verified restore procedures are essential. SQLite-specific operational conditions are in [SQLite operations](sqlite-operations.md). This document is a **proposed policy**, not evidence that snapshots, retention, storage providers or restore tests exist.
 
 Protect at minimum: the fixed versioned plan graph, task/attempt states, verified artifacts and hashes, approved budget ceilings, approvals, cost reservations, settled entries, remote repository refs/operation IDs, immutable decision history, required configuration and encryption key references.
 
