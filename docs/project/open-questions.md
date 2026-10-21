@@ -53,6 +53,15 @@ Each question should ultimately have an owner decision, dated rationale, alterna
 
 The [implementation slice proposal](implementation-slices.md) explicitly blocks production coding on unresolved critical choices. These ADRs have `status: Proposed` until explicit owner authorization is recorded.
 
+## Detailed evaluation specifications
+
+- [Budget authorization and provider invoice reconciliation](../architecture/budget-reservation-reconciliation.md) elaborates the still-open in-flight worker policy and cost reservation/reconciliation correctness; the explicit hard budget gate itself remains approved.
+- [Worker transport design](../architecture/worker-transport-design.md) proposes message shapes and failure tests. It does **not** approve HTTPS as the final transport.
+- [Identity and authorization](../architecture/identity-authorization.md) describes proposed trust roles and explicit human approvals.
+- [GitHub App integration design](../architecture/github-app-integration-design.md) distinguishes repository token permissions from protected-branch write enforcement.
+- [Remote worker provider benchmark](../operations/worker-provider-evaluation.md) specifies cost and reliability comparisons with provider-side automatic retry checks.
+- [Decision readiness checklist](decision-readiness.md) shows approved vs pending decisions and implementation entry gates.
+
 ## Decisions that are not open
 
 These have already been approved and must not be reopened by a worker without owner consent: Rust-only backend and SQLite-only authoritative database; one main agent creates a fully fixed task hierarchy and DAG before runtime; workers execute, not plan; dependencies govern parallelism; hard budget pause with explicit approval and no percentage overrun; preserve completed work; separate cost categories/scenarios; remote Git only; no Local Agent or personal-computer sync; GNU MIT license.
