@@ -27,6 +27,7 @@ All Markdown documentation follows the [Obsidian-compatible documentation policy
 
 - [Product requirements](product/requirements.md)
 - [Acceptance criteria](product/acceptance-criteria.md)
+- [Owner panel and user journeys](product/user-flows.md)
 - [Testing and verification strategy](development/testing.md)
 
 ## Architecture specifications now available
@@ -37,6 +38,7 @@ All Markdown documentation follows the [Obsidian-compatible documentation policy
 - [Scheduler state machine](architecture/scheduler.md)
 - [Worker control protocol](architecture/worker-protocol.md)
 - [Failure classification and recovery](architecture/failure-recovery.md)
+- [Monitoring and audit architecture](architecture/observability.md)
 - [Remote workers and models](architecture/workers.md)
 - [Budget and costs](architecture/budget-costs.md)
 - [Security model](architecture/security.md)
@@ -51,21 +53,31 @@ These are **proposed architectural specifications**, not verified implementation
 
 | Area | Intended files and coverage |
 | --- | --- |
-| `product/` | `vision.md`, [`requirements.md`](product/requirements.md), `scope.md`, `user-flows.md`, [`acceptance-criteria.md`](product/acceptance-criteria.md) |
-| `architecture/` | `overview.md`, `orchestrator.md`, `task-model.md`, `dag-planning.md`, `scheduler.md`, `agents.md`, `execution.md`, `workers.md`, [`context-memory.md`](architecture/context-memory.md), `integration-github.md`, [`data-model.md`](architecture/data-model.md), [`api-contracts.md`](architecture/api-contracts.md), `security.md`, `observability.md`, `failure-recovery.md`, `budget-costs.md` |
-| `operations/` | `deployment.md`, `infrastructure.md`, `configuration.md`, `secrets.md`, `backup-recovery.md`, `runbooks.md` |
-| `development/` | `standards.md`, [`testing.md`](development/testing.md), `review-process.md`, `agent-handoffs.md`, [`documentation-policy.md`](development/documentation-policy.md) |
-| `project/` | [`status.md`](project/status.md), `roadmap.md`, `milestones.md`, `open-questions.md` |
+| `product/` | `vision.md`, [`requirements.md`](product/requirements.md), `scope.md`, [user-flows.md](product/user-flows.md), [`acceptance-criteria.md`](product/acceptance-criteria.md) |
+| `architecture/` | `overview.md`, `orchestrator.md`, `task-model.md`, `dag-planning.md`, `scheduler.md`, `agents.md`, `execution.md`, `workers.md`, [`context-memory.md`](architecture/context-memory.md), `integration-github.md`, [`data-model.md`](architecture/data-model.md), [`api-contracts.md`](architecture/api-contracts.md), `security.md`, [observability.md](architecture/observability.md), `failure-recovery.md`, `budget-costs.md` |
+| `operations/` | `deployment.md`, `infrastructure.md`, [configuration.md](operations/configuration.md), [secrets.md](operations/secrets.md), [backup-recovery.md](operations/backup-recovery.md), [runbooks.md](operations/runbooks.md) |
+| `development/` | [standards.md](development/standards.md), [testing.md](development/testing.md), [review-process.md](development/review-process.md), [agent-handoffs.md](development/agent-handoffs.md), [`documentation-policy.md`](development/documentation-policy.md) |
+| `project/` | [`status.md`](project/status.md), `roadmap.md`, `milestones.md`, [open-questions.md](project/open-questions.md) |
 | `decisions/` | [`README.md`](decisions/README.md), numbered Architecture Decision Records (ADRs) |
 | `reference/` | glossary, diagrams, examples, and interface references |
 
 The paths above are a **planned inventory**, not links to files that already exist. Create individual documents as their requirements are verified. Avoid empty placeholder documents masquerading as completed specifications.
+
+## Engineering and agent execution specifications
+
+- [Engineering standards](development/standards.md)
+- [AI agent handoff contract](development/agent-handoffs.md)
+- [Review and ADR governance](development/review-process.md)
+- [Open decisions and architectural questions](project/open-questions.md)
 
 ## Operations specifications now available
 
 - [Deployment architecture](operations/deployment.md)
 - [Remote worker lifecycle](operations/worker-lifecycle.md)
 - [Operational secrets](operations/secrets.md)
+- [Operational configuration](operations/configuration.md)
+- [Backup and disaster recovery](operations/backup-recovery.md)
+- [Incident response runbooks](operations/runbooks.md)
 - [Infrastructure alternatives](operations/infrastructure-options.md)
 
 ## Recorded architecture decisions
