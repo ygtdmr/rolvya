@@ -56,7 +56,7 @@ flowchart TD
 
 Owner must see current approved ceiling, actual recorded cost, outstanding reservations, unknown delayed charges and reason for pause. A notification acknowledgment, page refresh or estimate change is **not** a budget increase. There is **zero automatic percentage overrun**. Previously validated outputs remain accessible.
 
-**Open decision:** running-attempt cancellation when costs become uncertain; do not imply a settled policy.
+**Approved policy (ADR 0010):** a running paid worker may continue only within a demonstrably enforceable, pre-reserved exposure. If the bound is lost or cannot be proven, initiate stop-on-risk, lease fencing, provider cancellation and cost/Git reconciliation. Exact provider stop mechanics and billing delay parameters still require implementation tests.
 
 ## Journey 5: Failure, reassignment and recovery
 
@@ -92,7 +92,7 @@ Show textual status as well as color; use understandable labels for blocked/fail
 
 ## Open decisions
 
-Identity and roles, plan approval UX, layout/visual system, real-time updates, accessibility targets, in-flight cancellation, project sharing, mobile support and authorization for merges/releases.
+Identity and roles, plan approval UX, layout/visual system, real-time updates, accessibility targets, provider-specific in-flight cancellation controls, project sharing, mobile support and authorization for merges/releases.
 
 For product intent and boundaries consult [vision](vision.md) and [scope](scope.md); for the proposed human decision state machine consult [approval workflow](../architecture/approval-workflow.md).
 
