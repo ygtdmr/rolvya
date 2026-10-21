@@ -57,6 +57,19 @@ The specific cloud vendors/regions for the first release remain unselected. Thes
 
 Related designs: [budget reconciliation](../architecture/budget-reservation-reconciliation.md), [worker transport](../architecture/worker-transport-design.md), [identity](../architecture/identity-authorization.md) and [GitHub App isolation](../architecture/github-app-integration-design.md).
 
+## Historical requirement preservation acceptance cases (future tests)
+
+| Test ID | Scenario | Pass condition | Existing requirement / decision |
+| --- | --- | --- | --- |
+| AC-031 | User configures subscription-only Claude CLI, but remote third-party authorization cannot be verified | Block unattended paid worker; no credential spoofing or silent API fallback | PR-010, [model entitlement](../architecture/model-access-entitlement-contract.md) |
+| AC-032 | Scheduler ranks high-priority task lacking capability/cost/region permission above safe task | Hard eligibility gates win; unsafe task blocked and candidate reasons recorded | PR-004, PR-006, PR-008, PR-020 |
+| AC-033 | A retry instruction refers to historical 1/3/10-minute and three-attempt graphic | It is **not** silently activated as a universal default; requires explicit policy/config approval | PR-002, PR-005, [retry design](../architecture/retry-escalation-policy.md) |
+| AC-034 | Synthetic 40-task estimate has four cost classes and three scenarios | Arithmetic matches documented $2.23 / $4.15 / $8.96 **hypothetical** figures; distinct hard bound and explicit $5 ceiling cannot be silently raised | PR-008, PR-009, [worked example](../architecture/cost-scenario-worked-examples.md) |
+| AC-035 | Compress planner/worker context to save tokens | Task goals, security/budget constraints, required upstream validated artifacts and acceptance evidence remain preserved | PR-003, PR-005, PR-010, PR-013 |
+| AC-036 | Branding/license consistency check | README slogan non-repeated, final no-gold wordless logo not replaced by old gold design, code license stays GNU MIT rather than MIT | [Brand history](../product/brand-history-license-governance.md), [LICENSE](../../LICENSE) |
+
+These are **specified, not executed**, and tests depending on as-yet-unapproved CLI subscription use or scheduler parameters remain **blocked pending entitlement/policy evidence**, not passed.
+
 ## Evidence rules
 
 Each implementation claim needs source commit, repeatable test command, environment/version, result and known limitations. A proposed acceptance test is not a completed test. Automated checks should run in CI before merging behavior changes; security-critical behavior must include negative tests.
