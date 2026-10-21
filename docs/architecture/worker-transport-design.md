@@ -10,7 +10,7 @@ tags: [rust, worker, transport, http, security]
 
 ## Status and boundaries
 
-**Proposed implementation contract; transport NOT approved.** [ADR 0006](../decisions/0006-worker-communication.md) favors worker-initiated HTTPS over gRPC or an external broker *for evaluation*, but the owner has not selected a transport. All Rolvya-owned backend/control services are **Rust**; its database is **SQLite**. Remote worker host execution can include third-party agent CLIs, user project compilers and their languages; no Local Agent, desktop Git synchronization or direct worker SQLite access.
+**Proposed implementation details for the Approved [ADR 0006](../decisions/0006-worker-communication.md) worker-initiated HTTPS channel.** The transport is selected; wire schema, TLS/auth implementation, timing and Rust libraries are not.  All Rolvya-owned backend/control services are **Rust**; its database is **SQLite**. Remote worker host execution can include third-party agent CLIs, user project compilers and their languages; no Local Agent, desktop Git synchronization or direct worker SQLite access.
 
 This document refines the [transport-neutral logical messages](worker-protocol.md) and [API inventory](api-contracts.md). URI paths, enum names and payloads below are *illustrative designs*, not live endpoints or approved wire protocol.
 
@@ -100,10 +100,10 @@ Each attempt event must have an idempotency key, monotonic sequence and immutabl
 
 Use fake worker containers or remote servers and a Rust controller with SQLite. Test reordering, duplicate requests, network partitions, heartbeat drops, stale worker epochs, process restart, outbox replay and refusal of a claim with no reservation. Record controller RSS, p95/p99 admission, CPU, SQLite BUSY rates, request volume and clean shutdown.
 
-Transport acceptance requires a separate owner approval updating ADR 0006; selecting crates/framework alone cannot decide it by implication.
+**HTTPS transport is Approved by ADR 0006.** The practical wire protocol, worker identities and resource limits require implementation testing and any consequential security approvals; no new transport vote is pending.
 
 ## Open decisions
 
-HTTP vs gRPC/broker; auth method and enrollment, exact envelope format, API version scheme, TLS and token rotation, poll/long-poll timing, max message size, lease TTL, retry backoff and typed error codes.
+Auth method and enrollment, exact HTTPS envelope format, API version scheme, TLS and token rotation, poll/long-poll timing, max message size, lease TTL, retry backoff and typed error codes. **HTTPS itself is settled.**
 
 Related: [worker protocol](worker-protocol.md), [ADR 0006](../decisions/0006-worker-communication.md), [budget reservation](budget-reservation-reconciliation.md), [Rust + SQLite backend](rust-sqlite-backend.md), [identity](identity-authorization.md).
