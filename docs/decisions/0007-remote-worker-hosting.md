@@ -10,7 +10,7 @@ tags: [adr, cloud, worker, aws, google-cloud, budget]
 
 ## Status and authority
 
-**Proposed — NOT approved.** Previously discussed hosting alternatives included the same small VPS, third-party cloud execution, user-provided remote servers, AWS ECS/Fargate and Google Cloud Run. The personal computer is explicitly excluded. No provider, region, machine specification or concurrency cap has been selected; prior “20 simultaneous agents” examples and daily cost figures were illustrations, not benchmark evidence.
+**Proposed for **initial concrete provider(s), regions, sizing and cost benchmarking only**. **Approved [ADR 0011](0011-multi-provider-worker-infrastructure.md)** requires Rolvya to support extensible **multiple remote worker providers** through common Rust adapters; that architecture selection is NOT open. AWS ECS/Fargate, Google Cloud Run Jobs and user-provided remote VPS are candidate adapters, not approved first-release implementations. Personal-computer workers are excluded. No provider, region or concurrency cap is selected; past 20-worker and cost figures were illustrative, not benchmarks.
 
 ## Requirements from previously approved decisions
 
@@ -34,9 +34,13 @@ tags: [adr, cloud, worker, aws, google-cloud, budget]
 
 No vendor is universally cheapest. Compare provider rates **by region and date**, billable minimums, start latency, worker size, transfer, snapshots/log storage, rate limits, preemption and CLI support. Do not use prices from earlier diagrams as current quotes.
 
+## Approved infrastructure boundary, proposed initial rollout
+
+**Provider-neutral Rust adapters are mandatory under ADR 0011**, not optional if benchmarking indicates one vendor is cheaper. The question for this ADR is *which concrete adapters to build and configure first*, with tested billing/identity/sandbox behavior. See [multi-provider adapter contract](../architecture/multi-provider-adapter-contract.md). Initial support can be incremental, but never hardcode one cloud identity into the task model or SQLite financial authority.
+
 ## Recommended architecture (conditional)
 
-Define a provider-independent **WorkerPool / ExecutionAttempt adapter** with capabilities `launch`, `inspect`, `cancel`, `cleanup`, `measure_usage` and `health`, plus explicit cost model and idempotency metadata. The control-plane code should not depend on one cloud's job IDs as task IDs.
+Implement the **Approved provider-independent** WorkerPool / ExecutionAttempt adapter architecture with capabilities `launch`, `inspect`, `cancel`, `cleanup`, `measure_usage` and `health`, plus explicit cost model and idempotency metadata. The control-plane code should not depend on one cloud's job IDs as task IDs.
 
 For the **first isolated remote-worker prototype**, compare one Google Cloud Run Job with one AWS Fargate Task and a user-managed remote VPS. Use **fake model adapters and synthetic repositories first**. Favor the provider with lower verified total cost and simpler secure boot under the measured workload, not an assumed global price winner.
 
@@ -79,7 +83,7 @@ The [remote worker provisioning and cost lifecycle](../operations/remote-worker-
 
 ## Decision gate and outcomes
 
-Approve a concrete provider only after measuring representative workloads in at least two comparable providers/hosting modes, documenting region, size, lifecycle, total estimated vs invoiced bill, credential model and preemption/timeout behavior. An initial single-provider implementation is acceptable if the adapter prevents permanent lock-in; keep user-provided remote servers as a future supported path if not implemented initially.
+Approve a concrete provider only after measuring representative workloads in at least two comparable providers/hosting modes, documenting region, size, lifecycle, total estimated vs invoiced bill, credential model and preemption/timeout behavior. An initial release may implement only one *concrete* provider adapter if the shared registry/contracts and fake multi-provider integration are in place; additional cloud and user-provided remote server adapters can follow. Do not imply the multi-provider architecture itself is optional.
 
 ## Sources checked
 
