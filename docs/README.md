@@ -6,6 +6,10 @@
 
 Start at [the repository README](../README.md), read [AGENTS.md](../AGENTS.md) if you are a coding agent, and consult [current status](project/status.md) plus the [decision register](decisions/README.md) before starting an implementation task.
 
+## Documentation format
+
+All Markdown documentation follows the [Obsidian-compatible documentation policy](development/documentation-policy.md): GitHub-compatible links, portable YAML metadata where useful, and optional Mermaid diagrams. GitHub remains the source of truth.
+
 ## Planned documentation map
 
 | Area | Intended files and coverage |
@@ -13,7 +17,7 @@ Start at [the repository README](../README.md), read [AGENTS.md](../AGENTS.md) i
 | `product/` | `vision.md`, `requirements.md`, `scope.md`, `user-flows.md`, `acceptance-criteria.md` |
 | `architecture/` | `overview.md`, `orchestrator.md`, `task-model.md`, `dag-planning.md`, `scheduler.md`, `agents.md`, `execution.md`, `workers.md`, `context-memory.md`, `integration-github.md`, `data-model.md`, `api-contracts.md`, `security.md`, `observability.md`, `failure-recovery.md`, `budget-costs.md` |
 | `operations/` | `deployment.md`, `infrastructure.md`, `configuration.md`, `secrets.md`, `backup-recovery.md`, `runbooks.md` |
-| `development/` | `standards.md`, `testing.md`, `review-process.md`, `agent-handoffs.md`, `documentation-policy.md` |
+| `development/` | `standards.md`, `testing.md`, `review-process.md`, `agent-handoffs.md`, [`documentation-policy.md`](development/documentation-policy.md) |
 | `project/` | [`status.md`](project/status.md), `roadmap.md`, `milestones.md`, `open-questions.md` |
 | `decisions/` | [`README.md`](decisions/README.md), numbered Architecture Decision Records (ADRs) |
 | `reference/` | glossary, diagrams, examples, and interface references |
