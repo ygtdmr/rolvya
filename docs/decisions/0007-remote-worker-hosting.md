@@ -10,7 +10,7 @@ tags: [adr, cloud, worker, aws, google-cloud, budget]
 
 ## Status and authority
 
-**Proposed for **initial concrete provider(s), regions, sizing and cost benchmarking only**. **Approved [ADR 0011](0011-multi-provider-worker-infrastructure.md)** requires Rolvya to support extensible **multiple remote worker providers** through common Rust adapters; that architecture selection is NOT open. AWS ECS/Fargate, Google Cloud Run Jobs and user-provided remote VPS are candidate adapters, not approved first-release implementations. Personal-computer workers are excluded. No provider, region or concurrency cap is selected; past 20-worker and cost figures were illustrative, not benchmarks.
+**Proposed — initial concrete provider(s), regions, sizing and cost benchmarking only.** **Approved [ADR 0011](0011-multi-provider-worker-infrastructure.md)** requires Rolvya to support extensible **multiple remote worker providers** through common Rust adapters; that architecture selection is NOT open. AWS ECS/Fargate, Google Cloud Run Jobs and user-provided remote VPS are candidate adapters, not approved first-release implementations. Personal-computer workers are excluded. No provider, region or concurrency cap is selected; past 20-worker and cost figures were illustrative, not benchmarks.
 
 ## Requirements from previously approved decisions
 
