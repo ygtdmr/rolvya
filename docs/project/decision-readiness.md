@@ -46,4 +46,6 @@ Approving one technology choice does not automatically approve another. Rust and
 
 A design may be approved without being implemented. The architecture is currently in specification phase. Production readiness requires tested software, reviewed security rules, reproducible deployments, verified billing behavior and documented recovery procedures.
 
+The [delivery roadmap](roadmap.md) and [milestone definitions](milestones.md) distinguish future engineering goals from verified project status. The product MVP scope itself remains proposed in [product scope](../product/scope.md).
+
 Related: [implementation slices](implementation-slices.md), [open decisions](open-questions.md), [project status](status.md), [documentation index](../README.md).
