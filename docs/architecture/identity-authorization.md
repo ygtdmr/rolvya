@@ -73,4 +73,6 @@ All protected operations require auditable traces with no raw credential content
 
 Identity provider/session architecture; tenant model; enrollment and worker attestation; roles/delegation; protected Git branch merge approval; approval UI/2FA requirements; audit retention; secret manager and project isolation enforcement.
 
+The [human approval workflow](approval-workflow.md) defines proposed request/decision/application state separation; a displayed approval request never itself authorizes billable admission.
+
 Related: [security](security.md), [GitHub App design](github-app-integration-design.md), [budget reconciliation](budget-reservation-reconciliation.md), [API contracts](api-contracts.md), [open questions](../project/open-questions.md).
