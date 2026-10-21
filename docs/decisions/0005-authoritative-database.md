@@ -67,4 +67,4 @@ PostgreSQL and other database engines were considered in an earlier draft. They 
 - [SQLite foreign keys](https://www.sqlite.org/foreignkeys.html)
 - [SQLite online backup API](https://www.sqlite.org/backup.html)
 
-Related: [ADR 0004 — Rust-only backend](0004-control-plane-language.md), [data model](../architecture/data-model.md), [Rust + SQLite backend contract](../architecture/rust-sqlite-backend.md), [scheduler](../architecture/scheduler.md), [budget](../architecture/budget-costs.md), [backup recovery](../operations/backup-recovery.md).
+Related: [ADR 0004 — Rust-only backend](0004-control-plane-language.md), [SQLite schema draft](../architecture/sqlite-schema-draft.md), [data model](../architecture/data-model.md), [Rust + SQLite backend contract](../architecture/rust-sqlite-backend.md), [scheduler](../architecture/scheduler.md), [budget](../architecture/budget-costs.md), [backup recovery](../operations/backup-recovery.md).
