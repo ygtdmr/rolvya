@@ -10,6 +10,17 @@ Start at [the repository README](../README.md), read [AGENTS.md](../AGENTS.md) i
 
 All Markdown documentation follows the [Obsidian-compatible documentation policy](development/documentation-policy.md): GitHub-compatible links, portable YAML metadata where useful, and optional Mermaid diagrams. GitHub remains the source of truth.
 
+## Architecture specifications now available
+
+- [System overview](architecture/overview.md)
+- [DAG planning](architecture/dag-planning.md)
+- [Execution lifecycle](architecture/execution.md)
+- [Remote workers and models](architecture/workers.md)
+- [Budget and costs](architecture/budget-costs.md)
+- [Security model](architecture/security.md)
+
+These are **proposed architectural specifications**, not verified implementations or evidence that every prior decision has been recovered.
+
 ## Planned documentation map
 
 | Area | Intended files and coverage |
