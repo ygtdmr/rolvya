@@ -47,6 +47,8 @@ flowchart TD
 
 The diagram's edges are **development dependencies**, not an actual activated Rolvya task graph. Parallelize nonconflicting implementation work after prerequisites are approved and isolated.
 
+Candidate packages R00–R11, with explicit future agent handoffs, are in [initial Rust/SQLite engineering tasks](../development/initial-implementation-task-packages.md); acceptance/fault cases T-001–T-024 are in [test matrix](../development/rust-sqlite-test-matrix.md). These are **not** an activated Rolvya DAG. Parent group policy and already-running billing remain pending owner decisions in [ADR 0009](../decisions/0009-parent-aggregation.md) and [ADR 0010](../decisions/0010-inflight-budget.md).
+
 ## Slices and acceptance gates
 
 | Slice | Outcome | Minimum evidence to complete |
