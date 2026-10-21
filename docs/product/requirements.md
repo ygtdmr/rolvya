@@ -31,6 +31,8 @@ Rolvya is an open-source orchestration system for AI coding agents. This specifi
 | PR-013 | Use Obsidian-compatible, GitHub-readable Markdown documentation; agent handoffs and current project status must be maintained. | Relative links and historical decisions are traceable. |
 | PR-014 | All Rolvya-owned backend services and backend logic are implemented **only in Rust**. | Backend build and source inspection show no alternative-language backend services; approved [ADR 0004](../decisions/0004-control-plane-language.md). |
 | PR-015 | The sole authoritative database engine is **SQLite**, accessed through the Rust backend. | SQLite transactions, foreign keys, restore and budget-admission tests; approved [ADR 0005](../decisions/0005-authoritative-database.md). |
+| PR-016 | Parent tasks are **non-executable groups**. Only planned executable leaf tasks receive worker attempts. Group success requires independently validated required descendants and applicable acceptance criteria. | Reject leasing a group; group dependency waits for validated aggregate; [Approved ADR 0009](../decisions/0009-parent-aggregation.md). |
+| PR-017 | Already-running billable attempts continue only within enforceably bounded, **pre-reserved** exposure; otherwise issue stop-on-risk/fencing/cancellation and reconcile provider charges. | Block unbounded execution and new unfunded admissions, retain artifacts; [Approved ADR 0010](../decisions/0010-inflight-budget.md). |
 
 ## Core end-to-end user flow (proposed)
 
