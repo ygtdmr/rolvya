@@ -83,6 +83,8 @@ Mutual authenticated identity (mechanism TBD), per-project authorization, least-
 5. Authentication revocation prevents further privileged operations.
 6. Worker crash preserves stored successful work and releases/reconciles reservations safely.
 
+A more detailed, **Proposed** transport contract including example routes and message envelopes is in [worker transport design](worker-transport-design.md). No wire transport has been approved.
+
 ## Open decisions
 
 Transport, worker polling vs push, envelope schema, TLS identity, heartbeat cadence, timeout lengths, message queue, payload-size limits, artifact upload/auth mechanism, retry backoff and event retention.
