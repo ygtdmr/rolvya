@@ -29,6 +29,8 @@ Each provider adapter declares available models and effort levels, execution mod
 
 Use compact task scopes and only relevant dependency artifacts; reference versioned project documentation rather than copying large transcripts; cache/reuse validated results when safe; bound retry histories; record token usage per provider when measurable. Minimize planner repetition and context fragmentation. Do not sacrifice required security or acceptance instructions to save tokens.
 
+**Detailed historical mode/permission flow:** [CLI/API entitlement enforcement](model-access-entitlement-contract.md). **Dated official evidence:** [Claude/Codex access policy](../reference/provider-cli-api-policy-evidence.md). A subscription-only Claude CLI preference does not itself establish permission for third-party unattended remote execution; the relevant official terms and account entitlement must be verified before enabling any live worker.
+
 ## Open decisions
 
 Exact provider licensing/terms, supported CLI versions and model nomenclature, user identity-to-worker credential delegation, cost attribution for subscriptions, effort translation, prompt/context size policy, live provider availability and failover authorization.
