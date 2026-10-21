@@ -57,6 +57,8 @@ Names are proposals for separation, not mandatory crate or directory names. Rust
 - Artifact bodies/build outputs may live in remote object storage, while SQLite keeps IDs, hashes, refs, ownership, retention and status.
 - A single server process may contain multiple Rust modules; availability and topology require future infrastructure decisions.
 
+The [SQLite physical schema draft](sqlite-schema-draft.md) elaborates an illustrative first migration and admission tests. The draft is **not** approved DDL.
+
 ## Initial physical schema design principles (proposed)
 
 The authoritative [logical entity model](data-model.md) defines `Project`, `PlanVersion`, `Task`, `TaskDependency`, `TaskAttempt`, `Worker`, `TaskContext`, `Artifact`, `ProjectBudget`, `BudgetApproval`, `BudgetReservation`, `CostEntry`, `ExecutionEvent`, `RemoteRepository`, and `IntegrationOperation`.
