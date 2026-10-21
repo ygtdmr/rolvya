@@ -10,7 +10,7 @@ tags: [github, security, git, permissions, isolation]
 
 ## Authority and decision status
 
-**Proposed implementation detail, NOT an approved GitHub App selection.** [ADR 0008](../decisions/0008-github-authentication.md) recommends GitHub Apps over OAuth/PAT for evaluation. **No GitHub App has been installed or configured for Rolvya by these documents.** Integrate only with remote Git services. Personal-computer Local Agent, Local Sync and local desktop repository access are forbidden.
+**GitHub App selection is Approved by [ADR 0008](../decisions/0008-github-authentication.md).** This is still a **Proposed implementation/permission/merge design**, and **no GitHub App has been installed or configured by these documents.** Integrate only with remote Git services. Personal-computer Local Agent, Local Sync and local desktop repository access are forbidden.
 
 GitHub documentation permits an installation access token to be scoped to selected repositories and a subset of installation permissions; installation tokens expire after about an hour. This limits repository/permission scope but **does not in itself enforce an arbitrary branch-prefix write restriction**. A token with Contents write can potentially write to other permitted refs depending on repository rulesets/branch protection. Treat task-branch policy as an independent technical control and security test.
 
@@ -86,7 +86,7 @@ Before any publication, create a durable operation ID and expected base SHA in S
 
 ## Owner decisions and future ADRs
 
-GitHub App vs OAuth final choice, exact permission scopes and installation UI, worker-to-integrator artifact transfer, branch/PR strategy, approval for merges, private repositories, enterprise/self-hosted support and key storage require separate authorization.
+**GitHub App as the GitHub authentication mechanism is settled.** Exact permission scopes and installation UI, worker-to-integrator artifact transfer, branch/PR strategy, approval for merges, private repositories, enterprise/self-hosted support and key storage require further design/authorization.
 
 ## Official references
 
