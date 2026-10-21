@@ -22,8 +22,8 @@ This glossary standardizes terms across proposed architecture documents. It does
 | **DAG** | Directed acyclic graph of prerequisite edges | All nodes and edges created and validated before activation |
 | **Plan version** | Immutable snapshot/hash of task definitions and edges after activation | Separate from mutable runtime state; supersession policy Open |
 | **Activation** | Transition from validated draft to executable immutable plan | Approval requirements and exact workflow to be selected |
-| **Executable task** | Planned task intended to run on a worker | Whether group/parent tasks themselves execute is Open |
-| **Group task** | Organizational parent grouping planned descendants | Aggregate success rule not automatically inferred |
+| **Executable task** | A planned **leaf** running on an authorized remote worker | Only executable leaves are leased, under Approved ADR 0009 |
+| **Group task** | Non-executable parent that organizes/aggregates validated required descendants | Approved ADR 0009: no worker lease; group acceptance must be proven |
 | **Ready** | Dependencies validated; admission checks may still require budget, capacity, identity and nonconflicting refs | Ready is not proof of launched or funded work |
 | **Admission** | Backend decision to start a billable attempt after rechecking eligibility | Budget and lease persisted atomically in SQLite |
 | **Attempt** | One bounded worker execution instance of an existing task | New `attempt_id`; same `task_id` on retry |
@@ -41,6 +41,8 @@ This glossary standardizes terms across proposed architecture documents. It does
 | **Remote Git ref** | Branch/tag/commit reference on authorized remote Git provider | No personal-computer Git synchronization |
 | **Protected merge** | Authorized integration of reviewed remote changes under provider branch rules | Token repository permission does not alone constrain branch writes |
 | **Budget ceiling** | Total spending authorization last explicitly approved by a human | No automatic percentage overrun |
+| **Bounded continuation** | An already authorized worker proceeds only inside enforceably capped, pre-reserved exposure | Approved ADR 0010; a budget-blocked new task does not imply killing every safely bounded existing attempt |
+| **Stop-on-risk** | Fence privileged execution and request provider cancellation if the future charge bound becomes unverifiable | Provider may still charge minimum/late bills, which require reconciliation |
 | **Reservation** | Conservative held exposure for a proposed billable attempt | Different from predicted cost or settled invoice |
 | **Settled spend** | Reconciled provider charge posted to accounting ledger | Can arrive later than worker completion |
 | **Unknown exposure** | Billing liability whose bounds/source cannot yet be trusted | Show as uncertain and halt unsafe new admissions |
