@@ -94,4 +94,6 @@ Show textual status as well as color; use understandable labels for blocked/fail
 
 Identity and roles, plan approval UX, layout/visual system, real-time updates, accessibility targets, in-flight cancellation, project sharing, mobile support and authorization for merges/releases.
 
+For product intent and boundaries consult [vision](vision.md) and [scope](scope.md); for the proposed human decision state machine consult [approval workflow](../architecture/approval-workflow.md).
+
 Related: [requirements](requirements.md), [acceptance criteria](acceptance-criteria.md), [scheduler](../architecture/scheduler.md), [budget](../architecture/budget-costs.md), [observability](../architecture/observability.md).
