@@ -44,6 +44,7 @@ All Markdown documentation follows the [Obsidian-compatible documentation policy
 - [Security model](architecture/security.md)
 - [Remote GitHub integration](architecture/integration-github.md)
 - [Persistence and data model](architecture/data-model.md)
+- [Rust + SQLite backend contract](architecture/rust-sqlite-backend.md)
 - [Agent context and memory](architecture/context-memory.md)
 - [API and event contracts](architecture/api-contracts.md)
 
@@ -77,19 +78,20 @@ The paths above are a **planned inventory**, not links to files that already exi
 - [Operational secrets](operations/secrets.md)
 - [Operational configuration](operations/configuration.md)
 - [Backup and disaster recovery](operations/backup-recovery.md)
+- [SQLite operations and recovery](operations/sqlite-operations.md)
 - [Incident response runbooks](operations/runbooks.md)
 - [Infrastructure alternatives](operations/infrastructure-options.md)
 
 ## Architecture evaluation and implementation planning
 
-- [Proposed ADR 0004 — Control-plane language](decisions/0004-control-plane-language.md)
-- [Proposed ADR 0005 — Authoritative database](decisions/0005-authoritative-database.md)
+- [Approved ADR 0004 — Rust-only backend](decisions/0004-control-plane-language.md)
+- [Approved ADR 0005 — SQLite database](decisions/0005-authoritative-database.md)
 - [Proposed ADR 0006 — Worker communication](decisions/0006-worker-communication.md)
 - [Proposed ADR 0007 — Remote worker hosting](decisions/0007-remote-worker-hosting.md)
 - [Proposed ADR 0008 — GitHub authentication](decisions/0008-github-authentication.md)
 - [Evidence-driven implementation slices](project/implementation-slices.md)
 
-**All five ADRs above are proposed**. The [owner's open technical decisions](project/open-questions.md) must be resolved explicitly; no provider, runtime or DB engine is approved by a document's existence.
+**ADR 0004 and ADR 0005 are approved (2026-10-21); ADRs 0006–0008 remain proposed.** The [owner's open technical decisions](project/open-questions.md) must be resolved explicitly; no provider, runtime or DB engine is approved by a document's existence.
 
 ## Recorded architecture decisions
 
