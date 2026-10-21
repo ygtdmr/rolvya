@@ -12,7 +12,7 @@ tags: [integration, tests, github, worker, cloud, security]
 
 **Proposed acceptance/test design; no tests listed here are claimed to have been run.** Supplements the [Rust + SQLite core test matrix](rust-sqlite-test-matrix.md) with **untrusted remote worker communications, Git publication, provider launch, billing and identity** behavior.
 
-Binding decisions: Rust-only backend, SQLite-only authoritative database, completely fixed up-front DAG, executable leaves only, independent validation, remote Git/worker only, hard human budget approval and bounded-or-stop in-flight spending. Pending: worker transport ([ADR 0006](../decisions/0006-worker-communication.md)), hosting ([ADR 0007](../decisions/0007-remote-worker-hosting.md)), GitHub auth ([ADR 0008](../decisions/0008-github-authentication.md)). Until approved, test harnesses may **simulate** these candidates but must not claim the vendor was chosen.
+Binding decisions: Rust-only backend, SQLite-only authoritative database, fixed DAG, executable leaves only, independent validation, remote-only Git/workers, hard human budget approval, bounded-or-stop spending, **HTTPS worker pull** ([Approved ADR 0006](../decisions/0006-worker-communication.md)), **GitHub App** ([Approved ADR 0008](../decisions/0008-github-authentication.md)) and **multi-provider remote adapters** ([Approved ADR 0011](../decisions/0011-multi-provider-worker-infrastructure.md)). **Open:** first concrete cloud providers/regions ([Proposed ADR 0007](../decisions/0007-remote-worker-hosting.md)), API payloads, auth roles/permissions and launch configuration. All tests remain **future, not executed**.
 
 ## Deterministic fixture domains
 
@@ -60,17 +60,28 @@ All fixtures must run in isolated approved **remote** test infrastructure or as 
 | RI-029 | Performance | Representative independent DAG fan-out + fake workers | Report measured p50/p95/p99, RSS/CPU, SQLite BUSY, outbox lag and test seed |
 | RI-030 | Spend control | Paid benchmark requested without owner-authorized spend envelope | Deny; fake-only tests remain available |
 
-Tests requiring final wire, auth or provider selection are marked **BLOCKED PENDING ADR**, not failed or passed. A test requiring real cloud charges needs a **separately approved benchmark budget** and documented limits.
+Tests requiring **unapproved wire details, GitHub permission/merge policy or specific provider selection** are marked **BLOCKED/NOT RUN**, not failed or passed. The **HTTPS, GitHub App and multi-provider architecture decisions are already Approved**. A test requiring real cloud charges needs a separately approved benchmark budget and documented limits.
+
+## Additional multi-provider conformance cases (Approved ADR 0011)
+
+| ID | Scenario | Required safe result |
+| --- | --- | --- |
+| RI-031 | Two different fake cloud adapters execute independent preplanned leaves | Both use same HTTPS task protocol, Rust scheduler, SQLite ledger; no DAG mutation |
+| RI-032 | Provider A fails after uncertain launch, provider B is eligible and authorized | Reconcile A first; any B execution is a *new attempt of the same task* with new reservation/fence |
+| RI-033 | Scheduler sees unauthorized, higher-cost or unavailable provider | Do not silently select it; deny/wait/request approval rather than bypass budget or fixed plan |
+| RI-034 | Provider A token/identity or billing is injected into B task | Cross-provider isolation denies access; audit without secret leakage |
+| RI-035 | One provider's cancellation is acknowledged but billing/cleanup remains unknown | Maintain unknown liability and stop-on-risk; no false completion or unreserved launches |
+| RI-036 | Controller runs with one real provider adapter and two fake adapters | Provider-neutral adapter surface remains intact; do not claim fake providers as shipped integrations |
 
 ## Stage gates
 
 ### Stage I — No paid providers
 
-Use Rust+SQLite and deterministic fake worker, cloud, Git, billing and identity adapters. Verify RI-001–RI-014, RI-020–RI-024, RI-027–RI-030 using simulated providers where reasonable. Real HTTP endpoints are optional at this stage because ADR 0006 is not selected.
+Use Rust+SQLite and deterministic fake worker, cloud, Git, billing and identity adapters. Verify RI-001–RI-014, RI-020–RI-024, RI-027–RI-030 using simulated providers where reasonable. Real HTTPS endpoints are **not yet implemented**; use a simulation first, then implement the **Approved** HTTPS channel when dependencies and security parameters are ready.
 
 ### Stage II — Candidate transport and remote Git sandbox
 
-After owner approval of the relevant ADR(s), run authenticated worker protocol and **throwaway remote repository** tests, including revocation, protected-branch defense, stale worker and ambiguous ref writes. Token scopes must match current official GitHub endpoint permission docs; no production repo or protected branch is changed by a doc.
+After approval of implementation-specific identities and permissions, run the **Approved HTTPS** worker channel and **Approved GitHub App** using an authorized **throwaway remote repository**, including revocation, protected-branch defense, stale worker and ambiguous ref writes. Token scopes must match current official GitHub endpoint permission docs; no production repo or protected branch is changed by a doc.
 
 ### Stage III — Authorized live cloud benchmark
 
@@ -107,7 +118,7 @@ reviewer: pending
 - [Worker wire draft](../architecture/worker-wire-contract-draft.md) and [logical protocol](../architecture/worker-protocol.md).
 - [Remote Git publication](../architecture/git-remote-integration-contract.md).
 - [Worker provisioning and billing](../operations/remote-worker-lifecycle-contract.md).
-- [Decision pack](../project/transport-git-hosting-decision-pack.md).
+- [Decision pack](../project/transport-git-hosting-decision-pack.md) and [multi-provider adapter contract](../architecture/multi-provider-adapter-contract.md).
 - [Approved ADR 0009](../decisions/0009-parent-aggregation.md) and [Approved ADR 0010](../decisions/0010-inflight-budget.md).
 
 **Do not confuse a detailed test matrix with working software or passing CI.**
