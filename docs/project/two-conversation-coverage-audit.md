@@ -14,7 +14,7 @@ tags: [audit, traceability, history, conversations, documentation]
 
 **Source access limitation:** The relevant conversations are the original **Rolvya Main Conversation** (project naming/design/architecture and initial repository establishment, approximately 2026-10-19–20) and the later **Rolvya project documentation continuation** (2026-10-20–22). This audit can use conversation content currently present, retained recoverable conversation summaries and facts from prior exchanges, a historical audit already in GitHub, and descriptions of previously supplied architecture diagrams. **The original complete, line-by-line transcripts of both conversations were not retrievable in this audit**. Accordingly **no 100%-complete beginning-to-end transcript verification is claimed**. A literal exhaustive audit would additionally require the user's chat exports/transcripts and any original diagram assets.
 
-**Repository baseline examined:** at the start of this audit, the live `main` Git tree contained **90 tracked files: 89 Markdown files plus LICENSE**. These are specifications, not a compiled backend or running workers. GitHub remained the source of truth. The current body of work adds further Markdown specs and corrects existing references, while keeping source-code/deployment verification explicitly absent.
+**Repository baseline examined:** at the start of this audit, the live `main` Git tree contained **82 tracked files: 81 Markdown files plus LICENSE**. These are specifications, not a compiled backend or running workers. GitHub remained the source of truth. The current body of work adds further Markdown specs and corrects existing references, while keeping source-code/deployment verification explicitly absent.
 
 ## Evidence and precedence
 
