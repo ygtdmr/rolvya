@@ -1,68 +1,55 @@
 ---
-title: "ADR 0004: Control-Plane Implementation Language"
-status: Proposed
+title: "ADR 0004: Rust-Only Backend"
+status: Approved
 category: decision
 last-reviewed: 2026-10-21
-tags: [adr, rust, go, performance, control-plane]
+tags: [adr, rust, backend, architecture]
 ---
 
-# ADR 0004: Control-plane implementation language
+# ADR 0004: Rust-only backend
 
-## Status and authority
+## Status and approval
 
-**Proposed — NOT approved.** Rust appeared in previous architecture sketches, but the user has not finalized a language. Rolvya values a low-overhead, energy-efficient control server on a small remote VPS (roughly 2–4 GB RAM discussed), with many independent remote workers and no personal-computer agent.
+**Approved by the project owner on 2026-10-21.** This supersedes the former *Proposed* Rust-versus-Go evaluation in this ADR. The owner explicitly decided: **Rolvya's backend is written only in Rust.** Language selection is closed.
 
-## Decision question
+## Context
 
-Which language/runtime should implement the authoritative scheduler, API, durable state transitions, provider adapters and resource-aware orchestration?
+Rolvya is an open-source orchestration system with an immutable up-front task DAG, independent parallel worker execution, authoritative state management and a hard human-controlled budget. The control plane is intended to work on a modest remote VPS (roughly 2–4 GB RAM was discussed; not performance-verified). Backend components must remain efficient, safe, auditable and suitable for remote-agent development.
 
-## Decision drivers
+## Decision
 
-1. Small predictable RAM/CPU footprint when many attempts and heartbeats are tracked; avoid busy polling.
-2. Durable concurrency semantics, strict types around money/identity/state, and testable fault behavior.
-3. Safe untrusted input handling, remote worker integration, TLS/networking and maintainable async control flow.
-4. Contributor familiarity and AI-agent reliability for code generation, testing and review.
-5. Operational complexity, binary release footprint, cross-platform builds and dependency/security update burden.
+1. **Rust is the only implementation language for Rolvya-owned backend services and control-plane logic.** This includes orchestration, planner coordination, DAG validation, scheduling, task/attempt lifecycle, budget/approval enforcement, persistence access, API/backend endpoints, remote-worker control, Git/provider adapters, reconciliation and audit logic.
+2. **Do not introduce Go, Python, Node.js/TypeScript or another language as a parallel Rolvya backend service or alternative backend implementation** without a new explicit owner-approved superseding ADR.
+3. SQL is permitted for SQLite schema, queries and migrations; configuration and data serialization languages (e.g., YAML, JSON) do not count as additional backend implementation languages.
+4. External coding-agent CLIs, provider binaries and programs/build scripts belonging to **user projects on remote workers** are not Rolvya-owned backend implementations and are not prohibited by this language decision. The frontend/UI language and framework are **not determined by this ADR**.
+5. Rust code must enforce all existing architecture invariants: immutable activated DAG, workers executing rather than replanning, remote Git only and hard approved-budget gates.
 
-## Candidate comparison (qualitative, to be measured)
+## Rationale
 
-| Criterion | Rust | Go | Higher-level dynamic runtime |
-| --- | --- | --- | --- |
-| Runtime/memory model | Native binary; explicit ownership, no tracing GC | Native binary; garbage collector, simple concurrency | VM/interpreter overhead varies substantially |
-| Concurrency ergonomics | Async ecosystem; requires careful cancellation design | Goroutines and channels; simple network services | Mature async options; memory/CPU varies |
-| Data/type safety | Strong static typing; compiler enforces ownership | Strong static typing; GC simplifies ownership | Often more dynamic validation at boundaries |
-| Build/development complexity | Higher; compiler feedback valuable but compile times cost | Generally lower build/tool complexity | Fast iteration; runtime-specific tradeoffs |
-| Operational fit on tiny VPS | Promising; **not benchmarked for Rolvya** | Promising; **not benchmarked for Rolvya** | Possible, but profile required |
-| Cost/energy | Unknown until representative load | Unknown until representative load | Unknown until representative load |
+The owner chose Rust decisively. The architecture prefers efficient control-plane resource usage, explicit type safety and reliable concurrency. **These are motivations, not claims of measured Rolvya performance.** Rust's chosen status no longer depends on a Rust-versus-Go performance contest.
 
-These are directional tradeoffs, **not measured Rolvya benchmarks**. “Low-level” is a design preference, not a demand for C or unsafe code.
+## Consequences for implementation
 
-## Working recommendation (subject to approval)
+- Use a Rust workspace/module structure with separate domain (task/attempt/budget), application services (scheduler, approval, validation), persistence, worker protocol, provider adapters and API boundaries.
+- Use strong domain types for plan IDs, task IDs, attempt IDs, fencing epochs, monetary values and authorized actions; avoid mixing task/attempt identity or floats in critical ledger decisions.
+- Prefer safe Rust; justify and independently review any `unsafe` blocks.
+- Specify an async runtime, HTTP stack, SQLite driver, migration tool, CLI process supervisor, tracing and cryptographic dependencies **in separate proposed implementation decisions**; Rust selection alone does not approve crates or versions.
+- Run resource, cancellation, fault-injection and concurrency benchmarks on the intended 2–4 GB remote control host, even though alternative language benchmarking is no longer required.
+- Preserve compatibility with remote workers running third-party agents and user project commands.
 
-**Evaluate Rust first**, with **Go as a serious comparator**. Rust fits the earlier compact-control-plane direction and enables explicit memory ownership; Go may materially reduce implementation complexity without violating the measured 2–4 GB goal. Reject neither before an apples-to-apples benchmark. Do not interpret this section as authorization for an agent to scaffold the project.
+## Rejected or superseded alternatives
 
-## Required selection experiment
+Earlier ADR drafts compared Rust and Go and considered higher-level runtimes. Those comparisons were exploratory and **are not live alternatives** after the owner's Rust-only decision. Changing the backend language requires explicit owner approval and a new ADR.
 
-Implement *disposable remote prototypes*, not production features, for both finalists:
+## Verification requirements
 
-- Load a synthetic fixed DAG, run dependency readiness queries and apply multiple simulated completion events.
-- Run concurrent **simulated** atomic budget admissions with fixed currency/integer units.
-- Schedule many fake remote attempts with retry/fencing/heartbeats and no actual billable worker provider.
-- Serialize/validate context/event envelopes and expose a minimal authenticated health endpoint.
-- Measure idle and loaded resident memory, peak CPU, throughput, p50/p95/p99 scheduling latency, startup time, executable/build size, defect/debug time and static-analysis findings.
-- Test restarts, cancellation and malformed/prompt-injected messages.
-- Use the same hardware, dependency graph, fake provider and workload seeds for both languages.
+- Every Rolvya-owned backend executable/service has Rust source and Rust build provenance.
+- Repository review rejects new non-Rust backend services unless explicitly superseded.
+- Rust components pass DAG immutability, atomic budget admission, stale lease, restart and remote Git idempotency tests.
+- Performance evidence verifies actual resource constraints rather than inferring them from language choice.
 
-**Decision gate:** choose only after benchmark data plus maintainer/owner approval and a migration assessment. Do not invent target p95 or RAM thresholds: set them explicitly using the chosen VPS size and worker scale.
+## Remaining open decisions
 
-## Consequences if Rust is selected
+Rust edition/toolchain version, async runtime/crate choices, project module layout, compile/release pipeline, resource limits and supporting frontend stack.
 
-Use typed domain values for task/attempt identity, money with explicit precision, immutable plan revision, fence epochs and risk-aware cancellation; ban unsafe code except reviewed justified modules; keep adapters isolated. Document async runtime, database driver, TLS/certificate policy, migrations and supported operating systems in subsequent ADRs.
-
-## Alternatives and migration
-
-Go remains feasible and may be a fallback if Rust complexity or delivery friction outweighs measured benefits. Isolate external messages, stored logical schema and worker adapter contracts from the implementation language to permit future migration. No language choice may authorize a Local Agent, mutable runtime DAG or relaxed budget gate.
-
-## Decision ownership
-
-Owner approval **pending**; benchmark results **not yet available**. Related open question: [OQ-001](../project/open-questions.md). Related: [overview](../architecture/overview.md), [scheduler](../architecture/scheduler.md), [testing](../development/testing.md), [deployment](../operations/deployment.md).
+Related: [ADR 0005 — SQLite](0005-authoritative-database.md), [data model](../architecture/data-model.md), [architecture overview](../architecture/overview.md), [Rust and SQLite backend contract](../architecture/rust-sqlite-backend.md), [open questions](../project/open-questions.md).
