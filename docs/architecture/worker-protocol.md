@@ -10,7 +10,7 @@ tags: [workers, protocol, leases, security]
 
 ## Scope and constraints
 
-This is a **logical message contract**, not an HTTP/gRPC/queue implementation. Rolvya uses remote cloud or user-supplied remote hosts. No personal-computer Local Agent, Local Sync or desktop repository synchronization. The complete task DAG is fixed before dispatch, and an executor is limited to its assigned task.
+This is a **logical message contract**. The **worker-initiated HTTPS transport is Approved in [ADR 0006](../decisions/0006-worker-communication.md)**, but specific endpoints/schema/auth and a working Rust service do not yet exist. Rolvya uses remote cloud or user-supplied remote hosts. No personal-computer Local Agent, Local Sync or desktop repository synchronization. The complete task DAG is fixed before dispatch, and an executor is limited to its assigned task.
 
 ## Principal identities
 
@@ -83,10 +83,10 @@ Mutual authenticated identity (mechanism TBD), per-project authorization, least-
 5. Authentication revocation prevents further privileged operations.
 6. Worker crash preserves stored successful work and releases/reconciles reservations safely.
 
-A more detailed, **Proposed** transport contract including example routes and message envelopes is in [worker transport design](worker-transport-design.md). No wire transport has been approved.
+A more detailed, **Proposed** transport contract including example routes and message envelopes is in [worker transport design](worker-transport-design.md). The HTTPS transport itself **is Approved**; exact wire format is still Proposed.
 
 ## Open decisions
 
-Transport, worker polling vs push, envelope schema, TLS identity, heartbeat cadence, timeout lengths, message queue, payload-size limits, artifact upload/auth mechanism, retry backoff and event retention.
+HTTPS endpoint/envelope schema, TLS identity, idle backoff/long-poll behavior, heartbeat cadence, timeout lengths, payload-size limits, artifact upload/auth mechanism, retry backoff and event retention. **Transport selection is closed.**
 
 Related: [scheduler](scheduler.md), [workers](workers.md), [API inventory](api-contracts.md), [remote Git](integration-github.md), [security](security.md), [worker lifecycle](../operations/worker-lifecycle.md).
