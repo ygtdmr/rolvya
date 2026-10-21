@@ -40,6 +40,10 @@ An initial [conversation-to-document decision audit](historical-decision-audit.m
 ## Operations specifications (2026-10-21)
 Three additional proposed specifications were recorded: [deployment](../operations/deployment.md), [worker lifecycle](../operations/worker-lifecycle.md), and [operational secrets](../operations/secrets.md). These are unimplemented contracts, not a running deployment; provider, persistence, runtime and security technology choices remain open.
 
+## Scheduler, worker protocol and recovery specifications (2026-10-21)
+
+Three additional proposed specifications were recorded: [scheduler state machine](../architecture/scheduler.md), [worker control protocol](../architecture/worker-protocol.md), and [failure recovery](../architecture/failure-recovery.md). They define proposed transitions, logical messages, failure handling and test scenarios. No executable scheduler, communications service or recovery mechanism has been verified; actual transport, timing, retry limits and approval details remain open.
+
 ## Next documentation tasks
 1. Recover all prior approved architectural detail, confirm sources, and convert it into topic-specific specifications and ADRs.
 2. Resolve open questions (technologies, interfaces, deployment boundaries, worker providers, identity/security, persistence and approval UX) before implementation depends on them.
