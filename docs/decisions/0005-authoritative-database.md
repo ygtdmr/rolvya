@@ -1,78 +1,70 @@
 ---
-title: "ADR 0005: Authoritative Database Engine"
-status: Proposed
+title: "ADR 0005: SQLite as the Authoritative Database"
+status: Approved
 category: decision
 last-reviewed: 2026-10-21
-tags: [adr, sqlite, postgresql, database, transactions]
+tags: [adr, sqlite, database, persistence, transactions]
 ---
 
-# ADR 0005: Authoritative database engine
+# ADR 0005: SQLite as the authoritative database
 
-## Status and authority
+## Status and approval
 
-**Proposed — NOT approved.** The requirement is a *single authoritative database instance* where practical, prioritizing low energy, fast requests and durable concurrent admission. Neither SQLite nor PostgreSQL has been approved. Database location on the 2–4 GB control VPS versus separate infrastructure is also open.
+**Approved by the project owner on 2026-10-21.** This supersedes the former *Proposed* SQLite-versus-PostgreSQL evaluation in this ADR. The owner explicitly decided: **Rolvya will use SQLite.** Database engine selection is closed.
 
-## What the database must protect
+## Context
 
-- Immutable activated DAG versions and all hierarchy/dependency edges.
-- Task vs attempt separation, worker leases and fencing tokens.
-- Atomic or equivalently serialized **task + cost reservation** admission.
-- Human-approved ceilings and immutable approval history; four billing categories and three scenario forecasts.
-- Stable idempotency/outbox records for possibly duplicated remote provider operations.
-- Success artifacts and audit history preserved across restart/budget pause.
+Rolvya needs a lightweight and efficient single authoritative database for the immutable plan DAG, tasks/attempts, lease epochs, approval history, costs and artifacts metadata. The control plane is intended for a small remote VPS, with heavy coding/build work running on isolated remote workers.
 
-## Alternatives
+## Decision
 
-| Criterion | SQLite with WAL | PostgreSQL, single instance |
-| --- | --- | --- |
-| Deployment | Embedded DB file, minimal extra service | Separate DB process, pool and admin/backup operations |
-| Concurrency | Many readers with a **single concurrent writer** in WAL | Multiple concurrent transactions; locking/isolation mechanisms |
-| Contention | Write-lock contention can throttle fast concurrent state updates | Row-level concurrency and SERIALIZABLE option; contention/deadlocks still possible |
-| Network access | Avoid direct remote workers connecting to SQLite file; one controller API | Client/server connections with authorization; remote workers should still use controller API |
-| Failover | File/snapshot/WAL backup and restore need careful discipline | WAL/backup/migration stack and DBA overhead |
-| Cost/RAM | Usually modest for a single control process | Must measure buffers, connections, maintenance and optional managed DB price |
-| Operational risk | Network filesystem WAL and careless file copying unsafe | Connection count, transaction retries, lock ordering and replication complexity |
+1. **SQLite is the only authoritative database engine for Rolvya.** Do not introduce PostgreSQL or a second relational/NoSQL engine as a fallback or parallel source of truth without a new explicitly approved ADR.
+2. Use **one authoritative database instance per deployment** as the current architecture model. SQLite's database storage should be accessed through the Rust backend's persistence layer, **not directly by remote workers** over the network.
+3. Store the active immutable DAG, task and attempt states, approvals, reservations, ledger entries, worker state and audit references in SQLite. Binary logs/build artifacts may live in separate remote object/artifact storage, with provenance stored in SQLite; artifact storage is not a second authoritative database.
+4. Budget reservation and attempt lease admission must be **atomic and serialized**; never rely on multiple independent reads/writes for project budget safety.
+5. SQLite-specific details including **WAL mode, busy timeout, foreign keys, synchronous/durability settings, transactions, pool size, indexes, migration tooling and snapshot/backup mechanism** require technical validation. WAL is a recommended candidate, **not a separate user-approved configuration**.
+6. Any alternative database in the future requires explicit owner approval, a superseding ADR, integrity/migration tests and documented impact. This is not a planned automatic scale fallback.
 
-SQLite's official WAL docs state that WAL supports readers alongside a single writer and does not work across network filesystems; PostgreSQL documents SERIALIZABLE isolation and explicit lock modes. See source links below. These are general capabilities, not performance measurements for Rolvya.
+## Why SQLite was selected
 
-## Working recommendation and conditional path
+The owner finalized SQLite; its embedded deployment style aligns with the preferred single-instance, low-footprint remote control plane. SQLite is not automatically faster for all workloads, and concurrent writers still serialize. The team must design around SQLite's write contention and reliable backup discipline rather than silently swapping engines under load.
 
-**Candidate A — SQLite WAL for a small one-controller proof of concept:** lower operational footprint, all writes via one authoritative control process, modest measured write contention; test crash/restore rigorously.
+## SQLite-specific implementation contract
 
-**Candidate B — PostgreSQL single instance for concurrency-heavy production:** preferable **if** many simultaneous reservations, lease renewals and events create unacceptable SQLite contention and memory/ops budget permits a Postgres server. A single Postgres instance still satisfies “one authoritative database”; it need not imply a cluster.
+- **Single-writer coordination:** create the lease and cost reservation within one SQLite write transaction; recheck dependencies, budget and fencing state within the same serialized admission boundary.
+- **Foreign keys:** enable and test foreign key enforcement on **every connection**. Validate plan/task/dependency/attempt relationships.
+- **Busy/lock handling:** bound waits, use carefully scoped transactions, prefer short write transactions and fail safely rather than spin or double-reserve.
+- **WAL consideration:** evaluate WAL on a locally attached filesystem. SQLite documents one writer at a time and that WAL does not operate as intended across network filesystems; avoid sharing a live database file via network filesystem between workers.
+- **Durability:** decide and test sync/checkpoint/backups against explicit RPO/RTO; SQLite transactions alone do not prove restore viability.
+- **Schema evolution:** versioned migrations, preflight checks, rollback/forward plan and restore tests.
+- **Money/accounting:** store exact integer minor units or another precise checked representation, enforce project currency semantics, append-only financial events and immutable approvals. Never use binary floating-point to authorize spending.
+- **Read paths:** index dependency and attempt/lease lookups, and measure large DAG reads on the small control host.
 
-**No final selection until measurements.** Strong budget correctness is mandatory with either engine. Simplicity is valuable but not more valuable than serializable reservation safety.
+## Critical transaction invariant
 
-## Transaction invariant and example
+Let `C` = approved ceiling, `S` = settled costs, `R` = enforceable outstanding reservations. For conservative exposure `e`, admit billable work only if `e <= C - S - R`, within the **same atomic serialized SQLite transaction** that persists a fenced attempt and reservation.
 
-Let `C` = human-approved ceiling; `S` = committed/settled charges; `R` = all enforceable outstanding reservations. For a proposed attempt with conservative reserved exposure `e`, admit only if `e <= C - S - R` **inside the same serialized atomic operation** that creates the attempt lease and records the reservation. This is a logical safety test; currency conversion, delayed invoices, cancellation and actual provider hard caps still require policy and reconciliation.
+Invoice lag, provider-side billing minimums and in-flight charges can still create real overrun risks. The owner's **no automatic percentage overrun** policy remains mandatory; conservative reservations/provider limits and reconciliation must be designed and disclosed.
 
-Required cases:
-1. Two concurrent attempts competing for insufficient remainder: at most one reserves.
-2. Crash after reserve but before remote dispatch: restart finds pending outbox event without duplicate charges.
-3. Stale worker reply cannot close a newer attempt's reservation.
-4. Late invoice correction cannot be silently ignored or counted twice.
-5. Approved ceiling update requires authenticated human decision; no environment variable can bypass it.
-6. Reconstruct plan/task state after rollback and backup restore without losing verified artifacts.
+## Validation and recovery gates
 
-Use integer minor monetary units **or another explicitly precise currency representation**. Avoid floating-point rounding for ledger invariants.
+1. Two concurrent admissions competing for insufficient budget cannot both succeed.
+2. Crash after reservation but before remote dispatch resumes from durable state/outbox without duplicates.
+3. FK checks reject cross-plan references and invalid dependency links.
+4. Stale attempt cannot modify newer successful state or budget reservation.
+5. Large DAG reads, bursty heartbeat writes and audit append performance remain within measured control VPS capacity.
+6. Backup taken during supported write load can be restored and reconciled with Git/artifact refs and ledger.
+7. Workers never directly open or copy the live SQLite database file.
 
-## Performance and sizing trial
+## Rejected or superseded alternatives
 
-Repeat identical workloads on the actual target VPS sizing and a realistic external database option. Test at least: many tiny writes per second, large DAG readiness queries, concurrent transactions, long-running readers, backup/restore during activity, restart, network latency, disk sync costs and retention. Measure p95/p99 admission, lock/retry frequency, write-ahead log growth, memory RSS, backup size, recovery duration and monthly infrastructure cost. Numbers are **not yet measured**.
+PostgreSQL and other database engines were considered in an earlier draft. They are **not approved fallbacks** after this decision; benchmarking should optimize SQLite, not reopen the database choice without the owner's request.
 
-## Security, backup and future migration
+## References
 
-Remote workers cannot issue uncontrolled SQL; only authenticated control APIs handle admissions. Encrypt and back up appropriately, verify restores, migrate schema using versioned idempotent steps. Keep repository, plan, approvals and artifact references portable across engines via an explicit domain persistence interface; a later migration requires independent ADR and data-integrity proof.
+- [SQLite transactions](https://www.sqlite.org/lang_transaction.html)
+- [SQLite WAL mode and filesystem limitations](https://www.sqlite.org/wal.html)
+- [SQLite foreign keys](https://www.sqlite.org/foreignkeys.html)
+- [SQLite online backup API](https://www.sqlite.org/backup.html)
 
-## Open decision
-
-Selection, version, hosting, isolation level/lock discipline, indexing, connection pool, recovery objectives and invoice settlement model remain open.
-
-## Sources
-
-- [SQLite WAL behavior and single-writer semantics](https://www.sqlite.org/wal.html)
-- [PostgreSQL transaction isolation](https://www.postgresql.org/docs/current/transaction-iso.html)
-- [PostgreSQL explicit locking](https://www.postgresql.org/docs/current/explicit-locking.html)
-
-Related: [OQ-002 and OQ-003](../project/open-questions.md), [logical data model](../architecture/data-model.md), [scheduler](../architecture/scheduler.md), [budget](../architecture/budget-costs.md), [recovery](../operations/backup-recovery.md).
+Related: [ADR 0004 — Rust-only backend](0004-control-plane-language.md), [data model](../architecture/data-model.md), [Rust + SQLite backend contract](../architecture/rust-sqlite-backend.md), [scheduler](../architecture/scheduler.md), [budget](../architecture/budget-costs.md), [backup recovery](../operations/backup-recovery.md).
