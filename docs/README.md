@@ -57,7 +57,7 @@ These are **proposed architectural specifications**, not verified implementation
 | `architecture/` | `overview.md`, `orchestrator.md`, `task-model.md`, `dag-planning.md`, `scheduler.md`, `agents.md`, `execution.md`, `workers.md`, [`context-memory.md`](architecture/context-memory.md), `integration-github.md`, [`data-model.md`](architecture/data-model.md), [`api-contracts.md`](architecture/api-contracts.md), `security.md`, [observability.md](architecture/observability.md), `failure-recovery.md`, `budget-costs.md` |
 | `operations/` | `deployment.md`, `infrastructure.md`, [configuration.md](operations/configuration.md), [secrets.md](operations/secrets.md), [backup-recovery.md](operations/backup-recovery.md), [runbooks.md](operations/runbooks.md) |
 | `development/` | [standards.md](development/standards.md), [testing.md](development/testing.md), [review-process.md](development/review-process.md), [agent-handoffs.md](development/agent-handoffs.md), [`documentation-policy.md`](development/documentation-policy.md) |
-| `project/` | [`status.md`](project/status.md), `roadmap.md`, `milestones.md`, [open-questions.md](project/open-questions.md) |
+| `project/` | [`status.md`](project/status.md), `roadmap.md`, `milestones.md`, [open-questions.md](project/open-questions.md), [implementation-slices.md](project/implementation-slices.md) |
 | `decisions/` | [`README.md`](decisions/README.md), numbered Architecture Decision Records (ADRs) |
 | `reference/` | glossary, diagrams, examples, and interface references |
 
@@ -79,6 +79,17 @@ The paths above are a **planned inventory**, not links to files that already exi
 - [Backup and disaster recovery](operations/backup-recovery.md)
 - [Incident response runbooks](operations/runbooks.md)
 - [Infrastructure alternatives](operations/infrastructure-options.md)
+
+## Architecture evaluation and implementation planning
+
+- [Proposed ADR 0004 — Control-plane language](decisions/0004-control-plane-language.md)
+- [Proposed ADR 0005 — Authoritative database](decisions/0005-authoritative-database.md)
+- [Proposed ADR 0006 — Worker communication](decisions/0006-worker-communication.md)
+- [Proposed ADR 0007 — Remote worker hosting](decisions/0007-remote-worker-hosting.md)
+- [Proposed ADR 0008 — GitHub authentication](decisions/0008-github-authentication.md)
+- [Evidence-driven implementation slices](project/implementation-slices.md)
+
+**All five ADRs above are proposed**. The [owner's open technical decisions](project/open-questions.md) must be resolved explicitly; no provider, runtime or DB engine is approved by a document's existence.
 
 ## Recorded architecture decisions
 
