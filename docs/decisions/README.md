@@ -38,6 +38,8 @@ This register separates **approved user decisions** from **earlier design concep
 - [ADR 0002 — Hard project budget approval gate](0002-hard-budget-approval.md)
 - [ADR 0003 — Remote Git only](0003-remote-git-only.md)
 
+See the [historical conversation audit](../project/historical-decision-audit.md) for a topic-by-topic reconciliation of available prior discussions, including exploratory cloud options and brand/legal concerns.
+
 ## ADR process
 Create `NNNN-short-decision-title.md` for consequential decisions. Include context, options, chosen decision, owner/approval date, consequences, rejected alternatives, related requirements, migration notes and supersession links. Never mark an item approved just because an earlier assistant suggested it.
 
