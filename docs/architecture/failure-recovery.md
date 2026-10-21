@@ -63,7 +63,9 @@ flowchart TD
 - Budget denial: no speculative retry; remain paused for billable admission until **explicit** approval.
 - Terminal failure: record blocked descendants and available successful sibling artifacts.
 
-Exact caps, delays, whether in-flight attempts stop at budget exhaustion and when a user must approve model changes remain open ADR questions.
+**Approved ADR 0010 resolves in-flight behavior:** an existing attempt can continue only within enforceable pre-reserved exposure; otherwise initiate stop-on-risk/fencing/cancellation and reconcile charges. **Still open:** retry caps, delay defaults, provider cancellation timing, model-change approval mechanics and live caps. See [retry escalation](retry-escalation-policy.md).
+
+The [retry and escalation policy](retry-escalation-policy.md) records earlier diagram examples (three attempts and 1/3/10-minute backoff) as **nonbinding exploration**, not approved timeouts; it also covers model/resource/remote-provider reassignment while preserving the same task ID.
 
 ## Reconciliation checkpoints
 
