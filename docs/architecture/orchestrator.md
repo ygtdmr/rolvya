@@ -72,7 +72,7 @@ Rust queries ready tasks using validated predecessors and checks conflict isolat
 
 ### Result aggregation and validation
 
-A worker process exit is not task success. Validate the expected test report, artifact hashes, remote Git commit/ref, changed-file scope, current lease epoch and billing metadata. Successful predecessor artifacts become eligible dependency inputs. Parent completion semantics (e.g., aggregate child state vs own work) require an explicit policy; **do not infer parent completion from tree nesting without a defined rule**.
+A worker process exit is not task success. Validate the expected test report, artifact hashes, remote Git commit/ref, changed-file scope, current lease epoch and billing metadata. Successful predecessor artifacts become eligible dependency inputs. **Approved ADR 0009:** parent nodes are non-executable groups, never dispatched to a worker. Validate all required child results and applicable group criteria before Rust/SQLite records group success; an explicit edge to the group waits for that verified roll-up. Hierarchy still does not automatically create dependency edges.
 
 ### Fault/recovery
 
@@ -101,10 +101,10 @@ These are **conceptual Rust port names**, not compiled traits or an installed AP
 6. Attempt to start 11th worker after available budget is exhausted: no newly billable operation admitted; completed artifacts retained.
 7. Retry a failed task using another allowed model: task_id stable, attempt_id changes, new budget reservation and complete audit.
 
-The [plan activation/version contract](plan-activation-and-versioning.md) defines proposed validation/freeze behavior; [initial engineering task packages](../development/initial-implementation-task-packages.md) break down the Rust/SQLite synthetic foundation. Group aggregation and in-flight billing remain explicit owner decision points.
+The [plan activation/version contract](plan-activation-and-versioning.md) defines proposed validation/freeze behavior; [initial engineering task packages](../development/initial-implementation-task-packages.md) break down the Rust/SQLite synthetic foundation. **Group-only parent aggregation** and **bounded-or-stop in-flight spending** are now owner-approved in [ADR 0009](../decisions/0009-parent-aggregation.md) and [ADR 0010](../decisions/0010-inflight-budget.md). Their provider-specific mechanics and optional-child policy remain implementation work.
 
 ## Open decisions
 
-Plan activation approval policy, parent aggregation, context sizes, scheduler fairness, API transports, Rust crate/toolchain selection, SQLite WAL/migrations, in-flight budget cancellation, cloud provider, reviewer roles and remote Git integration policy.
+Plan activation approval policy, optional-child semantics and aggregation predicate serialization, context sizes, scheduler fairness, API transports, Rust crate/toolchain selection, SQLite WAL/migrations, **provider-specific cancellation implementation**, cloud provider, reviewer roles and remote Git integration policy. The two policy choices themselves are Approved.
 
 Related: [task model](task-model.md), [agents](agents.md), [DAG planning](dag-planning.md), [scheduler](scheduler.md), [budget reconciliation](budget-reservation-reconciliation.md), [identity](identity-authorization.md), [project status](../project/status.md).
