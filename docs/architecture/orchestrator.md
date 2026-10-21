@@ -101,6 +101,8 @@ These are **conceptual Rust port names**, not compiled traits or an installed AP
 6. Attempt to start 11th worker after available budget is exhausted: no newly billable operation admitted; completed artifacts retained.
 7. Retry a failed task using another allowed model: task_id stable, attempt_id changes, new budget reservation and complete audit.
 
+The [plan activation/version contract](plan-activation-and-versioning.md) defines proposed validation/freeze behavior; [initial engineering task packages](../development/initial-implementation-task-packages.md) break down the Rust/SQLite synthetic foundation. Group aggregation and in-flight billing remain explicit owner decision points.
+
 ## Open decisions
 
 Plan activation approval policy, parent aggregation, context sizes, scheduler fairness, API transports, Rust crate/toolchain selection, SQLite WAL/migrations, in-flight budget cancellation, cloud provider, reviewer roles and remote Git integration policy.
