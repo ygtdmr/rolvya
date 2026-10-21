@@ -45,6 +45,7 @@ All Markdown documentation follows the [Obsidian-compatible documentation policy
 - [Remote GitHub integration](architecture/integration-github.md)
 - [Persistence and data model](architecture/data-model.md)
 - [Rust + SQLite backend contract](architecture/rust-sqlite-backend.md)
+- [SQLite schema and atomic admission draft](architecture/sqlite-schema-draft.md)
 - [Agent context and memory](architecture/context-memory.md)
 - [API and event contracts](architecture/api-contracts.md)
 
