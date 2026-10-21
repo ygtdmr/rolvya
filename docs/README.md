@@ -25,6 +25,9 @@ All Markdown documentation follows the [Obsidian-compatible documentation policy
 
 ## Product and quality specifications now available
 
+- [Product vision and success principles](product/vision.md)
+- [Product scope, exclusions and MVP candidates](product/scope.md)
+
 - [Product requirements](product/requirements.md)
 - [Acceptance criteria](product/acceptance-criteria.md)
 - [Owner panel and user journeys](product/user-flows.md)
@@ -33,6 +36,9 @@ All Markdown documentation follows the [Obsidian-compatible documentation policy
 ## Architecture specifications now available
 
 - [System overview](architecture/overview.md)
+- [Main orchestrator responsibilities](architecture/orchestrator.md)
+- [Hierarchy and task/attempt model](architecture/task-model.md)
+- [Planning and execution agent contracts](architecture/agents.md)
 - [DAG planning](architecture/dag-planning.md)
 - [Execution lifecycle](architecture/execution.md)
 - [Scheduler state machine](architecture/scheduler.md)
@@ -45,10 +51,12 @@ All Markdown documentation follows the [Obsidian-compatible documentation policy
 - [Budget reservation and reconciliation](architecture/budget-reservation-reconciliation.md)
 - [Security model](architecture/security.md)
 - [Project identity and authorization](architecture/identity-authorization.md)
+- [Human approval state machine](architecture/approval-workflow.md)
 - [Remote GitHub integration](architecture/integration-github.md)
 - [GitHub App security design](architecture/github-app-integration-design.md)
 - [Persistence and data model](architecture/data-model.md)
 - [Rust + SQLite backend contract](architecture/rust-sqlite-backend.md)
+- [Proposed Rust workspace boundaries](architecture/rust-workspace.md)
 - [SQLite schema and atomic admission draft](architecture/sqlite-schema-draft.md)
 - [Agent context and memory](architecture/context-memory.md)
 - [API and event contracts](architecture/api-contracts.md)
@@ -59,13 +67,13 @@ These are **proposed architectural specifications**, not verified implementation
 
 | Area | Intended files and coverage |
 | --- | --- |
-| `product/` | `vision.md`, [`requirements.md`](product/requirements.md), `scope.md`, [user-flows.md](product/user-flows.md), [`acceptance-criteria.md`](product/acceptance-criteria.md) |
-| `architecture/` | `overview.md`, `orchestrator.md`, `task-model.md`, `dag-planning.md`, `scheduler.md`, `agents.md`, `execution.md`, `workers.md`, [`context-memory.md`](architecture/context-memory.md), `integration-github.md`, [`data-model.md`](architecture/data-model.md), [`api-contracts.md`](architecture/api-contracts.md), `security.md`, [observability.md](architecture/observability.md), `failure-recovery.md`, `budget-costs.md` |
+| `product/` | [vision.md](product/vision.md), [requirements.md](product/requirements.md), [scope.md](product/scope.md), [user-flows.md](product/user-flows.md), [acceptance-criteria.md](product/acceptance-criteria.md) |
+| `architecture/` | `overview.md`, [orchestrator.md](architecture/orchestrator.md), [task-model.md](architecture/task-model.md), `dag-planning.md`, `scheduler.md`, [agents.md](architecture/agents.md), `execution.md`, `workers.md`, [`context-memory.md`](architecture/context-memory.md), `integration-github.md`, [`data-model.md`](architecture/data-model.md), [`api-contracts.md`](architecture/api-contracts.md), `security.md`, [observability.md](architecture/observability.md), `failure-recovery.md`, `budget-costs.md` |
 | `operations/` | `deployment.md`, `infrastructure.md`, [configuration.md](operations/configuration.md), [secrets.md](operations/secrets.md), [backup-recovery.md](operations/backup-recovery.md), [runbooks.md](operations/runbooks.md) |
 | `development/` | [standards.md](development/standards.md), [testing.md](development/testing.md), [review-process.md](development/review-process.md), [agent-handoffs.md](development/agent-handoffs.md), [`documentation-policy.md`](development/documentation-policy.md) |
-| `project/` | [`status.md`](project/status.md), `roadmap.md`, `milestones.md`, [open-questions.md](project/open-questions.md), [implementation-slices.md](project/implementation-slices.md) |
+| `project/` | [status.md](project/status.md), [roadmap.md](project/roadmap.md), [milestones.md](project/milestones.md), [open-questions.md](project/open-questions.md), [implementation-slices.md](project/implementation-slices.md) |
 | `decisions/` | [`README.md`](decisions/README.md), numbered Architecture Decision Records (ADRs) |
-| `reference/` | glossary, diagrams, examples, and interface references |
+| `reference/` | [glossary.md](reference/glossary.md), additional diagrams, examples, and interface references |
 
 The paths above are a **planned inventory**, not links to files that already exist. Create individual documents as their requirements are verified. Avoid empty placeholder documents masquerading as completed specifications.
 
@@ -97,6 +105,9 @@ The paths above are a **planned inventory**, not links to files that already exi
 - [Proposed ADR 0008 — GitHub authentication](decisions/0008-github-authentication.md)
 - [Evidence-driven implementation slices](project/implementation-slices.md)
 - [Pre-implementation decision readiness](project/decision-readiness.md)
+- [Product delivery roadmap](project/roadmap.md)
+- [Milestone definitions and evidence gates](project/milestones.md)
+- [Architecture glossary](reference/glossary.md)
 
 **ADR 0004 and ADR 0005 are approved (2026-10-21); ADRs 0006–0008 remain proposed.** The [owner's open technical decisions](project/open-questions.md) must be resolved explicitly; only Rust and SQLite are approved stack selections; other platform/provider choices await explicit approval.
 
