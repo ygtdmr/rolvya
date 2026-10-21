@@ -46,6 +46,7 @@ All Markdown documentation follows the [Obsidian-compatible documentation policy
 - [Scheduler state machine](architecture/scheduler.md)
 - [Worker control protocol](architecture/worker-protocol.md)
 - [Remote worker transport design](architecture/worker-transport-design.md)
+- [Multi-provider Rust worker adapter contract](architecture/multi-provider-adapter-contract.md)
 - [Proposed worker wire contract v0](architecture/worker-wire-contract-draft.md)
 - [Failure classification and recovery](architecture/failure-recovery.md)
 - [Monitoring and audit architecture](architecture/observability.md)
@@ -109,11 +110,12 @@ The paths above are a **planned inventory**, not links to files that already exi
 
 - [Approved ADR 0004 — Rust-only backend](decisions/0004-control-plane-language.md)
 - [Approved ADR 0005 — SQLite database](decisions/0005-authoritative-database.md)
-- [Proposed ADR 0006 — Worker communication](decisions/0006-worker-communication.md)
+- [Approved ADR 0006 — HTTPS worker communication](decisions/0006-worker-communication.md)
 - [Proposed ADR 0007 — Remote worker hosting](decisions/0007-remote-worker-hosting.md)
-- [Proposed ADR 0008 — GitHub authentication](decisions/0008-github-authentication.md)
+- [Approved ADR 0008 — GitHub App authentication](decisions/0008-github-authentication.md)
 - [Approved ADR 0009 — Group-only parent tasks](decisions/0009-parent-aggregation.md)
 - [Approved ADR 0010 — Bounded worker continuation or stop-on-risk](decisions/0010-inflight-budget.md)
+- [Approved ADR 0011 — Extensible multi-provider worker infrastructure](decisions/0011-multi-provider-worker-infrastructure.md)
 - [Evidence-driven implementation slices](project/implementation-slices.md)
 - [Pre-implementation decision readiness](project/decision-readiness.md)
 - [Transport, Git and hosting owner decision pack](project/transport-git-hosting-decision-pack.md)
@@ -121,7 +123,7 @@ The paths above are a **planned inventory**, not links to files that already exi
 - [Milestone definitions and evidence gates](project/milestones.md)
 - [Architecture glossary](reference/glossary.md)
 
-**ADR 0004 (Rust), ADR 0005 (SQLite), ADR 0009 (group-only parents) and ADR 0010 (bounded-or-stop running worker policy) are Approved as of 2026-10-21; ADRs 0006–0008 (transport, hosting and GitHub authentication) remain Proposed.** Implementation-specific settings and provider limits still require validation. See [open technical questions](project/open-questions.md).
+**Approved 2026-10-21:** ADR 0004 (Rust), 0005 (SQLite), 0006 (worker HTTPS), 0008 (GitHub App), 0009 (group-only parents), 0010 (bounded-or-stop) and 0011 (multi-provider worker adapters). **ADR 0007 remains Proposed only for initial provider/vendor rollout and cost benchmarking**; concrete HTTP/security/adapter implementation details are also open. See [open technical questions](project/open-questions.md).
 
 ## Recorded architecture decisions
 
