@@ -37,6 +37,8 @@ All Markdown documentation follows the [Obsidian-compatible documentation policy
 
 - [System overview](architecture/overview.md)
 - [Main orchestrator responsibilities](architecture/orchestrator.md)
+- [Plan activation and version boundaries](architecture/plan-activation-and-versioning.md)
+- [Parent task aggregation policy options](architecture/parent-task-aggregation.md)
 - [Hierarchy and task/attempt model](architecture/task-model.md)
 - [Planning and execution agent contracts](architecture/agents.md)
 - [DAG planning](architecture/dag-planning.md)
@@ -49,6 +51,7 @@ All Markdown documentation follows the [Obsidian-compatible documentation policy
 - [Remote workers and models](architecture/workers.md)
 - [Budget and costs](architecture/budget-costs.md)
 - [Budget reservation and reconciliation](architecture/budget-reservation-reconciliation.md)
+- [In-flight worker budget policy options](architecture/inflight-cost-policy.md)
 - [Security model](architecture/security.md)
 - [Project identity and authorization](architecture/identity-authorization.md)
 - [Human approval state machine](architecture/approval-workflow.md)
@@ -82,6 +85,8 @@ The paths above are a **planned inventory**, not links to files that already exi
 - [Engineering standards](development/standards.md)
 - [AI agent handoff contract](development/agent-handoffs.md)
 - [Review and ADR governance](development/review-process.md)
+- [Initial Rust + SQLite implementation task packages](development/initial-implementation-task-packages.md)
+- [Rust + SQLite core test matrix](development/rust-sqlite-test-matrix.md)
 - [Open decisions and architectural questions](project/open-questions.md)
 
 ## Operations specifications now available
@@ -103,13 +108,15 @@ The paths above are a **planned inventory**, not links to files that already exi
 - [Proposed ADR 0006 — Worker communication](decisions/0006-worker-communication.md)
 - [Proposed ADR 0007 — Remote worker hosting](decisions/0007-remote-worker-hosting.md)
 - [Proposed ADR 0008 — GitHub authentication](decisions/0008-github-authentication.md)
+- [Proposed ADR 0009 — Parent task aggregation](decisions/0009-parent-aggregation.md)
+- [Proposed ADR 0010 — In-flight worker budget](decisions/0010-inflight-budget.md)
 - [Evidence-driven implementation slices](project/implementation-slices.md)
 - [Pre-implementation decision readiness](project/decision-readiness.md)
 - [Product delivery roadmap](project/roadmap.md)
 - [Milestone definitions and evidence gates](project/milestones.md)
 - [Architecture glossary](reference/glossary.md)
 
-**ADR 0004 and ADR 0005 are approved (2026-10-21); ADRs 0006–0008 remain proposed.** The [owner's open technical decisions](project/open-questions.md) must be resolved explicitly; only Rust and SQLite are approved stack selections; other platform/provider choices await explicit approval.
+**ADR 0004 and ADR 0005 are approved (2026-10-21); ADRs 0006–0010 remain proposed.** The [owner's open technical decisions](project/open-questions.md) must be resolved explicitly; only Rust and SQLite are approved stack selections; other platform/provider choices await explicit approval.
 
 ## Recorded architecture decisions
 
