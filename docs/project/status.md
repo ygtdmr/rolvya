@@ -78,6 +78,12 @@ These define candidate activation guards, distinct group vs dependency semantics
 
 The owner explicitly approved [ADR 0009 — group-only non-executable parent tasks](../decisions/0009-parent-aggregation.md) and [ADR 0010 — bounded continuation of in-flight workers with stop-on-risk](../decisions/0010-inflight-budget.md). Detailed contracts now reflect verified required-child aggregation, explicit prerequisites, and provider-backed budget continuation or cancellation/reconciliation. The technical specs and test catalogue are updated to differentiate the **approved policies** from optional-child, actual cloud caps, cancellation latency and schema implementation details that are still Open. **No Rust code, SQLite migrations, cloud billing controls or worker tests are verified as implemented.**
 
+## Remote transport, Git publication and hosting implementation contracts (2026-10-21)
+
+Five new **Proposed** documentation artifacts have been committed: [worker wire contract v0](../architecture/worker-wire-contract-draft.md), [trusted remote Git publication contract](../architecture/git-remote-integration-contract.md), [remote worker provider lifecycle and cancellation](../operations/remote-worker-lifecycle-contract.md), [remaining transport/Git/hosting owner decision pack](transport-git-hosting-decision-pack.md), and [remote integration test matrix RI-001 through RI-030](../development/remote-integration-test-matrix.md).
+
+The new drafts detail message identity, SQLite lease/outbox and duplicate delivery, GitHub token-vs-branch authorization, cloud auto-retry/idempotency, provider stop-on-risk and late cost reconciliation. Relevant GitHub, Cloud Run Jobs and AWS ECS official documents were checked as engineering context. **ADR 0006 (wire transport), ADR 0007 (remote worker hosting) and ADR 0008 (GitHub authentication) remain Proposed and need explicit owner decisions. No cloud jobs, GitHub App installation, Rust endpoints, real invoices or passing tests were created by this documentation work.**
+
 ## Next documentation tasks
 1. Recover all prior approved architectural detail, confirm sources, and convert it into topic-specific specifications and ADRs.
 2. Resolve remaining open questions (Rust crates/tooling, SQLite configuration, worker transport/providers, identities and approvals, deployment boundaries and UI) before implementation depends on them; Rust and SQLite selection are settled.
