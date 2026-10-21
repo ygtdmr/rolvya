@@ -16,6 +16,8 @@ The [initial Rust/SQLite verification matrix](rust-sqlite-test-matrix.md) catalo
 
 The [remote integration test matrix](remote-integration-test-matrix.md) defines RI-001–RI-030 (future, not executed) across remote authentication, duplicate worker messages, Git branch protection, provider hidden retries, spending bounds and billing reconciliation. Use [proposed wire](../architecture/worker-wire-contract-draft.md), [remote Git](../architecture/git-remote-integration-contract.md) and [remote worker lifecycle](../operations/remote-worker-lifecycle-contract.md) contracts only under the eventual selected ADRs.
 
+The [conversation coverage audit](../project/two-conversation-coverage-audit.md) links historic user statements and illustrated examples to normative current documents. Its new acceptance cases AC-031–AC-036 test historical mode, scheduler, retry, cost, context and brand requirements; no tests are represented as executed. See [CLI entitlement](../architecture/model-access-entitlement-contract.md), [scheduler selection](../architecture/scheduler-selection-policy.md), [retry](../architecture/retry-escalation-policy.md), [token efficiency](../architecture/token-context-efficiency.md), [cost examples](../architecture/cost-scenario-worked-examples.md).
+
 ## Test layers
 
 | Layer | Focus | Examples |
