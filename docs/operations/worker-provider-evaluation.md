@@ -10,7 +10,7 @@ tags: [workers, cloud-run, fargate, cloud, benchmark, budget]
 
 ## Purpose and decision boundary
 
-Choose a **remote execution provider** only after comparing measurable security, workload compatibility, total cost and failure behavior; no provider is currently approved ([ADR 0007](../decisions/0007-remote-worker-hosting.md)). Rolvya's backend is **Rust** and its authoritative database is **SQLite**, but project compilers and third-party coding agent CLIs run in remote isolated workers. Do not run such work on the user's personal computer. Actual cloud workloads are **billable** and require a separately authorized test ceiling.
+Choose the **first concrete remote execution provider adapters** only after comparing measurable security, workload compatibility, total cost and failure behavior; no initial provider is currently approved ([Proposed ADR 0007](../decisions/0007-remote-worker-hosting.md)). **Multi-provider support is already Approved** ([ADR 0011](../decisions/0011-multi-provider-worker-infrastructure.md)); benchmark priority does not permit a single-vendor scheduler. Rolvya's backend is **Rust** and its authoritative database is **SQLite**, but project compilers and third-party coding agent CLIs run in remote isolated workers. Do not run such work on the user's personal computer. Actual cloud workloads are **billable** and require a separately authorized test ceiling.
 
 ## Common worker contract (provider-neutral Rust adapter)
 
@@ -74,7 +74,7 @@ For each scenario calculate **optimistic / expected / pessimistic** and a distin
 | Capacity and quotas | Compare after gates | CPU/RAM resource requirements, concurrent launches, API limits |
 | Developer/operator complexity | Compare after gates | Time to configure, rotate secrets and diagnose failures |
 
-Do not invent numerical weights, scores, region prices or rankings before measured tests. Provider selection needs owner approval and a dated ADR update.
+Do not invent numerical weights, scores, region prices or rankings before measured tests. Concrete provider/region rollout and live benchmark spending need owner approval and a dated ADR update; **provider-neutral architecture does not** require another decision.
 
 ## Exit artifacts
 
@@ -88,4 +88,4 @@ For each provider, produce: region/date, configuration and container digest; ide
 - [Google Cloud Run pricing](https://cloud.google.com/run/pricing)
 - [Amazon ECS/Fargate pricing](https://aws.amazon.com/ecs/pricing/)
 
-Related: [ADR 0007](../decisions/0007-remote-worker-hosting.md), [worker lifecycle](worker-lifecycle.md), [budget reconciliation](../architecture/budget-reservation-reconciliation.md), [worker transport](../architecture/worker-transport-design.md), [open questions](../project/open-questions.md).
+Related: [multi-provider adapter contract](../architecture/multi-provider-adapter-contract.md), [Approved ADR 0011](../decisions/0011-multi-provider-worker-infrastructure.md), [ADR 0007](../decisions/0007-remote-worker-hosting.md), [worker lifecycle](worker-lifecycle.md), [budget reconciliation](../architecture/budget-reservation-reconciliation.md), [worker transport](../architecture/worker-transport-design.md), [open questions](../project/open-questions.md).
