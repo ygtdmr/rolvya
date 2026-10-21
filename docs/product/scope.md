@@ -10,7 +10,7 @@ tags: [scope, mvp, non-goals, phases]
 
 ## Status and intent
 
-**Proposed first-release scope**, not yet a human-approved product roadmap. Approved constraints remain binding regardless of which features ship first: complete immutable DAG planned up front, separate hierarchy/dependencies, dependent tasks wait, remote execution only, hard owner budget gate, Rust backend only and SQLite database only. Refer to [ADRs](../decisions/README.md).
+**Proposed first-release scope**, not yet a human-approved product roadmap. Approved constraints remain binding regardless of which features ship first: complete immutable DAG planned up front, **non-executable group parents and executable leaves**, separate hierarchy/dependencies, dependent tasks wait, remote execution only, hard owner budget gate and **bounded-or-stop in-flight worker spending**, Rust backend only and SQLite database only. Refer to [ADRs](../decisions/README.md).
 
 ## Candidate initial vertical slice
 
@@ -70,6 +70,6 @@ Changes to a draft plan can be proposed/validated before activation. Once activa
 
 ## Required approval and traceability
 
-Before release planning, owner should approve MVP feature boundaries, authentication/hosting/remote Git baseline, in-flight budget behavior, review/merge UX and licensing assumptions. Each feature maps to [requirements](requirements.md), [acceptance criteria](acceptance-criteria.md), [implementation slices](../project/implementation-slices.md) and [project status](../project/status.md).
+Before release planning, owner should approve MVP feature boundaries, authentication/hosting/remote Git baseline, provider-specific limits for the approved in-flight budget behavior, review/merge UX and licensing assumptions. Each feature maps to [requirements](requirements.md), [acceptance criteria](acceptance-criteria.md), [implementation slices](../project/implementation-slices.md) and [project status](../project/status.md).
 
 Related: [vision](vision.md), [user journeys](user-flows.md), [agent roles](../architecture/agents.md), [decision readiness](../project/decision-readiness.md).
