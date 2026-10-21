@@ -34,6 +34,17 @@ This is a **future implementation test contract**, not evidence tests have run. 
 | AC-025 | New task exceeds headroom while another running attempt has a verifiable reserved provider bound. | New admission denied; existing attempt remains within its already-authorized bound. | PR-008, PR-017 |
 | AC-026 | Running worker loses enforceable spending cap; late invoice arrives after cancellation request. | Stop-on-risk/fencing/cancellation and reconciliation recorded, cost uncertainty visible; no automatic ceiling change. | PR-008, PR-009, PR-017 |
 
+## Approved transport, GitHub and multi-provider acceptance criteria
+
+| ID | Scenario | Pass condition | Requirement |
+| --- | --- | --- | --- |
+| AC-027 | Enrolled worker communicates via HTTPS claim/heartbeat/result; sends stale or forged epoch | Authenticated, fenced result handling; no unreserved/unauthorized task success | PR-018 |
+| AC-028 | Trusted Rust publisher uses GitHub App and worker requests protected branch mutation | Allowed ref policy and independent merge guard deny attempt; no broad App token in model-visible environment | PR-019 |
+| AC-029 | Two authorized fake provider adapters run independent executable leaves | Same immutable DAG, Rust scheduler, HTTPS worker protocol and SQLite budget accounting | PR-020 |
+| AC-030 | Provider A fails, new attempt chooses allowed B; B lacks approved cost or permission in negative case | Same task ID, new attempt/fence/reservation only when authorized; unsafe fallback denied | PR-008, PR-017, PR-020 |
+
+The specific cloud vendors/regions for the first release remain unselected. These are **future acceptance tests**, not executed results; see [integration test matrix](../development/remote-integration-test-matrix.md).
+
 ## Additional provider and security acceptance cases
 
 | Test ID | Scenario | Pass condition |
