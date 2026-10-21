@@ -10,7 +10,7 @@ tags: [worker, protocol, http, rust, sqlite, security]
 
 ## Status and scope
 
-**Proposed, NOT an approved HTTP transport nor a running API.** This document refines [ADR 0006](../decisions/0006-worker-communication.md), [logical worker protocol](worker-protocol.md), and [transport design](worker-transport-design.md). The recommended first candidate is **worker-initiated HTTPS** with a durable **SQLite** outbox and a **Rust** controller. The user has approved Rust, SQLite, a fully fixed up-front DAG, non-executable parent groups ([ADR 0009](../decisions/0009-parent-aggregation.md)) and bounded-in-flight/stop-on-risk ([ADR 0010](../decisions/0010-inflight-budget.md)); HTTP itself has **not** been selected.
+**Worker-initiated HTTPS transport is Approved in [ADR 0006](../decisions/0006-worker-communication.md).** This document remains a **Proposed wire/API schema**, not a running endpoint. It refines the [logical worker protocol](worker-protocol.md) and [transport design](worker-transport-design.md). The backend is Rust, authoritative DB SQLite; immutable DAG, group-only parents ([ADR 0009](../decisions/0009-parent-aggregation.md)), bounded-or-stop billing ([ADR 0010](../decisions/0010-inflight-budget.md)) and multi-provider worker hosts ([ADR 0011](../decisions/0011-multi-provider-worker-infrastructure.md)) are Approved.
 
 The objective is to test exactly what messages the control plane must accept while keeping **transport-specific URL paths, codecs, timeouts and authentication mechanisms replaceable**.
 
@@ -133,6 +133,6 @@ Proposed event set: `EXPOSURE_BOUND_VERIFIED`, `EXPOSURE_UNKNOWN`, `BUDGET_ADMIS
 
 ## Open implementation decisions
 
-ADR 0006 approval (HTTPS pull vs gRPC/broker); Rust network stack; auth/token/key/bootstrap strategy; precise wire schema/version, payload sizes, lease TTL, heartbeat/backoff, capacity/queue fairness and long-poll semantics.
+**HTTPS transport selection is settled.** Still open: Rust network stack; auth/token/key/bootstrap strategy; precise wire schema/version, payload sizes, lease TTL, heartbeat/backoff, capacity/queue fairness and long-poll semantics.
 
 Related: [worker transport design](worker-transport-design.md), [logical worker protocol](worker-protocol.md), [Rust + SQLite backend](rust-sqlite-backend.md), [identity](identity-authorization.md), [budget policy](inflight-cost-policy.md), [test matrix](../development/rust-sqlite-test-matrix.md).
