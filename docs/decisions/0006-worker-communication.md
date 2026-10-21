@@ -60,4 +60,6 @@ Use simulated remote workers over unreliable network conditions at representativ
 
 Transport, broker if any, schema (OpenAPI/Protobuf), poll cadence, lease TTL, payload boundaries, callback security, provider start API, worker deployment bootstrap and exact retry timings.
 
+For a more implementable **proposal**, see [worker transport design](../architecture/worker-transport-design.md). This does not change ADR status.
+
 Related: [OQ-006](../project/open-questions.md), [API contracts](../architecture/api-contracts.md), [scheduler](../architecture/scheduler.md), [worker lifecycle](../operations/worker-lifecycle.md), [failure recovery](../architecture/failure-recovery.md).
