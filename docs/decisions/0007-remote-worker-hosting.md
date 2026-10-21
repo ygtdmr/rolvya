@@ -86,4 +86,6 @@ Approve a concrete provider only after measuring representative workloads in at 
 - [AWS ECS Fargate pricing](https://aws.amazon.com/ecs/pricing/)
 - [AWS Fargate supported resource configurations](https://aws.amazon.com/fargate/pricing/)
 
+For controlled provider comparisons and billing/retry risks, see [remote worker evaluation](../operations/worker-provider-evaluation.md) and [budget reconciliation](../architecture/budget-reservation-reconciliation.md). Provider selection remains Proposed.
+
 Related: [OQ-010](../project/open-questions.md), [workers](../architecture/workers.md), [worker lifecycle](../operations/worker-lifecycle.md), [budget](../architecture/budget-costs.md), [infrastructure history](../operations/infrastructure-options.md).
