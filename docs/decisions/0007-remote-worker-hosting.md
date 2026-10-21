@@ -75,6 +75,8 @@ Provisioned capacity can incur charges before the model call starts. Failing to 
 
 Use short-lived per-attempt identity, network egress policy, isolated remote workspaces, pinned container image digests, project-specific namespaces, structured cleanup and auditable usage.
 
+The [remote worker provisioning and cost lifecycle](../operations/remote-worker-lifecycle-contract.md) defines the provider adapter, launch idempotency, cancellation and billing reconciliation tests; the [owner decision pack](../project/transport-git-hosting-decision-pack.md) separates this proposal from approval. **No provider has been selected or benchmarked by these documents.**
+
 ## Decision gate and outcomes
 
 Approve a concrete provider only after measuring representative workloads in at least two comparable providers/hosting modes, documenting region, size, lifecycle, total estimated vs invoiced bill, credential model and preemption/timeout behavior. An initial single-provider implementation is acceptable if the adapter prevents permanent lock-in; keep user-provided remote servers as a future supported path if not implemented initially.
