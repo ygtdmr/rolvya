@@ -32,6 +32,12 @@ This register separates **approved user decisions** from **earlier design concep
 - Roadmap milestones, test strategy, support and release process.
 - Legal/commercial implications of MIT and a separate future trademark policy. MIT does not generally prohibit commercial competing use; brand restrictions must not be falsely described as MIT requirements.
 
+## Detailed approved ADRs
+
+- [ADR 0001 — Fixed upfront DAG and worker roles](0001-fixed-upfront-dag.md)
+- [ADR 0002 — Hard project budget approval gate](0002-hard-budget-approval.md)
+- [ADR 0003 — Remote Git only](0003-remote-git-only.md)
+
 ## ADR process
 Create `NNNN-short-decision-title.md` for consequential decisions. Include context, options, chosen decision, owner/approval date, consequences, rejected alternatives, related requirements, migration notes and supersession links. Never mark an item approved just because an earlier assistant suggested it.
 
