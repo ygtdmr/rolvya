@@ -63,7 +63,7 @@ The project will develop a structured documentation set covering:
 - Architecture decision records (ADRs)
 - Agent development instructions, implementation handoffs, and current project status
 
-These documents are **planned**; links will be added when the files actually exist. Future implementation agents should treat approved specifications and recorded decisions as authoritative, and must not assume a planned feature has already been built.
+Start with the [documentation index](docs/README.md), [current project status](docs/project/status.md), [decision register](docs/decisions/README.md), and [documentation compatibility policy](docs/development/documentation-policy.md). The [architecture overview](docs/architecture/overview.md) links to existing design documents. Further documents remain planned; implementation agents must not mistake proposals for working features.
 
 ## Roadmap (high level)
 
