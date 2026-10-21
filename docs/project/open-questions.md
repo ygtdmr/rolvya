@@ -56,6 +56,10 @@ Each question should ultimately have an owner decision, dated rationale, alterna
 
 The [implementation slice proposal](implementation-slices.md) explicitly blocks production coding on unresolved critical choices. These ADRs have `status: Proposed` until explicit owner authorization is recorded.
 
+## Decision package for remaining technology ADRs
+
+The [transport / Git / worker hosting decision pack](transport-git-hosting-decision-pack.md) summarizes owner choices for **OQ-006 / ADR 0006**, **OQ-007 / ADR 0008** and **OQ-010 / ADR 0007**. Its associated drafts are the [versioned worker wire contract](../architecture/worker-wire-contract-draft.md), [remote Git publisher contract](../architecture/git-remote-integration-contract.md), [worker lifecycle and cost reconciliation](../operations/remote-worker-lifecycle-contract.md) and [remote integration test suite](../development/remote-integration-test-matrix.md). All remain **Proposed**, not approved implementation choices. Paid benchmarks require independent explicit test-budget authorization.
+
 ## Detailed evaluation specifications
 
 - [Budget authorization and provider invoice reconciliation](../architecture/budget-reservation-reconciliation.md) implements the **Approved** bounded-or-stop running-work policy conceptually; actual provider limits and accounting details remain open.
