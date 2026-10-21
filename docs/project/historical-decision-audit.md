@@ -52,6 +52,12 @@ For current source-of-truth priorities, see [decision register](../decisions/REA
 
 The owner **subsequently approved Rust as the sole backend language** ([ADR 0004](../decisions/0004-control-plane-language.md)) and **SQLite as the sole authoritative database** ([ADR 0005](../decisions/0005-authoritative-database.md)). Entries above describing an undecided engine or historical Rust sketches reflect the earlier conversation state, **not the current architecture**. See the [Rust + SQLite backend contract](../architecture/rust-sqlite-backend.md). Framework/crates, SQLite WAL/migration settings and runtime infrastructure remain open details.
 
+## Superseding evidence-mapping audit (2026-10-22)
+
+A more detailed traceability matrix is now available at [Two-conversation coverage audit](two-conversation-coverage-audit.md). It covers later owner decisions **Approved ADR 0006 (HTTPS), ADR 0008 (GitHub App), ADR 0009 (group-only parents), ADR 0010 (bounded in-flight worker continuation or stop-on-risk), and ADR 0011 (multi-provider infrastructure)** in addition to Rust/SQLite. Earlier notes in this file saying that database engine, worker transport, GitHub authorization or parent-group rules were open are **historical snapshots, not current decisions**.
+
+The deeper audit also records previously under-detailed user discussions about **model subscription/API eligibility, scheduler ranking and cloud hardware, retry/escalation diagrams, main-planner and worker token optimization, synthetic multi-scenario billing arithmetic, brand evolution and the mistaken MIT reference**. The corresponding topic specifications are linked from the new matrix. It still **does not claim full line-by-line access to both original chat exports**.
+
 ## Audit maintenance
 
 When another historical decision is recovered, record: approximate discussion date, claim, user approval evidence, current status, normative destination, verification/test linkage and unresolved implications. Do not copy illustrative pricing or provider capacity into binding requirements.
