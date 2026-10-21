@@ -45,7 +45,7 @@ Arrows represent intended logical control/data flows, not finalized network conn
 - **DAG validator:** rejects cycles, missing references, contradictory parent/dependency semantics and unbounded or invalid task assignments.
 - **Scheduler:** maintains ready/waiting/running/terminal states; admits independent tasks when dependencies, resource limits and budget permit; ensures controlled concurrency.
 - **Worker control and adapters:** provision/use remote compute, deliver scoped instructions, execute CLI agents or API-based models under approved credential and resource policies, and collect results.
-- **Persistence:** one database instance stores project, task graph, execution state, instructions/context, attempts, approvals and cost ledger. Schema/database engine are not yet approved.
+- **Persistence:** an authoritative **SQLite** database stores project, task graph, execution state, instructions/context, attempts, approvals and the cost ledger. The **Rust** backend exclusively controls SQLite access; schema, WAL and migration configuration remain proposed.
 - **Validation and integration:** verify work, manage compatible remote Git changes and aggregate outputs. Merge-conflict and test-gate rules require dedicated contracts.
 - **Observability and recovery:** durable events, logs, lifecycle/heartbeats, retries and reconciliation; exact fault policy remains open.
 
@@ -60,7 +60,7 @@ Planner output schema; DAG validation rules; task state-machine transitions; wor
 
 ## Expanded technical specifications
 
-See the proposed [persistence and data model](data-model.md), [agent memory and context](context-memory.md), and [API and event contract inventory](api-contracts.md). Specific database engines, network protocols, and schemas are not yet approved.
+See the proposed [persistence and data model](data-model.md), [agent memory and context](context-memory.md), and [API and event contract inventory](api-contracts.md). **Rust-only backend** and **SQLite database** are approved in [ADR 0004](../decisions/0004-control-plane-language.md) and [ADR 0005](../decisions/0005-authoritative-database.md). See the [backend design contract](rust-sqlite-backend.md). Network protocols, crate choices and specific SQL schemas are not yet approved.
 
 ## Documentation navigation
 See [DAG planning](dag-planning.md), [execution and scheduling](execution.md), [budget and costs](budget-costs.md), [workers and models](workers.md), [security](security.md) and the [decision register](../decisions/README.md). Read the [project status](../project/status.md) for what is actually implemented.
