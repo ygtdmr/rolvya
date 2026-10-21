@@ -14,6 +14,8 @@ tags: [rust, sqlite, backend, transactions, migrations]
 
 The original product invariants remain mandatory: immutable fully preplanned DAG; workers execute assigned tasks without generating tasks; independent prerequisites may proceed concurrently; new billable work is blocked on insufficient approved budget until explicit owner authorization; no automatic percentage overrun; completed results persist; no personal-computer Local Agent or Git sync.
 
+The [Rust workspace proposal](rust-workspace.md) elaborates tentative crate/trait boundaries for AI contributors. Module names are not yet fixed; Rust-only backend and SQLite-only database engines are approved.
+
 ## Proposed Rust modular architecture
 
 ```mermaid
