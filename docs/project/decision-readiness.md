@@ -44,6 +44,8 @@ Approving one technology choice does not automatically approve another. Rust and
 5. Validate GitHub integration on a dedicated remote test repository.
 6. Implement approval UI and operational controls, then collect independent test evidence before any release.
 
+The [remaining transport/Git/hosting decision pack](transport-git-hosting-decision-pack.md) provides a proposed default for each unresolved decision, while the [remote integration test matrix](../development/remote-integration-test-matrix.md) defines the negative and recovery evidence required before approval and implementation.
+
 ## Readiness definition
 
 A design may be approved without being implemented. The architecture is currently in specification phase. Production readiness requires tested software, reviewed security rules, reproducible deployments, verified billing behavior and documented recovery procedures.
