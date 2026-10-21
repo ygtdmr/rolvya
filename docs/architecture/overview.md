@@ -50,7 +50,7 @@ Arrows represent intended logical control/data flows, not finalized network conn
 - **Observability and recovery:** durable events, logs, lifecycle/heartbeats, retries and reconciliation; exact fault policy remains open.
 
 ## Deployment constraints and options
-The control plane is intended to work on a modest remote VPS (roughly 2–4 GB RAM was discussed). Workers can use cloud providers or user-supplied **remote** servers; same-VPS execution was discussed but is not the preferred scaling assumption. AWS, Google Cloud and other options are candidates, **not selected providers**. Local personal-computer workers are excluded.
+The control plane is intended to work on a modest remote VPS (roughly 2–4 GB RAM was discussed). **Approved [ADR 0011](../decisions/0011-multi-provider-worker-infrastructure.md) requires extensible multi-provider Rust worker adapters**: cloud services and enrolled user-provided **remote** hosts can coexist. All enrolled remote workers use **Approved HTTPS pull/claim** ([ADR 0006](../decisions/0006-worker-communication.md)), while GitHub integration uses **Approved GitHub App** ([ADR 0008](../decisions/0008-github-authentication.md)). AWS, Google Cloud and other services are **candidate concrete adapters, not selected first-release providers**. Local personal-computer workers are excluded.
 
 ## Known planning targets, not guarantees
 Task granularity was discussed as medium complexity, usually targeting no more than about 10 minutes per worker task. Many independent tasks may execute simultaneously; no fixed 20-worker limit or hardware capacity has been approved. Resource quotas and model limits must determine actual concurrency.
