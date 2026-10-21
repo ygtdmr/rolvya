@@ -58,7 +58,7 @@ The owner's approval selects **group-only parents and independently validated ro
 1. Group G contains independent executable A and B; A finishes successfully while B is running → G **not succeeded**.
 2. A and B both validated, group criteria met → G **validated succeeded**, once.
 3. B failed irrecoverably → G never appears successful regardless of A.
-4. Explicit edge G → C → C cannot start before G is validated; no implied edges between A and B.
+4. Explicit edge G → C: C cannot start before G is validated; no implied edges between A and B.
 5. A planned integration leaf V may depend on A and B; G never runs V implicitly.
 6. Duplicated child result or concurrent callbacks do not produce multiple group completion events.
 7. Worker requests “add child task” → deny; active plan hash unchanged.
