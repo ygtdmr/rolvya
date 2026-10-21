@@ -48,6 +48,12 @@ Three additional proposed specifications were recorded: [scheduler state machine
 
 Nine additional **proposed** Markdown specifications were saved: [engineering standards](../development/standards.md), [agent handoff protocol](../development/agent-handoffs.md), [change review](../development/review-process.md), [observability and audit](../architecture/observability.md), [backup and disaster recovery](../operations/backup-recovery.md), [incident runbooks](../operations/runbooks.md), [owner panel user journeys](../product/user-flows.md), [operational configuration](../operations/configuration.md) and [open decisions](open-questions.md). All describe future behavior; none constitutes evidence that code, CI, production infrastructure, security controls or monitoring actually runs.
 
+## Technology-choice evaluation checkpoint (2026-10-21)
+
+Five **proposed, not approved** ADRs were added for [control-plane language](../decisions/0004-control-plane-language.md), [authoritative database](../decisions/0005-authoritative-database.md), [remote worker communication](../decisions/0006-worker-communication.md), [remote worker hosting](../decisions/0007-remote-worker-hosting.md) and [GitHub authentication](../decisions/0008-github-authentication.md). An [evidence-driven implementation slice roadmap](implementation-slices.md) lists dependencies, entry/exit conditions and fake-provider tests. Official vendor documentation informed option comparison, **not** measured Rolvya benchmarks, approved prices or deployed providers.
+
+**Open:** owner decisions, physical schema, protocol, credentials, deployment setup, performance targets and CI. No compiled control plane, running database, live worker, production GitHub App or end-to-end test is verified.
+
 ## Next documentation tasks
 1. Recover all prior approved architectural detail, confirm sources, and convert it into topic-specific specifications and ADRs.
 2. Resolve open questions (technologies, interfaces, deployment boundaries, worker providers, identity/security, persistence and approval UX) before implementation depends on them.
