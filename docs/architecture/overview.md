@@ -58,5 +58,9 @@ Task granularity was discussed as medium complexity, usually targeting no more t
 ## Interfaces awaiting specification
 Planner output schema; DAG validation rules; task state-machine transitions; worker lease protocol; cloud lifecycle; model adapters and CLI versus API policy; context packaging; remote Git permissions; artifact format; budget reservation/settlement; identity/secrets; retries, reconciliation and audit event contracts.
 
+## Expanded technical specifications
+
+See the proposed [persistence and data model](data-model.md), [agent memory and context](context-memory.md), and [API and event contract inventory](api-contracts.md). Specific database engines, network protocols, and schemas are not yet approved.
+
 ## Documentation navigation
 See [DAG planning](dag-planning.md), [execution and scheduling](execution.md), [budget and costs](budget-costs.md), [workers and models](workers.md), [security](security.md) and the [decision register](../decisions/README.md). Read the [project status](../project/status.md) for what is actually implemented.
