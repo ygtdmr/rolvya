@@ -63,4 +63,6 @@ Owner must approve GitHub App model and requested permission matrix, confirmatio
 - [GitHub documentation: deciding when to build a GitHub App](https://docs.github.com/en/apps/creating-github-apps/about-creating-github-apps/deciding-when-to-build-a-github-app)
 - [GitHub Docs: GitHub App versus OAuth](https://docs.github.com/en/apps/oauth-apps/building-oauth-apps/differences-between-github-apps-and-oauth-apps)
 
+For proposed role/branch policy and installation token handling, see [GitHub App integration design](../architecture/github-app-integration-design.md) and [identity/authorization](../architecture/identity-authorization.md). A GitHub App is not yet approved or installed.
+
 Related: [OQ-007](../project/open-questions.md), [remote Git integration](../architecture/integration-github.md), [security](../architecture/security.md), [review](../development/review-process.md).
