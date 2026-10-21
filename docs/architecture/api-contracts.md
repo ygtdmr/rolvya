@@ -10,7 +10,7 @@ tags: [api, events, contracts]
 
 ## Status
 
-This is a **contract inventory**, not a deployed API or approved OpenAPI schema. Protocol (HTTP, gRPC, messaging), URL paths and authentication scheme remain undecided.
+This is a **contract inventory**, not a deployed API or approved OpenAPI schema. **Worker control protocol is Approved as worker-initiated HTTPS (ADR 0006)**; concrete URLs, payload version/serialization and authentication mechanism remain undecided. Other internal interfaces may use separate transport mechanisms without replacing worker HTTPS.
 
 ## Proposed operations and invariants
 
@@ -51,6 +51,6 @@ The optional transport-specific examples in [worker transport design](worker-tra
 
 ## Open decisions
 
-Transport and schema format, versioning, paging, streaming, authn/authz, rate limits, webhook semantics, worker polling vs push, and retry SLAs.
+HTTPS worker API route/schema/serialization, versioning, paging, adaptive worker polling, authn/authz, rate limits, webhook semantics and retry SLAs. **Worker-initiated HTTPS transport is settled.**
 
 Related: [data model](data-model.md), [execution](execution.md), [budget](budget-costs.md), [security](security.md).
