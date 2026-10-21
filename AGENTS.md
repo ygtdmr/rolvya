@@ -6,8 +6,9 @@ Rolvya is an AI-agent-orchestration project developed by AI coding agents under 
 1. [Documentation index](docs/README.md)
 2. [Project status](docs/project/status.md)
 3. [Decision register](docs/decisions/README.md)
-4. Relevant product, architecture, and operations specifications
-5. Source code and tests (when present)
+4. [Documentation and Obsidian compatibility policy](docs/development/documentation-policy.md)
+5. Relevant product, architecture, and operations specifications
+6. Source code and tests (when present)
 
 ## Non-negotiable rules
 - Never represent a proposal, design goal, or unimplemented feature as working code.
@@ -19,6 +20,7 @@ Rolvya is an AI-agent-orchestration project developed by AI coding agents under 
 - Never expose credentials, secrets, or sensitive user data in commits, logs, test fixtures, or agent messages.
 - Perform work in reviewable, scoped changes. Add or update tests for behavior changed, and document what was actually tested.
 - Synchronize documentation with implementation; update the project status and impacted specifications or ADRs in the same change.
+- Follow [the documentation policy](docs/development/documentation-policy.md): GitHub-compatible relative Markdown links, optional portable YAML frontmatter, Mermaid where helpful, and Obsidian-friendly organization.
 - Do not invent endpoints, infrastructure deployments, integration credentials, or completed milestones.
 
 ## Task handoff requirements
