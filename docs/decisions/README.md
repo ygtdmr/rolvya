@@ -60,6 +60,22 @@ See the [historical conversation audit](../project/historical-decision-audit.md)
 - [ADR 0009 — Group-only parent tasks and verified aggregation](0009-parent-aggregation.md) — **Approved**.
 - [ADR 0010 — Bounded in-flight worker execution or stop-on-risk](0010-inflight-budget.md) — **Approved**.
 
+**Additional owner-approved REST, storage and execution policies (2026-10-22):**
+
+- [ADR 0012 — Axum REST API](0012-rest-api-framework.md).
+- [ADR 0013 — SQLx SQLite access](0013-sqlite-access-library.md).
+- [ADR 0014 — Initial SQLite WAL and pool settings](0014-sqlite-initial-configuration.md).
+- [ADR 0015 — Encrypted remote backup and restoration policy](0015-backup-recovery.md).
+- [ADR 0016 — S3-compatible storage adapter first](0016-s3-first-backup-adapter.md).
+- [ADR 0017 — Three remote worker host categories](0017-worker-host-categories.md).
+- [ADR 0018 — Cloud Run Jobs, Hetzner Cloud and user remote VPS adapter priorities](0018-initial-worker-adapters.md).
+- [ADR 0019 — Centralized retries](0019-centralized-worker-retries.md).
+- [ADR 0020 — Provider-aware isolation](0020-provider-aware-worker-isolation.md).
+- [ADR 0021 — Economical / Balanced / Performance scheduler modes](0021-scheduler-selection-modes.md).
+- [ADR 0022 — Dynamic concurrency and optional user cap](0022-dynamic-worker-concurrency.md).
+
+These are **Approved designs, not claims of implemented or production-verified software**. Detailed region/cost/adapter validation remains separate.
+
 **Remaining proposed provider rollout decision:**
 
 - [ADR 0007 — Initial remote worker providers, regions and cost comparison](0007-remote-worker-hosting.md) — **Proposed**; it does not reopen approved multi-provider support.
