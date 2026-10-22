@@ -155,6 +155,16 @@ These tests are **specified, not implemented or executed**. Total retention wind
 
 | AC-070 | Routine event is older than one year; critical security event is within three-year retention window | Enforce lawful routine lifecycle and preserve critical event; exported and backup copies follow approved retention controls | PR-024 |
 
+## Cryptographic audit integrity — specified future tests
+
+| Test ID | Scenario | Expected result | Requirement |
+| --- | --- | --- | --- |
+| AC-071 | Modify or omit a historical budget/security event in active or archived log storage | Verification against trusted integrity reference flags alteration/sequence gap and marks affected history unverified | PR-024 |
+| AC-072 | Replace an entire locally hashed chain and its unprotected chain head | Independent protected integrity reference prevents falsely reporting the replacement as verified | PR-024 |
+| AC-073 | Export/archive/restore or lawfully expire records | Verify surviving history and authenticated lifecycle transitions without treating authorized expiration as invisible tampering | PR-024 |
+
+These tests are **specified, not executed**; integrity design and protected key/checkpoint mechanics remain open.
+
 ## Evidence rules
 
 Each implementation claim needs source commit, repeatable test command, environment/version, result and known limitations. A proposed acceptance test is not a completed test. Automated checks should run in CI before merging behavior changes; security-critical behavior must include negative tests.
