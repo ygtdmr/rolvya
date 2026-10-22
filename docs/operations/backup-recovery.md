@@ -49,6 +49,14 @@ Encrypt in transit and at rest as appropriate; constrain backup access and maint
 
 Restoring a stale budget ledger cannot justify replaying work that may already have been billed. Treat missing provider usage as uncertain exposure and hold risky new admission.
 
+## Historical storage migration recovery (Approved policy; Proposed mechanics)
+
+[ADR 0030](../decisions/0030-project-activity-audit-log.md) approves **staged, resumable historical archive/checkpoint migration** after separate Owner authorization, without automatic source deletion. The [proposed migration state machine](../architecture/storage-migration-state-machine.md) describes one candidate journal and verification design.
+
+During disaster recovery, restore the **migration manifest and durable per-object verification evidence** alongside SQLite approvals and budget reservations. Fence old migration leases; reconcile provider writes and delayed/unknown bills before retrying. A verified object can be reused only while its source version and independent destination evidence remain valid. Never treat mere upload success as verified completion.
+
+A storage target cutover affects new writes only. Interrupted or budget-paused migration retains the original provider data and protected trust anchors. Do not invent a successful migration when the destination cannot be verified. Apply legal holds, retention and independent cleanup approval even after full transfer. Exact backup schedule, cost enforcement and provider checkpoint methods are unselected, not implemented.
+
 ## Failure modes and mitigations
 
 - **Corrupt or incomplete snapshot:** reject and use prior verified backup or repair with evidence.
