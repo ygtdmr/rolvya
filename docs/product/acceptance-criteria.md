@@ -171,6 +171,17 @@ These tests are **specified, not executed**; integrity design and protected key/
 | AC-076 | Deployment administrator allows storage target A for project, denies B; Owner selects destination; Editor or worker tries to add endpoint B | Owner may select only A, and unauthorized endpoints/writes are rejected in Rust before secrets or data leave the deployment | PR-013, PR-021, PR-024 |
 | AC-077 | Administrator disables configured checkpoint target or Owner switches among allowed targets | Data cannot silently migrate to forbidden target; prior checkpoints remain verifiable, and unavailable protections/destinations are surfaced safely | PR-024 |
 
+## Storage switch and explicit historical migration — specified future tests
+
+| Test ID | Scenario | Expected result | Requirement |
+| --- | --- | --- | --- |
+| AC-078 | Owner changes the configured destination to a newly allowed provider with valid access, while old archives/checkpoints exist | Validate new target and allow only future eligible writes; **do not copy, move, or delete any old archive/checkpoint** | PR-024 |
+| AC-079 | Target is inaccessible, fails integrity safeguards, or ceases to be allowlisted | Cutover refused, no silent fallback or migration; old data/checkpoints retain truthful recorded locations and recovery status | PR-024 |
+| AC-080 | Owner explicitly approves historical-data migration after reviewing scope and budget; transfer partially fails | Budget/security gates remain enforced; retries are safe; migrated copies independently verified before acceptance; source not silently deleted | PR-008, PR-024 |
+| AC-081 | Editor, worker, or background change event tries to migrate stored history without a separately approved Owner operation | Migration and billable data transfer denied, with auditable decision | PR-021, PR-024 |
+
+These tests are **specified, not implemented or executed**.
+
 ## Evidence rules
 
 Each implementation claim needs source commit, repeatable test command, environment/version, result and known limitations. A proposed acceptance test is not a completed test. Automated checks should run in CI before merging behavior changes; security-critical behavior must include negative tests.
