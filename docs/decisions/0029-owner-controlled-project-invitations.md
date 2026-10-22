@@ -20,7 +20,7 @@ Rolvya already has [Owner / Editor / Viewer](0024-project-human-roles.md), [OIDC
 
 1. **Owner-only invitations:** Only an authenticated human currently authorized as this project's **Owner** may create, revoke or manage project invitations and grant initial role assignments. An Editor may operate already-approved work but **cannot** invite anyone, including a Viewer. A Viewer may only read specifically allowed data.
 2. **Scoped initial roles:** A normal invitation targets one explicit project and a role no greater than **Editor or Viewer**. Granting **Owner** authority is a distinct high-risk elevation/ownership workflow, not an unchecked flag on an ordinary invite. Never silently inherit organization/other-project access.
-3. **Time-limited, one-use invitation:** Every invitation expires after a configured bounded lifetime, can be revoked before redemption, and is consumed **at most once**. Creating multiple invitation links must not cause accidental duplicated role grants or privilege escalation.
+3. **Time-limited, one-use invitation:** Every invitation expires **24 hours after issuance (approved default)**, can be revoked before redemption, and is consumed **at most once**. Creating multiple invitation links must not cause accidental duplicated role grants or privilege escalation.
 4. **Authentication before membership:** A link alone is not proof of identity. Acceptance requires completing trusted **OIDC login** and binding the new membership to that authenticated person's durable provider issuer and subject (`iss` + `sub`, or an appropriately verified equivalent). If a specific recipient was targeted, verify permitted recipient binding against trusted provider identity evidence; an email address alone is **not** adequate as a permanent account key or proof of Owner authority. On mismatch, fail closed and provide a safe way to request a new invite.
 5. **Owner elevation and transfer:** Any promotion to Owner and any transfer of ownership require a separately authorized, audited, intentional operation with **recent strong reauthentication** from the acting Owner. The receiving principal must be independently authenticated and explicitly accept relevant authority where the final transfer protocol requires it. **Do not** infer an Owner's consent from an Editor clicking a link or from an agent's response. Protect against orphaned projects / accidental loss of the last Owner.
 6. **Server-side enforcement:** Rust checks invitation creator and redeemer authorization, project, configured role, identity, expiry, revocation, nonce/one-use state, and current project membership. **SQLite must atomically** consume an invitation and grant membership with concurrency-safe idempotency. UI hiding and email-link secrecy are insufficient.
@@ -30,7 +30,7 @@ Rolvya already has [Owner / Editor / Viewer](0024-project-human-roles.md), [OIDC
 
 ## Design boundaries — NOT yet owner-approved implementation values
 
-- Exact invitation lifetime (hours/days), recipient targeting or re-send UX, invitation email delivery service, project-owner plurality, acceptance screens, verified-email matching policy, notification retention and rate-limit thresholds.
+- Recipient targeting or re-send UX, invitation email delivery service, project-owner plurality, acceptance screens, verified-email matching policy, notification retention and rate-limit thresholds.
 - Details of multi-step ownership transfer (recipient acknowledgement, additional owner signoff if present, cooldown/recovery process), last-Owner invariant and self-hosted IdP linking.
 - Atomic schema for pending invites, token hashing at rest, email enumeration defenses and race resolution. These are proposed engineering concerns, not verified code.
 
@@ -39,7 +39,7 @@ Rolvya already has [Owner / Editor / Viewer](0024-project-human-roles.md), [OIDC
 - Editor or Viewer attempts to invite any role, revoke another member, or promote themselves → reject and audit.
 - Owner issues time-limited Editor/Viewer invite; untrusted link bearer alone accesses project → reject until trusted OIDC login, recipient checks and valid redemption.
 - Same invite redeemed concurrently twice → **exactly one** membership grant; no double assignment.
-- Expired/revoked/altered invite or invalid project/role → no access grant; clear error without account enumeration.
+- Invite redeemed at or after its 24-hour expiry, revoked/altered invite or invalid project/role → no access grant; clear error without account enumeration.
 - Invite addressed to Alice is opened under a mismatched authenticated identity → deny; do not grant to a changed-email holder without verified account binding.
 - Member is removed after invite creation; stale roles, queued actions and cached permissions cannot restore access.
 - Owner promotion without recent strong assurance or with unverified target → deny; ordinary Editor invite cannot be promoted by changing request payload.
