@@ -102,6 +102,12 @@ These additions preserve approved architecture but **do not finalize** CLI entit
 
 At the end of the historical documentation remediation, current repo tree verification showed **90 tracked files: 89 Markdown plus LICENSE**. A static audit fetched all **89 Markdown files**, evaluated **1,214 file-relative Markdown link occurrences** against repository file targets, and found **no missing file targets** or odd Markdown code-fence delimiter counts. A missing YAML frontmatter in this status note is permitted under the project documentation policy. Fragment-anchor resolution, Obsidian GUI behavior, rendered Mermaid/YAML parsing, external URL health and actual software execution were **not tested**; do not equate structural source checks with those outcomes.
 
+## Approved resumable storage migration policy — specification checkpoint (2026-10-22)
+
+Owner approval extends [ADR 0030](../decisions/0030-project-activity-audit-log.md): historical storage migration must preserve durably verified partial progress, resume only unfinished/unverified approved objects after safe reconciliation, stop admitting billable work when approved headroom is insufficient, independently verify full manifest and trusted checkpoints before recording success, and **never automatically delete the original source**. Source cleanup remains a distinct strongly authenticated Owner-approved operation under retention and legal safeguards.
+
+The new [storage migration state-machine document](../architecture/storage-migration-state-machine.md) is **Proposed technical implementation**; [AC-086–AC-098](../product/acceptance-criteria.md) are future acceptance scenarios. No actual provider transfers, Rust implementation, SQLite schema migration, automated tests or spend occurred in this documentation-only update.
+
 ## Next documentation tasks
 1. For **literal complete two-chat coverage**, acquire full original chat exports and any original architecture/logo assets, then compare every message against [the evidence matrix](two-conversation-coverage-audit.md). Continue keeping unrecoverable details explicitly unknown.
 2. Resolve remaining open **implementation** choices (Rust crates/tooling, SQLite WAL/migrations, HTTPS schema/identity, exact GitHub App permissions/merge policy, first cloud provider rollout, subscription CLI entitlement, provider cost caps and UI) before dependent work. Rust, SQLite, HTTPS, GitHub App and multi-provider architecture selections are already Approved.
