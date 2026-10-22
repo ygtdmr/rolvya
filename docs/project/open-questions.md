@@ -107,6 +107,10 @@ The [transport / Git / worker hosting decision pack](transport-git-hosting-decis
 
 With multiple project Owners, **one authenticated, strongly reverified Owner may explicitly approve a budget increase**, and the system notifies other Owners after commit. **Unanimous approval is not required**; notification receipts are not a budget gate. All project hard-budget and SQLite reservation rules still apply; see [ADR 0029](../decisions/0029-owner-controlled-project-invitations.md). **Mandatory in-app notification, with email optional by recipient preference, is Approved ADR 0029.** Notification data model, delivery provider and retry mechanics remain technical open questions.
 
+## Project Activity Log — Approved
+
+[ADR 0030](../decisions/0030-project-activity-audit-log.md) approves an **auditable project Activity Log** covering material human/security/finance/agent/worker events, append-only behavior for ordinary users, and strong secret redaction. Exact event data schema, role-specific filtering, cryptographic tamper-evidence, event retention and archive/recovery mechanics remain engineering/privacy decisions. The architecture has **not been implemented**.
+
 ## Decisions that are not open
 
 These have already been approved and must not be reopened by a worker without owner consent: Rust-only backend and SQLite-only authoritative database; non-executable group parents and independently validated aggregate success; running workers limited to pre-reserved enforceable exposure or stop-on-risk; one main agent creates a fully fixed task hierarchy and DAG before runtime; workers execute, not plan; dependencies govern parallelism; hard budget pause with explicit approval and no percentage overrun; preserve completed work; separate cost categories/scenarios; remote Git only; no Local Agent or personal-computer sync; GNU MIT license.
