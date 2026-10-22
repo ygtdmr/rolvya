@@ -213,6 +213,23 @@ These are **specified future tests, not implemented or executed**.
 
 These are **future requirements, not implemented or executed tests**. Exact provider calls, retry counts, chunk sizes and SQLite schema remain proposed in [the migration state machine](../architecture/storage-migration-state-machine.md).
 
+## Bounded transient retry and backoff — specified future tests
+
+| Test ID | Scenario | Expected result | Requirement |
+| --- | --- | --- | --- |
+| AC-099 | Allowed migration encounters a classified transient network timeout, then recovers before its authorized retry limit is exhausted | Finite automatic retry with increasing bounded delay; only unverified affected work proceeds, verified objects/source remain untouched and hard budget/security gates are rechecked | PR-008, PR-024 |
+| AC-100 | Provider returns throttling/rate-limit metadata with `Retry-After` or a known temporary 5xx outage | Honor trustworthy provider cool-down, bound exponential waiting and prevent hot-loop requests or retry storms; no fixed delay/count assumed approved | PR-024 |
+| AC-101 | Repeated eligible transient failures exhaust the configured finite storage retry budget | Automatic attempts stop; durable blocked/review state, progress, cause and cost uncertainty visible; restart does not reset exhaustion | PR-024 |
+| AC-102 | Upload response is lost after the provider may already have committed a chargeable write | Reconcile remote object/version and potential billing first; no blind duplicate upload or falsely zero charges | PR-008, PR-024 |
+| AC-103 | Independently checked destination object has content/hash mismatch or protected checkpoint verification fails | No automatic retry treating integrity corruption as transient; no false verified completion; source and trusted anchors retained | PR-024 |
+| AC-104 | Migration retry would require unauthorized endpoint/region, revoked permission or violate retention/legal hold | Retry denied without implicit provider fallback, privilege expansion, source deletion or billable transfer | PR-013, PR-021, PR-024 |
+| AC-105 | Transient transfer error occurs but available approved headroom is insufficient or provider-side spending bound becomes uncertain | No new billable automatic retry; pause and preserve verified progress and source; explicit Owner ceiling approval required only when an increase is needed | PR-008, PR-024 |
+| AC-106 | Controller restarts during backoff or duplicate/stale provider callbacks race with an eligible retry | Persist retry count, next eligibility and fencing; stale callbacks cannot schedule excess attempts or erase verified progress | PR-012, PR-024 |
+| AC-107 | Destination verification read temporarily fails, then succeeds; the already staged object remains unchanged | Retry only the transient read within bounds, not a blind full upload; mark verified only after independent evidence succeeds | PR-024 |
+| AC-108 | Migration contains multiple object/part operations while executable coding-task retry default is three total attempts | Storage retries use their distinct finite operation policy, never silently inherit AI worker's three-attempt limit or authorize extra paid work | PR-008, PR-024 |
+
+These are **specified future tests, not implemented or executed**. The exact storage retry limit, delay base/cap, jitter, provider response mapping and scheduling implementation remain Proposed. See [storage retry design](../architecture/storage-migration-state-machine.md) and [ADR 0030](../decisions/0030-project-activity-audit-log.md).
+
 ## Evidence rules
 
 Each implementation claim needs source commit, repeatable test command, environment/version, result and known limitations. A proposed acceptance test is not a completed test. Automated checks should run in CI before merging behavior changes; security-critical behavior must include negative tests.
