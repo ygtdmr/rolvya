@@ -105,7 +105,7 @@ The [transport / Git / worker hosting decision pack](transport-git-hosting-decis
 
 ## Multi-Owner budget approvals — Approved
 
-With multiple project Owners, **one authenticated, strongly reverified Owner may explicitly approve a budget increase**, and the system notifies other Owners after commit. **Unanimous approval is not required**; notification receipts are not a budget gate. All project hard-budget and SQLite reservation rules still apply; see [ADR 0029](../decisions/0029-owner-controlled-project-invitations.md). Notification provider/channel and retry mechanics remain technical open questions.
+With multiple project Owners, **one authenticated, strongly reverified Owner may explicitly approve a budget increase**, and the system notifies other Owners after commit. **Unanimous approval is not required**; notification receipts are not a budget gate. All project hard-budget and SQLite reservation rules still apply; see [ADR 0029](../decisions/0029-owner-controlled-project-invitations.md). **Mandatory in-app notification, with email optional by recipient preference, is Approved ADR 0029.** Notification data model, delivery provider and retry mechanics remain technical open questions.
 
 ## Decisions that are not open
 
