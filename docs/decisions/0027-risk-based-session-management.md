@@ -18,6 +18,16 @@ Rolvya uses OIDC-first human authentication, passkey-capable identity providers 
 - **Provider boundary:** Revoking a Rolvya session does not necessarily revoke an external identity provider session. Explain this distinction in UI and use provider logout/revocation when available and safe.
 - **Auditability:** Log session creation, step-up, revocation and suspicious events without leaking secrets.
 
+
+## Approved refinement — continuity across web, mobile, and future voice interfaces (2026-10-22)
+- Secure, revocable session renewal should keep routinely active users signed in without repeated visible sign-in prompts. Authenticated, low-risk voice assistant interactions may use the same session policy.
+- Keep web sessions eligible for termination after **7 days without real user activity**. Backend jobs, scheduled agents, token refreshes, background polling and worker activity **do not** reset this user-idle clock.
+- For future mobile apps, permit longer-lived, securely stored and revocable credentials with platform secure storage. Treat mobile session lifetimes separately from web; actual limits remain to be designed and security-tested.
+- **Do not impose a blanket mandatory logout every 30 days** as a product rule. Retain bounded credential/session lifetimes, revalidation on risk, server-side revocation and provider-enforced reauthentication as needed; do not infer infinite session validity.
+- Keep sensitive operations behind verified step-up authentication. Spoken commands or voice similarity alone cannot authorize budget increases, role/security changes or other high-risk actions.
+- Maintain device-specific session inventory and revocation. Logout or compromise of a human session must not automatically terminate previously authorized ongoing agent or remote-worker execution; these have separate machine credentials and budget/security gates.
+- Token rotation, replay detection, secure storage and theft response need an explicit implementation policy and tests before launch.
+
 ## Open implementation details
 Exact idle/absolute timeout values, maximum simultaneous sessions, trusted-device handling, recent-authentication window, session storage, high-risk action catalog, and OIDC assurance mapping are **not yet approved**. Choose them during security implementation with explicit review and tests. No session-management functionality is claimed implemented.
 
