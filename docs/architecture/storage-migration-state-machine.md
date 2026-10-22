@@ -148,7 +148,7 @@ For a fixed manifest of **1,000 objects**, suppose **800 have been independently
 
 ## Proposed verification fixtures
 
-The normative acceptance scenarios are [AC-078–AC-098](../product/acceptance-criteria.md). Future deterministic Rust/SQLite fake-adapter tests should inject: restart after verified entry 800/1,000, crash between external upload and SQLite acknowledgement, stale lease/callback, missing/corrupt destination object, mutable source version, lost trusted checkpoint, provider allowlist revocation, budget exhaustion and late invoice, and Owner cancellation with in-flight work. Run negative authorization and retention checks; **no tests are implemented or executed**.
+The normative acceptance scenarios are [AC-078–AC-108](../product/acceptance-criteria.md). Future deterministic Rust/SQLite fake-adapter tests should inject: restart after verified entry 800/1,000, crash between external upload and SQLite acknowledgement, stale lease/callback, missing/corrupt destination object, mutable source version, lost trusted checkpoint, provider allowlist revocation, budget exhaustion and late invoice, and Owner cancellation with in-flight work. Include finite transient retry, exponential wait, provider cool-down, durable exhausted retry count, ambiguous upload cost reconciliation, and automatic-retry denial for integrity/security/budget problems. Run negative authorization and retention checks; **no tests are implemented or executed**.
 
 ## Open engineering decisions
 
