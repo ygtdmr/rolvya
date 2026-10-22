@@ -19,10 +19,10 @@ Rolvya uses OIDC-first human authentication, passkey-capable identity providers 
 - **Auditability:** Log session creation, step-up, revocation and suspicious events without leaking secrets.
 
 
-## Approved refinement — continuity across web, mobile, and future voice interfaces (2026-10-22)
-- Secure, revocable session renewal should keep routinely active users signed in without repeated visible sign-in prompts. Authenticated, low-risk voice assistant interactions may use the same session policy.
+## Approved refinement — low-friction secure sessions (2026-10-22)
+- Secure, revocable session renewal should keep routinely active **web users** signed in without repeated visible sign-in prompts. If a future voice interface is separately approved, its low-risk interactions should follow compatible security principles; this is **not** a feature commitment.
 - Keep web sessions eligible for termination after **7 days without real user activity**. Backend jobs, scheduled agents, token refreshes, background polling and worker activity **do not** reset this user-idle clock.
-- For future mobile apps, permit longer-lived, securely stored and revocable credentials with platform secure storage. Treat mobile session lifetimes separately from web; actual limits remain to be designed and security-tested.
+- If a mobile app is **ever separately approved**, evaluate platform secure storage and revocable credentials, with separately risk-reviewed session lifetimes. No mobile app, mobile-specific credential store or voice interface is required or currently approved for delivery.
 - **Do not impose a blanket mandatory logout every 30 days** as a product rule. Retain bounded credential/session lifetimes, revalidation on risk, server-side revocation and provider-enforced reauthentication as needed; do not infer infinite session validity.
 - Keep sensitive operations behind verified step-up authentication. Spoken commands or voice similarity alone cannot authorize budget increases, role/security changes or other high-risk actions.
 - Maintain device-specific session inventory and revocation. Logout or compromise of a human session must not automatically terminate previously authorized ongoing agent or remote-worker execution; these have separate machine credentials and budget/security gates.
