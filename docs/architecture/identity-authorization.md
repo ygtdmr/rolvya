@@ -2,7 +2,7 @@
 title: Identity, Authorization and Human Approval Model
 status: Proposed
 category: architecture
-last-reviewed: 2026-10-21
+last-reviewed: 2026-10-22
 tags: [identity, rbac, authorization, approvals, security]
 ---
 
@@ -10,21 +10,24 @@ tags: [identity, rbac, authorization, approvals, security]
 
 ## Status and scope
 
-**Proposed security architecture, not deployed authentication.** The user approved a **hard human approval gate for budget increases**, a fixed DAG, remote workers only and remote Git providers only. They have **not** selected an identity provider, authentication standard, role model or tenant topology. Rust is the approved backend; SQLite is authoritative state. The implementation **must not infer authority** from possession of a task lease, a webhook, an LLM message, an API callback or UI notification acknowledgement.
+**Proposed security architecture, not deployed authentication.** The user approved a **hard human approval gate for budget increases**, a fixed DAG, remote workers only and remote Git providers only. **ADR 0024 approved three project-scoped human roles: Owner, Editor and Viewer.** An identity provider, authentication/session standard, concrete tenancy topology and the remaining fine-grained authorization rules are still unselected. Rust is the approved backend; SQLite is authoritative state. The implementation **must not infer authority** from possession of a task lease, a webhook, an LLM message, an API callback or UI notification acknowledgement.
 
-## Trust principals
+## Approved human roles and separate system principals
 
-| Principal | Identity source to select | Allowed responsibility | Forbidden |
+[ADR 0024 — Owner, Editor, Viewer](../decisions/0024-project-human-roles.md) is the binding minimum human role definition. A project's Owner may explicitly authorize or raise its budget ceiling, approve consequential scope and critical permissions. An Editor may initiate/review **already owner-approved** work within preflight limits, but cannot approve higher spending, broaden provider/Git/secret permissions or silently replace the activated immutable DAG. A Viewer may only read authorized project information. Roles are **project-scoped** and are checked server-side at each privileged action, not inferred from a visible UI control. The exact authentication/session stack remains Proposed.
+
+| Principal | Identity source | Allowed responsibility | Forbidden |
 | --- | --- | --- | --- |
-| Project owner | Authenticated human session, bound to project owner ID | Configure projects; issue explicit budget approval; authorize consequential ADR/merge changes | Implicit approval by page refresh or copied token |
-| Invited reviewer | Authenticated delegated human, role assignment | Examine code, tests, audit and Git integration subject to approved policy | Automatic project ceiling changes unless separately delegated by explicit owner policy |
-| Main planner/orchestrator | Rust backend internal/service identity | Propose full DAG, request validation, schedule and manage attempts | Approve budget on behalf of human; mutate activated DAG |
-| Remote worker | Enrolled short-lived remote instance identity | Claim authorized attempt, heartbeat and submit bounded artifacts | Write SQLite, add tasks, raise budget, bypass merge or access other projects |
-| Provider adapter | Dedicated service identity bound to allowed project/provider | Issue approved cloud/Git actions through controls | Broad unmanaged cloud or repository administration |
-| GitHub installation | Per-installation/project-authorized GitHub App identity (proposed) | Read designated repos; publish isolated refs subject to GitHub permissions | Assume a token itself restricts to branch namespace |
-| Public/unauthenticated viewer | None | Read explicitly public documentation only | See private logs, remote refs, task context, charges or secrets |
+| **Owner** | Authenticated, project-bound human session | Explicit budget approval, critical project governance/access, preflight plan and scope authorization | Implicit approval from silence, copied token or UI event |
+| **Editor** | Authenticated project-bound membership | Begin/manage an already-approved run within existing ceiling/policy; inspect permitted results | Increase ceiling, elevate roles, widen sensitive provider/Git scope, approve unapproved DAG |
+| **Viewer** | Authenticated project-bound membership | Read permitted status/results only | Launch, alter, approve, or access secrets |
+| **Main planner/orchestrator** | Rust backend service identity | Propose fixed plans and manage authorized same-task recovery | Approve human budget, mutate activated DAG |
+| **Remote worker** | Verified short-lived identity scoped to current attempt | Claim, heartbeat and submit own bounded artifacts | Write SQLite, create tasks, act as project human, access other projects |
+| **Provider adapter** | Dedicated service identity bound to allowed project/provider | Execute pre-reserved actions through policy controls | Unmanaged cross-tenant resources or broad cloud administration |
+| **GitHub installation** | Approved GitHub App installation/token | Limited remote Git integration on authorized refs | Treat installation permission as automatic protected-ref merge authority |
+| **Public/unauthenticated** | None | Public repository documentation only | Private projects, logs, task context, costs, credentials |
 
-Roles are illustrative; exact RBAC/ABAC policy and whether reviewer/owner roles are combined need owner approval.
+No fourth initial human role (such as an independent **Reviewer**) has been approved. Reviewer workflows may be covered by appropriately permissioned existing roles; fine-grained review/merge authorities are not automatically implied by Editor.
 
 ## Authorization decision inputs
 
@@ -32,19 +35,21 @@ Any privileged action must check `actor_id`, `actor_type`, authenticated session
 
 Enforce server-side policy **on every request and outbox execution**, not just in a UI disabled button. Revalidate when an action waits in an outbox; permissions can be revoked after initial scheduling.
 
-## Minimum proposed authorization matrix
+## Approved minimum human permissions, proposed implementation detail
 
-| Action | Owner | Reviewer | Controller | Worker |
-| --- | --- | --- | --- | --- |
-| Read own project DAG/results | Yes | Only granted | Scoped | Only assigned task |
-| Propose/upfront-validate plan | Request | Review | Yes | No |
-| Activate validated plan | Approval policy TBD | No | Only with authorized plan gate | No |
-| Admit budget-covered attempt | No direct lease | No | Yes, in SQLite transaction | No |
-| Increase approved cost ceiling | **Explicit authenticated approval** | No by default | No, only verifies and records authenticated approval | **No** |
-| Change global Rust/SQLite decision | Explicit new ADR approval | Propose | No | No |
-| Read task context | Project-scoped | Scope-dependent | Yes | Own fenced attempt only |
-| Publish isolated remote Git ref | Through controlled integration | Review | Scoped adapter | Only under delegated attempt |
-| Merge protected remote branch | Per approved merge policy | Per approved merge policy | Controlled, requires verified authority | No |
+| Action | Owner | Editor | Viewer | Controller | Worker |
+| --- | --- | --- | --- | --- | --- |
+| Read authorized project DAG/results | Yes | Yes | Read-only | Project-scoped | Assigned attempt only |
+| Authorize new preflight plan/scope | Yes | Propose only | No | Validate but no human approval | No |
+| Start/resume an already owner-approved run | Yes | Yes within delegated policy | No | Budget/cap/lease gate | No |
+| Admit a billable attempt | Not a direct lease | Not a direct lease | No | **Yes**, only after atomic authorized reservation | No |
+| Increase hard budget ceiling | **Explicit authenticated approval** | **No** | **No** | Records only genuine owner approval | **No** |
+| Grant/revoke critical project access, provider account or sensitive Git scope | Owner authorization | **No unilateral grant** | No | Enforce | No |
+| Read model/provider raw secrets | Not via ordinary app UI | No | No | Scoped broker/secret store only | No raw general secrets |
+| Publish remote isolated ref | Through allowed integration | No implied direct branch authority | No | Trusted publisher under current scope | Scoped evidence, not branch merge |
+| Merge protected branch | Only if separately authorized GitHub policy | Not implied by role | No | Verify independent merge rule | No |
+
+Whether Editors may edit descriptions, invite non-privileged viewers, or request a protected merge is **not yet settled**. Treat uncertain privilege as denied until specified; an Editor pressing Start is not authority to create a new plan or exceed preflight spending limits.
 
 ## Human budget approval flow (proposal)
 
@@ -71,7 +76,7 @@ All protected operations require auditable traces with no raw credential content
 
 ## Decisions needed
 
-Identity provider/session architecture; tenant model; enrollment and worker attestation; roles/delegation; protected Git branch merge approval; approval UI/2FA requirements; audit retention; secret manager and project isolation enforcement.
+Identity provider/session architecture; tenant model; enrollment and worker attestation; **role membership/invitation/owner transfer and finer Editor scopes** (the three Owner/Editor/Viewer roles themselves are Approved ADR 0024); protected Git branch merge approval; approval UI/2FA requirements; audit retention; secret manager and project isolation enforcement.
 
 The [human approval workflow](approval-workflow.md) defines proposed request/decision/application state separation; a displayed approval request never itself authorizes billable admission.
 
