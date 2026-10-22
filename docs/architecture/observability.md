@@ -88,6 +88,10 @@ Instrumentation failure must not silently bypass authoritative scheduling or bud
 
 [ADR 0030](../decisions/0030-project-activity-audit-log.md) approves an **explicit-only migration policy**. Switching an Owner-selected allowlisted provider requires destination security/capability verification and only affects future writes. Existing audit archives and integrity checkpoints **are not automatically copied**. A distinct Owner-approved migration, with scope and applicable hard-budget/transfer exposure approved, is required for historical data. Migration must be resumable and integrity verified before accepting the new copy; failed migration never silently deletes or reclassifies old data. Separate old-source cleanup, adapter health probes and migration orchestration remain engineering/policy decisions.
 
+## Approved post-migration source cleanup
+
+[ADR 0030](../decisions/0030-project-activity-audit-log.md) requires **retaining old-provider data even after a successful migration**. Verify destination completeness, retrieval and cryptographic/checkpoint integrity before considering any cleanup. **Deleting old copies is a separate explicitly Owner-approved operation** with clear scope and consequences, enforced by Rust using administrator-authorized storage access. Never automatically purge old data on migration completion. Respect mandatory retention, legal holds, privacy/deletion requirements and the preservation of trustworthy integrity references. Source cleanup is auditable and must not silently erase the last verifiable copy. Exact provider deletion mechanics and confirmation UI remain Proposed.
+
 ## Open decisions
 
 Telemetry backend, event schema, audit integrity strategy, dashboards, alert destinations/thresholds, log redaction implementation, retention/tenant isolation and observability cost ceiling.
