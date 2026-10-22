@@ -68,6 +68,15 @@ Multiple authorized Owners, Editors, Viewers and independently authorized machin
 - Where switching the configured target makes old records temporarily unavailable, show that honestly and retain safe access/recovery instructions; do not claim data were migrated or fully accessible. Whether/when old redundant copies can be cleaned up is a separate governed retention/deletion decision.
 - Exact verification probes, migration state machine, transfer limits, cross-provider copy method and final source cleanup workflow remain unselected engineering details. These requirements are approved architecture, **not implemented code**.
 
+## Approved post-migration source retention and Owner-controlled cleanup (2026-10-22)
+
+- **A successfully verified migration does not authorize deletion of the previous provider's data.** Source archives, historical records and integrity checkpoints must remain intact after a completed transfer; no automatic post-success cleanup or hidden background deletion.
+- Before any migration-related source cleanup, **independently verify the destination copy** for completeness, retrievability, cryptographic integrity and continuity of trusted verification checkpoints. A reported transfer success alone is not sufficient evidence.
+- **Source deletion after migration is a separate, explicit, project-scoped Owner-approved operation**, distinct from both selecting a new destination and approving/carrying out migration. Present the affected provider/objects, verified migration evidence, scope, projected costs and irreversible consequences before authorization. Editors, Viewers, agents and workers may not infer consent or approve deletion.
+- **Owner approval never overrides mandatory retention, legal holds, privacy/data-erasure obligations, or provider administrator access policy.** Retained critical finance/security records follow the approved minimum three-year policy subject to applicable law; routine history has its one-year total lifecycle. Deny or defer cleanup when deletion would breach applicable requirements. Separately governed retention-expiry/legal erasure workflows remain possible and are not equivalent to automatic migration cleanup.
+- Execute permitted cleanup through auditable, bounded, restart-safe steps, with least-privilege credentials and explicit outcomes. Before deleting protected integrity references, establish that the surviving trusted evidence will still let authorized verifiers detect historical tampering. Fail closed rather than destroy the last trusted copy or conceal a partial deletion.
+- Exact cleanup UX, provider-specific deletion APIs, batch size, deletion attestation, long-lived backups and confirmation timing remain implementation decisions. **No migration, cleanup or integrity-verification feature is claimed implemented.**
+
 ## Approved total retention windows (2026-10-22)
 
 - **Routine project activity events:** retain for **1 year total from event creation**, including the first **90 days readily accessible in the project panel** and the remainder in a protected compressed archive when archival is enabled.
