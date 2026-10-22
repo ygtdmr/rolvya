@@ -21,7 +21,7 @@ Each question should ultimately have an owner decision, dated rationale, alterna
 | ID | Priority | Question | Candidate directions / decision criteria | Related specification |
 | --- | --- | --- | --- | --- |
 | OQ-003 | P0 | SQLite-atomic task lease + budget reservation transaction? | Serialized SQLite write transaction, idempotent outbox, fencing epochs, delayed charges | [Scheduler](../architecture/scheduler.md) |
-| OQ-004 | P0 | Authentication, project roles and authorization? | Role policy, audit identity, tenant separation, human budget approval | [Security](../architecture/security.md) |
+| OQ-004 | P0 | Which identity/session standard, project membership persistence and fine-grained permissions? | **Owner/Editor/Viewer already Approved ADR 0024**; decide OIDC or other auth, MFA, invitation/revocation, tenancy isolation and explicit approval UX | [Identity](../architecture/identity-authorization.md), [ADR 0024](../decisions/0024-project-human-roles.md) |
 | OQ-005 | P0 | Secrets storage and remote worker identity? | Secret-manager references, ephemeral worker identity, revocation, sandbox boundary | [Secrets](../operations/secrets.md) |
 | OQ-008 | P0 | Provider-valid subscription CLI vs API usage on unattended third-party remote workers? | Check official current terms, owner entitlement, secure CLI/OAuth delegation, no silent paid fallback | [CLI/API entitlement contract](../architecture/model-access-entitlement-contract.md), [dated official evidence](../reference/provider-cli-api-policy-evidence.md) |
 | OQ-010 | P1 | Which first-provider **regions, images, sandbox settings and cost guarantees** are viable? | First adapter priorities **Approved ADR 0018**: Cloud Run Jobs, Hetzner Cloud and user remote VPS; validate each one's actual cost bounds, isolation and billing | [ADR 0018](../decisions/0018-initial-worker-adapters.md), [ADR 0007](../decisions/0007-remote-worker-hosting.md) |
@@ -88,6 +88,10 @@ The [transport / Git / worker hosting decision pack](transport-git-hosting-decis
 ## Cross-project fairness — now Approved
 
 [ADR 0023](../decisions/0023-cross-project-scheduling-fairness.md): large ready queues must not indefinitely starve other eligible projects on **authorized shared pools**. Project preflight priority is respected, waiting work gains consideration over time, and per-project security, quotas and budget remain independent. Exact weighted fairness/aging algorithm is still open and must be measured.
+
+## Human project role model — now Approved
+
+[ADR 0024](../decisions/0024-project-human-roles.md): initial project human roles are **Owner**, **Editor** and **Viewer**. Editors may start previously authorized work and inspect results but cannot raise budget or grant critical security authority; Viewers have read-only access to permitted data. No separate Reviewer role is approved. Authentication/session/MFA, invite/revocation and fine-grained authorization implementation remain **OQ-004**, not a reopening of the three-role policy.
 
 ## Decisions that are not open
 
