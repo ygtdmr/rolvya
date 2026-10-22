@@ -84,13 +84,19 @@ Automatic admission does **not** mean maximizing paid jobs indiscriminately: [AD
 
 [ADR 0022 — Dynamic worker concurrency](../decisions/0022-dynamic-worker-concurrency.md) contains the binding decision and acceptance scenarios.
 
+## Approved cross-project fairness and aging (ADR 0023)
+
+**Approved 2026-10-22:** when multiple projects compete for the same **authorized shared** worker pool, the scheduler must avoid indefinite monopolization by a project with a larger ready queue. Respect any project owner-configured preflight priority, then increase consideration for eligible work as its wait time grows. Priorities and aging never override per-project budget, model/region/secret eligibility, security boundaries, queue readiness, or [ADR 0022](../decisions/0022-dynamic-worker-concurrency.md) concurrency caps. Dedicated/owner-restricted worker pools cannot be silently shared. Fairness governs *new admissions*; do not cancel active paid workers just to rebalance queue allocations.
+
+[ADR 0023](../decisions/0023-cross-project-scheduling-fairness.md) is binding as to fair access, preflight priorities and anti-starvation. A weighted deficit round-robin implementation, numeric weights, tie-breaking and aging thresholds remain **Proposed**, not approved constants. Document meaningful selection reasons and test starvation under multi-project load.
+
 ## Spot/preemptible capacity
 
 Spot/On-Demand provider types were considered for price/availability. **Automatic Spot → On-Demand fallback is not approved as a blanket billing rule.** If fallback is allowed under a project-specific configuration, create a new attempt only after fenced/verified previous attempt status and fresh bounded budget admission; account for provider minimums, retries and egress. A preempted worker does not authorize adding new planned tasks.
 
-## Proposed fairness and backpressure
+## Proposed fairness *algorithm* and backpressure
 
-A scheduler may use per-project/tenant queues, aging and reservation-aware provider quotas to avoid starvation. Exact implementation needs benchmark evidence and owner choice. Use bounded ready-batch pagination and efficient SQLite indexes, not a full-graph scan on every heartbeat. Idle HTTPS worker polling should have adaptive backoff/long poll under approved ADR 0006. Avoid lock contention on a single SQLite writer.
+Cross-project fair access, configured project priorities and wait-time aging are **Approved ADR 0023**. A scheduler may implement these with per-project/tenant queues, weighted fair selection and reservation-aware provider quotas. The **exact algorithm and numeric parameters** need benchmark evidence and engineering review. Use bounded ready-batch pagination and efficient SQLite indexes, not a full-graph scan on every heartbeat. Idle HTTPS worker polling should have adaptive backoff/long poll under approved ADR 0006. Avoid lock contention on a single SQLite writer.
 
 ## Decision trace for each admission
 
@@ -111,6 +117,6 @@ Persist selection inputs and meaningful rejection reasons: task/plan hash, prede
 
 ## Open decisions
 
-Ranking/fairness weights, aging rules, queue priorities, measured safety/backpressure capacity thresholds, warm worker billing/idle cleanup, preemptible fallback, region policy, capacity sampling and resource defaults. **The optional owner-set project concurrency cap and absence of an arbitrary universal default are Approved ADR 0022**; first worker adapter priorities are Approved ADR 0018 but deployment and regional parameters require evidence. This document does not supersede the approved fixed DAG or multi-provider/budget ADRs.
+Ranking/fairness weights, aging *parameter values*, exact queue representation, measured safety/backpressure capacity thresholds, warm worker billing/idle cleanup, preemptible fallback, region policy, capacity sampling and resource defaults. **The optional owner-set project concurrency cap and absence of an arbitrary universal default are Approved ADR 0022**; first worker adapter priorities are Approved ADR 0018 but deployment and regional parameters require evidence. This document does not supersede the approved fixed DAG or multi-provider/budget ADRs.
 
 Related: [scheduler](scheduler.md), [multi-provider adapters](multi-provider-adapter-contract.md), [DAG](dag-planning.md), [budget](budget-reservation-reconciliation.md), [infrastructure history](../operations/infrastructure-options.md), [model entitlement](model-access-entitlement-contract.md), [verification](../development/remote-integration-test-matrix.md).
