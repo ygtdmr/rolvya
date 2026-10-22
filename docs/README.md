@@ -134,6 +134,11 @@ The paths above are a **planned inventory**, not links to files that already exi
 
 **Approved 2026-10-21:** ADR 0004 (Rust), 0005 (SQLite), 0006 (worker HTTPS), 0008 (GitHub App), 0009 (group-only parents), 0010 (bounded-or-stop) and 0011 (multi-provider worker adapters). **ADR 0007 remains Proposed only for initial provider/vendor rollout and cost benchmarking**; concrete HTTP/security/adapter implementation details are also open. See [open technical questions](project/open-questions.md).
 
+## Project event history and audit
+
+- [ADR 0030 — Project Activity Log and protected audit history](decisions/0030-project-activity-audit-log.md) — Approved policy, not implemented.
+- [Observability and event architecture](architecture/observability.md) — Proposed implementation details.
+
 ## Human authentication and session safety
 
 - [ADR 0025 — OIDC + passkey-capable identity providers](decisions/0025-oidc-passkey-authentication.md) — Approved.
