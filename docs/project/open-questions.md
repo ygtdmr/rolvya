@@ -2,7 +2,7 @@
 title: Open Decisions and Architecture Questions
 status: Open
 category: project
-last-reviewed: 2026-10-21
+last-reviewed: 2026-10-22
 tags: [decisions, roadmap, unresolved, adr]
 ---
 
@@ -24,7 +24,7 @@ Each question should ultimately have an owner decision, dated rationale, alterna
 | OQ-004 | P0 | Authentication, project roles and authorization? | Role policy, audit identity, tenant separation, human budget approval | [Security](../architecture/security.md) |
 | OQ-005 | P0 | Secrets storage and remote worker identity? | Secret-manager references, ephemeral worker identity, revocation, sandbox boundary | [Secrets](../operations/secrets.md) |
 | OQ-008 | P0 | Provider-valid subscription CLI vs API usage on unattended third-party remote workers? | Check official current terms, owner entitlement, secure CLI/OAuth delegation, no silent paid fallback | [CLI/API entitlement contract](../architecture/model-access-entitlement-contract.md), [dated official evidence](../reference/provider-cli-api-policy-evidence.md) |
-| OQ-010 | P1 | Which concrete remote worker providers, regions and sandbox modes ship first? | Multi-provider architecture **Approved ADR 0011**; validate each vendor's cost bounds, isolation, startup and billed reconciliation | [ADR 0007 — initial provider selection](../decisions/0007-remote-worker-hosting.md) |
+| OQ-010 | P1 | Which first-provider **regions, images, sandbox settings and cost guarantees** are viable? | First adapter priorities **Approved ADR 0018**: Cloud Run Jobs, Hetzner Cloud and user remote VPS; validate each one's actual cost bounds, isolation and billing | [ADR 0018](../decisions/0018-initial-worker-adapters.md), [ADR 0007](../decisions/0007-remote-worker-hosting.md) |
 | OQ-011 | P1 | Worker lease TTL, heartbeat/retry limits/timeouts and model/resource escalation? | Historical 1/3/10 minute & three-attempt graphic is nonbinding; test idempotency, provider costs, fair retry policy | [Retry and escalation](../architecture/retry-escalation-policy.md) |
 | OQ-012 | P1 | Planner and worker context packaging, token quotas and handoffs? | Minimize tokens in **both** phases, retain required constraints, version hashes and prior verified artifacts | [Token efficiency](../architecture/token-context-efficiency.md) |
 | OQ-013 | P1 | UI stack, roles and plan approval interactions? | Budget approval security, task graph readability and accessibility | [User flows](../product/user-flows.md) |
@@ -34,13 +34,13 @@ Each question should ultimately have an owner decision, dated rationale, alterna
 | OQ-018 | P2 | Non-GitHub self-hosted remote Git adapters? | Provider compatibility and authorization, never local computer sync | [Git integration](../architecture/integration-github.md) |
 
 | OQ-019 | P2 | Which exact accepted logo source file/SVG, final no-gold HEX values and brand-use policy are authoritative? | Obtain original approved asset and provenance; avoid redrawing, superseded brass and trademark assumptions | [Brand history](../product/brand-history-license-governance.md) |
-| OQ-020 | P1 | Which scheduler ranking/fairness weights, Spot/On-Demand fallback and capacity limits are permitted? | Evaluate priority, duration, CPU/RAM, quota, region, latency, reliability and enforceable costs; no diagram's 20-worker limit treated as default | [Selection policy](../architecture/scheduler-selection-policy.md) |
+| OQ-020 | P1 | Which scheduler ranking/fairness weights, provider fallbacks and *measured capacity thresholds* are safe? | [ADR 0022](../decisions/0022-dynamic-worker-concurrency.md) **Approved** dynamic concurrency with optional preflight project cap; precise fairness, backpressure and ramps remain to test | [Selection policy](../architecture/scheduler-selection-policy.md) |
 
 ## Recently approved remote integration architecture — no longer open
 
 - **OQ-006 closed 2026-10-21:** [ADR 0006 — Approved](../decisions/0006-worker-communication.md). Worker control uses remote-worker-initiated HTTPS pull/claim/heartbeat/result with SQLite durable outbox; exact Rust library, authentication, payload and timing remain implementation choices.
 - **OQ-007 (GitHub auth selection) closed 2026-10-21:** [ADR 0008 — Approved](../decisions/0008-github-authentication.md). GitHub integration uses GitHub App installations with a trusted Rust Git publisher. Exact endpoint grants, merge authority and owner permissions remain open security details covered by OQ-004/005/015.
-- **Multi-provider architecture Approved:** [ADR 0011](../decisions/0011-multi-provider-worker-infrastructure.md) requires extensible Rust adapters supporting different remote providers, not a single cloud implementation. **OQ-010 remains open only for initial concrete vendors, regions, provider setup and benchmarking.**
+- **Multi-provider architecture Approved:** [ADR 0011](../decisions/0011-multi-provider-worker-infrastructure.md) requires extensible Rust adapters supporting different remote providers, not a single cloud implementation. **OQ-010 remains open for regional/deployment settings, provider setup, billing evidence and benchmarking; the first three adapter priorities were approved in ADR 0018.**
 
 ## Recently approved execution policies — no longer open
 
@@ -80,6 +80,10 @@ The [transport / Git / worker hosting decision pack](transport-git-hosting-decis
 - [Parent group aggregation implementation contract](../architecture/parent-task-aggregation.md) and [Approved ADR 0009](../decisions/0009-parent-aggregation.md): group-only parents selected; optional-child and schema details remain open.
 - [In-flight execution implementation contract](../architecture/inflight-cost-policy.md) and [Approved ADR 0010](../decisions/0010-inflight-budget.md): enforceably bounded continuation or stop-on-risk selected; provider-specific caps and stop timing remain open.
 - [Initial Rust/SQLite engineering task packages](../development/initial-implementation-task-packages.md) and [test matrix](../development/rust-sqlite-test-matrix.md): proposals for future planning; not activated worker task nodes, not tested code.
+
+## Dynamic worker concurrency — now Approved
+
+[ADR 0022](../decisions/0022-dynamic-worker-concurrency.md): no arbitrary fixed worker limit; optional owner-selected per-project concurrency ceiling at preflight, otherwise adapt to independently ready leaves, live quotas, security, model entitlement, SQLite controller capacity and conservative authorized spending. Exact thresholds, fair-share and control-loop tuning remain open engineering parameters; do not re-ask the product-policy choice.
 
 ## Decisions that are not open
 
