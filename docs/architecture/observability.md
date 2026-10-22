@@ -84,6 +84,10 @@ Instrumentation failure must not silently bypass authoritative scheduling or bud
 
 [ADR 0030](../decisions/0030-project-activity-audit-log.md) requires the **deployment administrator to configure and allowlist storage providers and destinations**. Project Owners may select only allowlisted, project-permitted targets; Editors, Viewers and workers cannot introduce unapproved external endpoints. Provider-neutral adapters remain mandatory, with credentials protected, writes and migrations permission-checked, and all changes audited. Detailed migration and configuration mechanisms remain Proposed.
 
+## Approved destination change and explicit archive migration
+
+[ADR 0030](../decisions/0030-project-activity-audit-log.md) approves an **explicit-only migration policy**. Switching an Owner-selected allowlisted provider requires destination security/capability verification and only affects future writes. Existing audit archives and integrity checkpoints **are not automatically copied**. A distinct Owner-approved migration, with scope and applicable hard-budget/transfer exposure approved, is required for historical data. Migration must be resumable and integrity verified before accepting the new copy; failed migration never silently deletes or reclassifies old data. Separate old-source cleanup, adapter health probes and migration orchestration remain engineering/policy decisions.
+
 ## Open decisions
 
 Telemetry backend, event schema, audit integrity strategy, dashboards, alert destinations/thresholds, log redaction implementation, retention/tenant isolation and observability cost ceiling.
