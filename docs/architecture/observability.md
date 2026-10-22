@@ -76,6 +76,10 @@ Instrumentation failure must not silently bypass authoritative scheduling or bud
 5. Secret-like strings in worker stdout are not revealed in dashboard, trace or webhook payload.
 6. Unavailable external exporter does not lose authoritative approved ceiling or task state.
 
+## Approved project Activity Log baseline
+
+[ADR 0030](../decisions/0030-project-activity-audit-log.md) approves a project-scoped, user-visible **Activity Log** for important human, agent, worker, approval, cost, security, Git and task events. Entries must be **append-only at the application authorization layer**: no ordinary project role can edit or erase history, and corrections must be new traceable events. Secrets, tokens and confidential worker output must not appear in event details. Rust/SQLite is authoritative; crash-safe durable events and tenant/role-aware reads are mandatory. This is **not** proof that SQLite prevents privileged host/database administrators from tampering; immutable cryptographic anchoring and exact retention/role-filter policy remain Proposed.
+
 ## Open decisions
 
 Telemetry backend, event schema, audit integrity strategy, dashboards, alert destinations/thresholds, log redaction implementation, retention/tenant isolation and observability cost ceiling.
