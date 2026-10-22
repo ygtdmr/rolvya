@@ -51,6 +51,14 @@ Multiple authorized Owners, Editors, Viewers and independently authorized machin
 - Keep access credentials, signing keys and checkpoint write controls distinct from ordinary SQLite write authority; protect against unauthorized overwrite and rollback, and ensure archive/restore verification can consult the protected checkpoint source.
 - Exact initial non-S3 adapter choices, backup quorum, checkpoint cadence and cryptographic algorithms remain engineering decisions. No vendor-only requirement, local-computer sync or personally hosted worker is introduced.
 
+## Approved storage provider governance (2026-10-22)
+
+- **The Rolvya deployment/system administrator controls which storage backends are configured, credentialed, enabled and permitted.** A configured adapter is not automatically approved for every project; the administrator's allowlist and capability/security policy are authoritative.
+- **Project Owners can choose only from storage targets explicitly allowed for their project by that administrator.** Editors, Viewers, AI main agents and remote workers cannot register new storage providers or send checkpoint/archive data to unapproved endpoints.
+- Rust enforces allowlisted project/provider binding, destination and region constraints, least-privilege secret references, integrity protections and applicable storage/transfer budget before any write or migration. Changes are audited, and credential material never enters AI context or project user-visible logs.
+- Reconfiguration or migration cannot silently invalidate protected checkpoints. Existing data remains verifiable and recoverable under approved lifecycle and transfer rules. No automatic external storage access is assumed if an administrator has configured no eligible target.
+- **Multiple providers remain supported** by the extensible storage interface; the administrator may authorize S3-compatible, other cloud or eligible self-hosted remote adapters. Exact UI, credential vault, target health probes and migration mechanics remain engineering questions.
+
 ## Approved total retention windows (2026-10-22)
 
 - **Routine project activity events:** retain for **1 year total from event creation**, including the first **90 days readily accessible in the project panel** and the remainder in a protected compressed archive when archival is enabled.
