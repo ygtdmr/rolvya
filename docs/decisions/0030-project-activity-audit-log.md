@@ -77,6 +77,14 @@ Multiple authorized Owners, Editors, Viewers and independently authorized machin
 - Execute permitted cleanup through auditable, bounded, restart-safe steps, with least-privilege credentials and explicit outcomes. Before deleting protected integrity references, establish that the surviving trusted evidence will still let authorized verifiers detect historical tampering. Fail closed rather than destroy the last trusted copy or conceal a partial deletion.
 - Exact cleanup UX, provider-specific deletion APIs, batch size, deletion attestation, long-lived backups and confirmation timing remain implementation decisions. **No migration, cleanup or integrity-verification feature is claimed implemented.**
 
+## Approved source-copy deletion after verified migration (2026-10-22)
+
+- **Never automatically delete the original source copies**, even after a migration reports success and the destination passes integrity checks.
+- Require a **separate, explicit, strongly authenticated project Owner approval** for any source-copy cleanup. Approval to migrate or change provider is not approval to delete. No Editor, Viewer, worker or autonomous agent may infer that permission.
+- Before deletion, independently verify destination completeness, retrievability, cryptographic checkpoint continuity, and the applicable retention/legal hold requirements. Reject cleanup if required retention would be violated or destination integrity cannot be established.
+- Record approved scope, actor, timestamp, affected object references, verification evidence and cleanup outcome in the protected Activity Log. Never silently erase audit evidence or misreport failed deletion as success.
+- Deletion of redundant copies must account for backup/export retention and provider-specific irreversibility; exact purge implementation remains a future engineering decision.
+
 ## Approved total retention windows (2026-10-22)
 
 - **Routine project activity events:** retain for **1 year total from event creation**, including the first **90 days readily accessible in the project panel** and the remainder in a protected compressed archive when archival is enabled.
