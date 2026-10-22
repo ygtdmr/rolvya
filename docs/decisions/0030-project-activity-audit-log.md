@@ -43,6 +43,14 @@ Multiple authorized Owners, Editors, Viewers and independently authorized machin
 - The choice of algorithm, signing-key custody, trusted checkpoint or remote anchoring technique, rotation procedure, verifier frequency and independent recovery is **open for engineering review**, not pre-approved or implemented. It is **not guaranteed** to detect all attacks by an administrator who also compromises the integrity trust root.
 - Lawful, authorized retention expiration/anonymization must be accounted for using a verifiable lifecycle strategy; it should not be misreported as malicious deletion.
 
+## Approved independent, provider-neutral integrity checkpoint storage (2026-10-22)
+
+- Store trusted audit-integrity **checkpoints independently from the authoritative SQLite database**. This separation is a required architectural boundary, not a claim of protection if both systems and signing credentials are compromised together.
+- Use a **pluggable storage adapter/interface** rather than locking Rolvya to S3. **S3-compatible object storage is one supported adapter option, not the only option.** Other qualified object-storage services, self-hosted remote storage or equivalent providers can be integrated where they offer the necessary durability, access controls, integrity retrieval and operational cost visibility.
+- Where supported, use versioning, object retention or write-once controls to harden checkpoint integrity. Do not assert that all providers support equivalent immutability; check capabilities and refuse to mark an unprotected checkpoint as independently trusted.
+- Keep access credentials, signing keys and checkpoint write controls distinct from ordinary SQLite write authority; protect against unauthorized overwrite and rollback, and ensure archive/restore verification can consult the protected checkpoint source.
+- Exact initial non-S3 adapter choices, backup quorum, checkpoint cadence and cryptographic algorithms remain engineering decisions. No vendor-only requirement, local-computer sync or personally hosted worker is introduced.
+
 ## Approved total retention windows (2026-10-22)
 
 - **Routine project activity events:** retain for **1 year total from event creation**, including the first **90 days readily accessible in the project panel** and the remainder in a protected compressed archive when archival is enabled.
