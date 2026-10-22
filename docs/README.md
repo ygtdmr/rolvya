@@ -54,6 +54,7 @@ All Markdown documentation follows the [Obsidian-compatible documentation policy
 - [Multi-provider Rust worker adapter contract](architecture/multi-provider-adapter-contract.md)
 - [Proposed worker wire contract v0](architecture/worker-wire-contract-draft.md)
 - [Failure classification and recovery](architecture/failure-recovery.md)
+- [Resumable historical storage migration state machine — proposed](architecture/storage-migration-state-machine.md)
 - [Monitoring and audit architecture](architecture/observability.md)
 - [Remote workers and models](architecture/workers.md)
 - [Budget and costs](architecture/budget-costs.md)
@@ -136,6 +137,7 @@ The paths above are a **planned inventory**, not links to files that already exi
 
 ## Project event history and audit
 
+- [Resumable migration and crash-safe recovery design](architecture/storage-migration-state-machine.md) — Approved safeguards, Proposed implementation.
 - [ADR 0030 — Project Activity Log and protected audit history](decisions/0030-project-activity-audit-log.md) — Approved policy, not implemented.
 - [Observability and event architecture](architecture/observability.md) — Proposed implementation details.
 
