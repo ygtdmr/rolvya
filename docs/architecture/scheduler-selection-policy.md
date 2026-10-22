@@ -71,10 +71,18 @@ A ranking decision by itself **must not** spend money. Serialize the final budge
 ## Capacity semantics
 
 - **2–4 GB** is a target for the remote controller, not a guarantee of concurrent process capacity; heavy builds and model CLI processes run on remote workers.
-- **20 concurrent workers** from historical diagrams is a synthetic load example, not a confirmed upper bound or default. Configured caps require owner policy and actual measurements.
+- **20 concurrent workers** from historical diagrams is a synthetic load example, not a confirmed upper bound or default. The owner may configure a per-project cap during preflight; actual safe capacity and controller limits require measurements.
 - Concurrency is limited by **the number of eligible independent leaves**, CPU/RAM/quota, Git write isolation, usage provider restrictions and approved budget—not just the count of idle agents.
 - Multiple authorized remote providers can be used simultaneously without sharing provider secrets or violating task/model access.
 - Pre-warmed workers and idle remote VPS capacity may incur cost before task claim, so idle pool management is also billable work requiring accounting.
+
+## Approved dynamic concurrency and project cap (ADR 0022)
+
+**Owner-approved 2026-10-22:** no arbitrary universal worker-count ceiling. Before execution, the owner may optionally configure a maximum concurrent attempt count for this project. When omitted, no product-policy numerical cap is invented. The Rust scheduler adjusts actual concurrent admissions to ready executable leaves, provider/model quotas, resource and sandbox capacity, remote Git conflict constraints, runtime health, safe controller/SQLite throughput and **atomically authorized** budget exposure. An illustrative 20-worker diagram is not a hard default.
+
+Automatic admission does **not** mean maximizing paid jobs indiscriminately: [ADR 0021](../decisions/0021-scheduler-selection-modes.md) offers Economical, Balanced (default) and Performance selection. If the extra paid host adds little benefit, the selected mode may choose to wait rather than spend. Approved concurrent work that remains within enforceable reservations may continue while admissions pause; independent verified work stays intact. Exact backpressure thresholds, fairness/aging weights and ramp/hysteresis algorithms are not yet approved.
+
+[ADR 0022 — Dynamic worker concurrency](../decisions/0022-dynamic-worker-concurrency.md) contains the binding decision and acceptance scenarios.
 
 ## Spot/preemptible capacity
 
@@ -103,6 +111,6 @@ Persist selection inputs and meaningful rejection reasons: task/plan hash, prede
 
 ## Open decisions
 
-Ranking/fairness weights, aging rules, queue priorities, global/per-project concurrency caps, warm worker billing/idle cleanup, preemptible fallback, region policy, capacity sampling, resource defaults and first concrete cloud providers. This document does not supersede the approved fixed DAG or multi-provider/budget ADRs.
+Ranking/fairness weights, aging rules, queue priorities, measured safety/backpressure capacity thresholds, warm worker billing/idle cleanup, preemptible fallback, region policy, capacity sampling and resource defaults. **The optional owner-set project concurrency cap and absence of an arbitrary universal default are Approved ADR 0022**; first worker adapter priorities are Approved ADR 0018 but deployment and regional parameters require evidence. This document does not supersede the approved fixed DAG or multi-provider/budget ADRs.
 
 Related: [scheduler](scheduler.md), [multi-provider adapters](multi-provider-adapter-contract.md), [DAG](dag-planning.md), [budget](budget-reservation-reconciliation.md), [infrastructure history](../operations/infrastructure-options.md), [model entitlement](model-access-entitlement-contract.md), [verification](../development/remote-integration-test-matrix.md).
