@@ -34,7 +34,7 @@ Each question should ultimately have an owner decision, dated rationale, alterna
 | OQ-018 | P2 | Non-GitHub self-hosted remote Git adapters? | Provider compatibility and authorization, never local computer sync | [Git integration](../architecture/integration-github.md) |
 
 | OQ-019 | P2 | Which exact accepted logo source file/SVG, final no-gold HEX values and brand-use policy are authoritative? | Obtain original approved asset and provenance; avoid redrawing, superseded brass and trademark assumptions | [Brand history](../product/brand-history-license-governance.md) |
-| OQ-020 | P1 | Which scheduler ranking/fairness weights, provider fallbacks and *measured capacity thresholds* are safe? | [ADR 0022](../decisions/0022-dynamic-worker-concurrency.md) **Approved** dynamic concurrency with optional preflight project cap; precise fairness, backpressure and ramps remain to test | [Selection policy](../architecture/scheduler-selection-policy.md) |
+| OQ-020 | P1 | Which *numeric* priority/aging weights, fairness algorithm, provider fallbacks and measured backpressure thresholds are safe? | [ADR 0022](../decisions/0022-dynamic-worker-concurrency.md) **Approved** dynamic concurrency; [ADR 0023](../decisions/0023-cross-project-scheduling-fairness.md) **Approved** cross-project fair sharing and aging. Only algorithm details, fairness parameters and thresholds are open | [Selection policy](../architecture/scheduler-selection-policy.md) |
 
 ## Recently approved remote integration architecture — no longer open
 
@@ -84,6 +84,10 @@ The [transport / Git / worker hosting decision pack](transport-git-hosting-decis
 ## Dynamic worker concurrency — now Approved
 
 [ADR 0022](../decisions/0022-dynamic-worker-concurrency.md): no arbitrary fixed worker limit; optional owner-selected per-project concurrency ceiling at preflight, otherwise adapt to independently ready leaves, live quotas, security, model entitlement, SQLite controller capacity and conservative authorized spending. Exact thresholds, fair-share and control-loop tuning remain open engineering parameters; do not re-ask the product-policy choice.
+
+## Cross-project fairness — now Approved
+
+[ADR 0023](../decisions/0023-cross-project-scheduling-fairness.md): large ready queues must not indefinitely starve other eligible projects on **authorized shared pools**. Project preflight priority is respected, waiting work gains consideration over time, and per-project security, quotas and budget remain independent. Exact weighted fairness/aging algorithm is still open and must be measured.
 
 ## Decisions that are not open
 
