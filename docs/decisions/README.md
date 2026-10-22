@@ -73,6 +73,7 @@ See the [historical conversation audit](../project/historical-decision-audit.md)
 - [ADR 0020 — Provider-aware isolation](0020-provider-aware-worker-isolation.md).
 - [ADR 0021 — Economical / Balanced / Performance scheduler modes](0021-scheduler-selection-modes.md).
 - [ADR 0022 — Dynamic concurrency and optional user cap](0022-dynamic-worker-concurrency.md).
+- [ADR 0023 — Cross-project fairness, preflight priority and queue aging](0023-cross-project-scheduling-fairness.md).
 
 These are **Approved designs, not claims of implemented or production-verified software**. Detailed region/cost/adapter validation remains separate.
 
