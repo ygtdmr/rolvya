@@ -35,9 +35,17 @@ Rolvya already has [Owner / Editor / Viewer](0024-project-human-roles.md), [OIDC
 - **Never allow removal or demotion of the final remaining Owner.** Enforce this invariant transactionally in SQLite, including concurrent removals, transfers and revoked memberships. An Owner may manage other Owners only through the separate high-risk, authenticated governance workflow; details of any additional co-Owner quorum remain open.
 - Having multiple Owners does **not** automatically mean every budget increase requires signatures from all Owners; the existing explicit authenticated Owner budget approval rule remains in force unless a separately approved multi-approval policy is introduced.
 
+## Approved multi-Owner budget approval and notifications (2026-10-22)
+
+- **One authenticated, currently authorized project Owner is sufficient to approve a project budget ceiling increase.** Requiring every co-Owner to sign off is **not** the default. This does not make approval automatic: require the Owner's explicit affirmative action and verified recent strong reauthentication ([ADR 0025](0025-oidc-passkey-authentication.md), [ADR 0027](0027-risk-based-session-management.md)).
+- Record the acting Owner's project-scoped identity, the previous and new ceiling, timestamp, version/idempotency key and decision rationale in a tamper-resistant audit trail without secrets. Apply a version-checked **atomic SQLite change**, with no duplicate increments or concealed percent overrun ([ADR 0002](0002-hard-budget-approval.md)).
+- **Notify all other active Owners** after a successful budget change through available verified channels. Notification delivery/reading is **not a second approval gate** and must not silently block a properly authorized change. If delivery fails, record/retry it and keep the event visible in project audit/activity history. No background agent, Editor, Viewer or worker may approve the increase.
+- The scheduler may re-evaluate blocked billable admissions only against the new committed ceiling, while continuing to enforce provider, scope, model, and attempt limits.
+- Future optional multi-Owner quorum or spending policies would require separate owner approval; do not infer such a requirement today.
+
 ## Design boundaries — NOT yet owner-approved implementation values
 
-- Recipient targeting or re-send UX, invitation email delivery service, exact co-Owner approval/quorum behavior, acceptance screens, verified-email matching policy, notification retention and rate-limit thresholds.
+- Recipient targeting or re-send UX, invitation email delivery service, any optional stricter co-Owner quorum overrides beyond the approved one-Owner budget default, acceptance screens, verified-email matching policy, notification retention and rate-limit thresholds.
 - Exact transfer request lifetime, any additional Owner signoff if present, cooldown/recovery process, self-hosted IdP linking and final transfer UX. **The current Owner's strong reauthentication, recipient's independent authentication and explicit acceptance, and preservation of current Owner authority until atomic completion are Approved.**
 - Atomic schema for pending invites, token hashing at rest, email enumeration defenses and race resolution. These are proposed engineering concerns, not verified code.
 
