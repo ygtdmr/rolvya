@@ -139,6 +139,8 @@ The paths above are a **planned inventory**, not links to files that already exi
 - [ADR 0001 — Fixed upfront DAG](decisions/0001-fixed-upfront-dag.md)
 - [ADR 0002 — Hard budget approval](decisions/0002-hard-budget-approval.md)
 - [ADR 0003 — Remote Git only](decisions/0003-remote-git-only.md)
+- [ADR 0021 — Scheduler modes: economical, balanced (default) and performance](decisions/0021-scheduler-selection-modes.md)
+- [ADR 0022 — Dynamic worker parallelism and optional preflight cap](decisions/0022-dynamic-worker-concurrency.md)
 
 ## Coverage checklist
 
