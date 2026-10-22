@@ -33,3 +33,7 @@ Accounting currency, tax, exchange-rate policies, in-flight worker behavior, met
 Automatic percentage overrun was rejected by the user. Exact budgeting implementation alternatives remain open.
 
 Related: [budget architecture](../architecture/budget-costs.md), [data model](../architecture/data-model.md), [acceptance criteria](../product/acceptance-criteria.md).
+
+## Multi-Owner authorization refinement (Approved 2026-10-22)
+
+When a project has multiple Owners, **one individually authenticated Owner**, after recent verified strong reauthentication, may explicitly authorize an increase to the hard project ceiling. A unanimous signature is **not** required. The old and new ceiling, actor, transaction/version and approval evidence are auditable; **other Owners receive notifications** after a successful increase without serving as extra approvers. Missing notification delivery does not grant additional spending authority or negate an otherwise valid committed approval; retry and audit delivery. Preserve all original atomic reservation and no-percent-overrun rules. See [ADR 0029](0029-owner-controlled-project-invitations.md).
