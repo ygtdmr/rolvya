@@ -28,9 +28,16 @@ Rolvya already has [Owner / Editor / Viewer](0024-project-human-roles.md), [OIDC
 8. **Audit and notification:** Record issuance, delivery attempt where relevant, redemption, rejection, expiration, revocation and Owner changes without putting raw invite tokens in logs. Notify affected people over verified channels for material access changes. Allow an Owner to inspect and revoke pending invitations and project memberships.
 9. **Quiet operation:** Invitations are initiated explicitly by an Owner, not by an autonomous worker. Routine authorized execution remains uninterrupted, but role grants and Owner changes never occur silently.
 
+## Approved multiple-Owner policy (2026-10-22)
+
+- **Multiple Owners per project are permitted.** Each Owner is a distinct human principal bound to independently verified OIDC issuer/subject identity. An Owner cannot act as another Owner or inherit another Owner's authenticated session.
+- Adding or elevating a new Owner still requires a **currently authorized Owner's recent strong step-up**, independent OIDC authentication and explicit acceptance from the prospective Owner, with auditable atomic membership updates.
+- **Never allow removal or demotion of the final remaining Owner.** Enforce this invariant transactionally in SQLite, including concurrent removals, transfers and revoked memberships. An Owner may manage other Owners only through the separate high-risk, authenticated governance workflow; details of any additional co-Owner quorum remain open.
+- Having multiple Owners does **not** automatically mean every budget increase requires signatures from all Owners; the existing explicit authenticated Owner budget approval rule remains in force unless a separately approved multi-approval policy is introduced.
+
 ## Design boundaries — NOT yet owner-approved implementation values
 
-- Recipient targeting or re-send UX, invitation email delivery service, project-owner plurality, acceptance screens, verified-email matching policy, notification retention and rate-limit thresholds.
+- Recipient targeting or re-send UX, invitation email delivery service, exact co-Owner approval/quorum behavior, acceptance screens, verified-email matching policy, notification retention and rate-limit thresholds.
 - Exact transfer request lifetime, any additional Owner signoff if present, cooldown/recovery process, self-hosted IdP linking and final transfer UX. **The current Owner's strong reauthentication, recipient's independent authentication and explicit acceptance, and preservation of current Owner authority until atomic completion are Approved.**
 - Atomic schema for pending invites, token hashing at rest, email enumeration defenses and race resolution. These are proposed engineering concerns, not verified code.
 
