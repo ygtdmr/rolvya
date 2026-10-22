@@ -193,6 +193,10 @@ These tests are **specified, not implemented or executed**.
 
 Future tests only — **not implemented or executed**.
 
+| AC-082 | Migration succeeds and destination integrity verifies | Old source copies remain intact; no implicit delete or cleanup permission follows from migration approval | PR-024 |
+| AC-083 | Owner separately approves old-source cleanup with strong reauthentication, but destination verification fails or retention hold applies | Cleanup rejected; old copies remain; reason and attempt are auditable | PR-021, PR-024 |
+| AC-084 | Eligible source cleanup is explicitly approved after independent destination and retention checks | Only approved objects are removed under provider safeguards; deletion outcome and verification evidence are recorded without exposing secrets | PR-024 |
+
 ## Evidence rules
 
 Each implementation claim needs source commit, repeatable test command, environment/version, result and known limitations. A proposed acceptance test is not a completed test. Automated checks should run in CI before merging behavior changes; security-critical behavior must include negative tests.
