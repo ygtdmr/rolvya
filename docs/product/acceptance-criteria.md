@@ -119,6 +119,16 @@ All scenarios are **specified only**. No end-to-end implementation or validation
 
 Tests specified, **not implemented or executed**.
 
+## Multiple Owners — budget approval notification (specified future tests)
+
+| Test ID | Scenario | Expected result | Requirements |
+| --- | --- | --- | --- |
+| AC-058 | Project has two authenticated Owners; Owner A explicitly raises budget after verified strong step-up; Owner B has not approved | Exactly one atomic auditable increase is applied; no unanimous co-Owner approval required; admission remains bounded by the new ceiling | PR-008, PR-021 |
+| AC-059 | Budget increase from Owner A succeeds but notification to Owner B temporarily fails | Committed increase remains valid; missing delivery is durably logged and retried without duplicate spending or another approval | PR-008, PR-021 |
+| AC-060 | Editor/Viewer/agent tries to authorize increase; two Owners race with stale ceiling versions | Unauthorized changes rejected, stale version rechecked; no lost update, duplicate increment or automatic overrun | PR-008, PR-021 |
+
+These are **specified only**, not implemented or executed.
+
 ## Evidence rules
 
 Each implementation claim needs source commit, repeatable test command, environment/version, result and known limitations. A proposed acceptance test is not a completed test. Automated checks should run in CI before merging behavior changes; security-critical behavior must include negative tests.
