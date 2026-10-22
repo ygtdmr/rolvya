@@ -109,7 +109,7 @@ With multiple project Owners, **one authenticated, strongly reverified Owner may
 
 ## Project Activity Log — Approved
 
-[ADR 0030](../decisions/0030-project-activity-audit-log.md) approves an **auditable project Activity Log** covering material human/security/finance/agent/worker events, append-only behavior for ordinary users, and strong secret redaction. Exact event data schema, role-specific filtering, cryptographic tamper-evidence, event retention and archive/recovery mechanics remain engineering/privacy decisions. The architecture has **not been implemented**.
+[ADR 0030](../decisions/0030-project-activity-audit-log.md) approves an **auditable project Activity Log** covering material human/security/finance/agent/worker events, append-only behavior for ordinary users, and strong secret redaction. The **90-day panel-accessible Activity Log window** and secure compressed archival of older events are Approved. Exact event schema, role filters, cryptographic tamper-evidence, **total archive retention and critical financial/security extension periods**, retrieval and recovery mechanics remain engineering/privacy decisions. The architecture has **not been implemented**.
 
 ## Decisions that are not open
 
