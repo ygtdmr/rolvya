@@ -107,7 +107,7 @@ An approved project budget increase and a policy for already-running workers are
 
 ## Approved multi-Owner budget decision policy
 
-[ADR 0029](../decisions/0029-owner-controlled-project-invitations.md) establishes that when a project has multiple Owners, **any one currently authorized Owner** may raise its approved ceiling through a deliberate, strongly reauthenticated, version-checked approval. Other active Owners are **notified after commit** but their acknowledgements are not required for budget admission. Audit previous/new values, actor, project, idempotency key and notification delivery/retry. Never infer permission from delivery of a notification or an AI/worker action. Exact notifications transport, retry frequency and signing methods remain Proposed.
+[ADR 0029](../decisions/0029-owner-controlled-project-invitations.md) establishes that when a project has multiple Owners, **any one currently authorized Owner** may raise its approved ceiling through a deliberate, strongly reauthenticated, version-checked approval. After commit, **each other active Owner must receive a durable in-app notification**; optional email depends on that Owner's preferences. Other Owners' acknowledgements are not required for budget admission. Audit previous/new values, actor, project, idempotency key and notification delivery/retry. Never infer permission from delivery of a notification or an AI/worker action. The in-app mandatory versus optional-email channel policy is Approved ADR 0029; exact in-app persistence, email provider, retry frequency and signing methods remain Proposed.
 
 ## Open decisions
 
