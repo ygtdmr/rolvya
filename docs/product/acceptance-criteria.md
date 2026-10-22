@@ -103,7 +103,7 @@ These are *specified future tests, not executed*. The proposed implementation me
 | AC-049 | Editor or Viewer requests Editor or Viewer invite | Rejected: **only Owner** may invite; role checks server-side | PR-021, PR-023 |
 | AC-050 | Owner invites Editor to project A, token is opened without sign-in | Token alone cannot confer access; valid verified OIDC identity and matching recipient constraints required | PR-023 |
 | AC-051 | One-use invitation is redeemed concurrently twice in SQLite | At most one atomic successful redemption and membership grant | PR-012, PR-023 |
-| AC-052 | Expired/revoked/tampered invitation, or invitation addressed to another authenticated account, is redeemed | No membership grant and no cross-project data leakage | PR-013, PR-023 |
+| AC-052 | Invitation is redeemed at/after 24 hours from issuance, revoked/tampered, or addressed to another authenticated account | No membership grant and no cross-project data leakage | PR-013, PR-023 |
 | AC-053 | Owner attempts new Owner elevation/transfer without recent verified strong step-up | Denied; existing Owner retained; no unintentional orphaned project | PR-021, PR-023 |
 | AC-054 | New Editor after successful invite attempts to raise budget, expand Git/provider scope or activate unapproved DAG | Denied: membership never overrides prior Owner approvals or frozen execution plan | PR-008, PR-019, PR-023 |
 
