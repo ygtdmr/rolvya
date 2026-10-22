@@ -10,11 +10,11 @@ tags: [identity, rbac, authorization, approvals, security]
 
 ## Status and scope
 
-**Proposed security architecture, not deployed authentication.** The user approved a **hard human approval gate for budget increases**, a fixed DAG, remote workers only and remote Git providers only. **ADR 0024 approved three project-scoped human roles: Owner, Editor and Viewer.** An identity provider, authentication/session standard, concrete tenancy topology and the remaining fine-grained authorization rules are still unselected. Rust is the approved backend; SQLite is authoritative state. The implementation **must not infer authority** from possession of a task lease, a webhook, an LLM message, an API callback or UI notification acknowledgement.
+**Proposed security architecture, not deployed authentication.** The user approved a **hard human approval gate for budget increases**, a fixed DAG, remote workers only and remote Git providers only. **ADR 0024 approved three project-scoped human roles: Owner, Editor and Viewer.** **OIDC-first sign-in and passkey-capable providers are Approved ADR 0025; secure recovery is Approved ADR 0026; low-friction risk-based web session management is Approved ADR 0027.** Specific IdP vendors, assurance mapping, secure token/renewal implementation, concrete tenancy topology and remaining fine-grained authorization rules are still unselected. Rust is the approved backend; SQLite is authoritative state. The implementation **must not infer authority** from possession of a task lease, a webhook, an LLM message, an API callback or UI notification acknowledgement.
 
 ## Approved human roles and separate system principals
 
-[ADR 0024 — Owner, Editor, Viewer](../decisions/0024-project-human-roles.md) is the binding minimum human role definition. A project's Owner may explicitly authorize or raise its budget ceiling, approve consequential scope and critical permissions. An Editor may initiate/review **already owner-approved** work within preflight limits, but cannot approve higher spending, broaden provider/Git/secret permissions or silently replace the activated immutable DAG. A Viewer may only read authorized project information. Roles are **project-scoped** and are checked server-side at each privileged action, not inferred from a visible UI control. The exact authentication/session stack remains Proposed.
+[ADR 0024 — Owner, Editor, Viewer](../decisions/0024-project-human-roles.md) is the binding minimum human role definition. A project's Owner may explicitly authorize or raise its budget ceiling, approve consequential scope and critical permissions. An Editor may initiate/review **already owner-approved** work within preflight limits, but cannot approve higher spending, broaden provider/Git/secret permissions or silently replace the activated immutable DAG. A Viewer may only read authorized project information. Roles are **project-scoped** and are checked server-side at each privileged action, not inferred from a visible UI control. The OIDC/passkey and risk-based session **principles** are Approved ADRs 0025–0027; their Rust session/token implementation contract is [Proposed](session-token-rotation-and-theft-response.md).
 
 | Principal | Identity source | Allowed responsibility | Forbidden |
 | --- | --- | --- | --- |
@@ -76,7 +76,7 @@ All protected operations require auditable traces with no raw credential content
 
 ## Decisions needed
 
-Identity provider/session architecture; tenant model; enrollment and worker attestation; **role membership/invitation/owner transfer and finer Editor scopes** (the three Owner/Editor/Viewer roles themselves are Approved ADR 0024); protected Git branch merge approval; approval UI/2FA requirements; audit retention; secret manager and project isolation enforcement.
+Exact OIDC provider selection, identity/session **implementation and assurance mapping** (OIDC and passkey capability themselves Approved ADR 0025; human session policy Approved ADR 0027); tenant model; enrollment and worker attestation; **role membership/invitation/owner transfer and finer Editor scopes** (the three Owner/Editor/Viewer roles themselves are Approved ADR 0024); protected Git branch merge approval; approval UI/2FA requirements; audit retention; secret manager and project isolation enforcement.
 
 The [human approval workflow](approval-workflow.md) defines proposed request/decision/application state separation; a displayed approval request never itself authorizes billable admission.
 
