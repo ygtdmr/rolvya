@@ -70,7 +70,7 @@ Rolvya is an open-source orchestration system for AI coding agents. This specifi
 
 | ID | Requirement | Verification expectation |
 | --- | --- | --- |
-| PR-024 | Project-scoped chronological **Activity Log** covers budget and permissions, agent/task/worker transitions, failures and critical security/system events, with truthful actor provenance, role-aware visibility, secret redaction, durable crash-safe storage, **90 days readily accessible in the panel**, secure archival for older history, **1 year total for routine event history and at least 3 years for critical financial/security records (subject to applicable law)**, and no ordinary user edits/deletions. | Negative mutation and cross-project read tests; crash/replay de-duplication and secret-leak checks; [Approved ADR 0030](../decisions/0030-project-activity-audit-log.md). |
+| PR-024 | Project-scoped chronological **Activity Log** covers budget and permissions, agent/task/worker transitions, failures and critical security/system events, with truthful actor provenance, role-aware visibility, secret redaction, durable crash-safe storage, **mandatory cryptographic integrity verification for active and archived records**, **90 days readily accessible in the panel**, secure archival for older history, **1 year total for routine event history and at least 3 years for critical financial/security records (subject to applicable law)**, and no ordinary user edits/deletions. | Negative mutation and cross-project read tests; crash/replay de-duplication and secret-leak checks; [Approved ADR 0030](../decisions/0030-project-activity-audit-log.md). |
 
 ## Non-functional constraints (targets; thresholds not yet approved)
 
