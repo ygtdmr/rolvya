@@ -28,10 +28,17 @@ Multiple authorized Owners, Editors, Viewers and independently authorized machin
 8. **Useful UX and economy:** Provide chronological timeline and practical filtering (actor, event category, task, time) without requiring a new external observability service on the initial small Rust/SQLite controller. Retention, pagination and archival must balance resource constraints and privacy.
 9. **Resilient event ingestion:** Critical events such as approval commits, membership changes and state transitions must have a crash-safe route into activity history (e.g., same SQLite transaction or durable outbox), with deduplication for retries. External exporter failure must not invent event success or silently override security rules.
 
+## Approved active-history retention and archival (2026-10-22)
+
+- Keep **90 days of project Activity Log events readily accessible in the normal project panel**. This is an active-access window, **not automatic permanent deletion** after 90 days.
+- Once an event ages beyond this active window, it **may be moved to a secure compressed archive** to minimize resource use on the small Rust/SQLite controller. Archival must preserve integrity, authorization, chronological provenance, search/retrieval via an authorized workflow, and safe recovery.
+- **Critical budget approval, financial accounting, ownership/security and incident records may require longer retention** than routine activity events. The precise longer durations, archive location, retrieval service levels and applicable privacy/legal deletion rules are separate policy/engineering decisions; do not infer a fixed overall retention period.
+- The transition from active storage to archive must be resumable, audited and loss-resistant, with no ordinary user erase/edit capability. Avoid claiming SQLite itself is tamper-proof.
+
 ## Boundaries and open engineering choices
 
 - Exact list and severity of event types, data minimization schema, timestamps and ordering strategy, user-facing search filters, notification linking and pagination are unselected implementation details.
-- Exact history retention time, per-role view filtering for particular event categories, cryptographic chaining, offsite tamper-evident archival, compliance/legal deletion exceptions and disaster recovery verification are **not** approved numeric or operational choices. Legal data-erasure duties can require a separately controlled retention/deletion workflow; the application-level no-edit/no-delete rule does not supersede the law.
+- Exact **archive lifespan** and critical-record extension periods (the **90-day active-panel window is Approved**), per-role view filtering for particular event categories, cryptographic chaining, offsite tamper-evident archival, compliance/legal deletion exceptions and disaster recovery verification are **not** approved numeric or operational choices. Legal data-erasure duties can require a separately controlled retention/deletion workflow; the application-level no-edit/no-delete rule does not supersede the law.
 - These approvals **do not** mean an Activity Log, event pipeline or UI already exists; this ADR specifies future behavior.
 
 ## Future tests (specified; not executed)
