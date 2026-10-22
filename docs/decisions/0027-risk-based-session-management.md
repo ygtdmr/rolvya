@@ -28,6 +28,9 @@ Rolvya uses OIDC-first human authentication, passkey-capable identity providers 
 - Maintain device-specific session inventory and revocation. Logout or compromise of a human session must not automatically terminate previously authorized ongoing agent or remote-worker execution; these have separate machine credentials and budget/security gates.
 - Token rotation, replay detection, secure storage and theft response need an explicit implementation policy and tests before launch.
 
+## Scope clarification — optional future interfaces (2026-10-22)
+Mobile applications and Jarvis-like voice interaction are **possible future concepts only**, not approved roadmap commitments, v1 requirements, or dependencies for implementing the web session architecture. The current session-security baseline must stand alone for the web product. If either interface is later approved, it should reuse appropriate risk-based security principles with a separate design and threat-model review; no work on those interfaces is required by this ADR.
+
 ## Open implementation details
 Exact idle/absolute timeout values, maximum simultaneous sessions, trusted-device handling, recent-authentication window, session storage, high-risk action catalog, and OIDC assurance mapping are **not yet approved**. Choose them during security implementation with explicit review and tests. No session-management functionality is claimed implemented.
 
