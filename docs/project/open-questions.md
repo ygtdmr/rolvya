@@ -103,6 +103,10 @@ The [transport / Git / worker hosting decision pack](transport-git-hosting-decis
 
 [ADR 0029](../decisions/0029-owner-controlled-project-invitations.md): only Owner invites; normal Editor/Viewer invitations expire and are one-use and require verified OIDC login; changing/assigning Owner authority follows an independent high-assurance procedure. **The 24-hour default invitation validity is Approved (ADR 0029).** Only technical parameters—recipient binding, invitations delivery/revocation UI, transfer timeout, exceptional recovery and precise last-Owner transaction implementation—remain open; **two-party authenticated approval, multiple Owners per project, independent identities, no early Owner removal and a transactional last-Owner guard are Approved**. Do not re-ask the product policy.
 
+## Multi-Owner budget approvals — Approved
+
+With multiple project Owners, **one authenticated, strongly reverified Owner may explicitly approve a budget increase**, and the system notifies other Owners after commit. **Unanimous approval is not required**; notification receipts are not a budget gate. All project hard-budget and SQLite reservation rules still apply; see [ADR 0029](../decisions/0029-owner-controlled-project-invitations.md). Notification provider/channel and retry mechanics remain technical open questions.
+
 ## Decisions that are not open
 
 These have already been approved and must not be reopened by a worker without owner consent: Rust-only backend and SQLite-only authoritative database; non-executable group parents and independently validated aggregate success; running workers limited to pre-reserved enforceable exposure or stop-on-risk; one main agent creates a fully fixed task hierarchy and DAG before runtime; workers execute, not plan; dependencies govern parallelism; hard budget pause with explicit approval and no percentage overrun; preserve completed work; separate cost categories/scenarios; remote Git only; no Local Agent or personal-computer sync; GNU MIT license.
