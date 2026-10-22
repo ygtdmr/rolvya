@@ -26,13 +26,13 @@ Rolvya uses OIDC-first human authentication, passkey-capable identity providers 
 - **Do not impose a blanket mandatory logout every 30 days** as a product rule. Retain bounded credential/session lifetimes, revalidation on risk, server-side revocation and provider-enforced reauthentication as needed; do not infer infinite session validity.
 - Keep sensitive operations behind verified step-up authentication. Spoken commands or voice similarity alone cannot authorize budget increases, role/security changes or other high-risk actions.
 - Maintain device-specific session inventory and revocation. Logout or compromise of a human session must not automatically terminate previously authorized ongoing agent or remote-worker execution; these have separate machine credentials and budget/security gates.
-- Token rotation, replay detection, secure storage and theft response need an explicit implementation policy and tests before launch.
+- Token rotation, replay detection, secure storage and theft response need a reviewed implementation policy and tests before launch; see the **Proposed** [human session token/renewal contract](../architecture/session-token-rotation-and-theft-response.md).
 
 ## Scope clarification — optional future interfaces (2026-10-22)
 Mobile applications and Jarvis-like voice interaction are **possible future concepts only**, not approved roadmap commitments, v1 requirements, or dependencies for implementing the web session architecture. The current session-security baseline must stand alone for the web product. If either interface is later approved, it should reuse appropriate risk-based security principles with a separate design and threat-model review; no work on those interfaces is required by this ADR.
 
 ## Open implementation details
-Exact idle/absolute timeout values, maximum simultaneous sessions, trusted-device handling, recent-authentication window, session storage, high-risk action catalog, and OIDC assurance mapping are **not yet approved**. Choose them during security implementation with explicit review and tests. No session-management functionality is claimed implemented.
+The **7-day web-session real-user-inactivity baseline** above is approved; absolute lifetime and renewal limits, maximum simultaneous sessions, trusted-device handling, recent-authentication window, session storage, high-risk action catalog, and OIDC assurance mapping are **not yet approved**. Choose them during security implementation with explicit review and tests. No session-management functionality is claimed implemented.
 
 ## Rationale and trade-offs
 Balances usability against account takeover risk; server-side revocation and privileged reauthentication add state and integration complexity. Reject permanent sessions and password-only locally built authentication as v1 defaults.
