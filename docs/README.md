@@ -134,6 +134,14 @@ The paths above are a **planned inventory**, not links to files that already exi
 
 **Approved 2026-10-21:** ADR 0004 (Rust), 0005 (SQLite), 0006 (worker HTTPS), 0008 (GitHub App), 0009 (group-only parents), 0010 (bounded-or-stop) and 0011 (multi-provider worker adapters). **ADR 0007 remains Proposed only for initial provider/vendor rollout and cost benchmarking**; concrete HTTP/security/adapter implementation details are also open. See [open technical questions](project/open-questions.md).
 
+## Human authentication and session safety
+
+- [ADR 0025 — OIDC + passkey-capable identity providers](decisions/0025-oidc-passkey-authentication.md) — Approved.
+- [ADR 0026 — Secure account recovery](decisions/0026-account-recovery.md) — Approved.
+- [ADR 0027 — Low-friction risk-based web sessions](decisions/0027-risk-based-session-management.md) — Approved; possible mobile/voice clients **not** committed.
+- [Proposed session rotation and theft-response implementation](architecture/session-token-rotation-and-theft-response.md) — Proposed, not implemented.
+- [Product scope: future ideas are not commitments](product/scope.md).
+
 ## Recorded architecture decisions
 
 - [ADR 0001 — Fixed upfront DAG](decisions/0001-fixed-upfront-dag.md)
