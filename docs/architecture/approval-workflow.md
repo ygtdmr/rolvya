@@ -105,6 +105,10 @@ Authenticate the owner and enforce project-scoped authorization server side. Pro
 
 An approved project budget increase and a policy for already-running workers are distinct decisions. See [in-flight worker policy options](inflight-cost-policy.md) and [ADR 0010](../decisions/0010-inflight-budget.md), both unapproved proposals.
 
+## Approved multi-Owner budget decision policy
+
+[ADR 0029](../decisions/0029-owner-controlled-project-invitations.md) establishes that when a project has multiple Owners, **any one currently authorized Owner** may raise its approved ceiling through a deliberate, strongly reauthenticated, version-checked approval. Other active Owners are **notified after commit** but their acknowledgements are not required for budget admission. Audit previous/new values, actor, project, idempotency key and notification delivery/retry. Never infer permission from delivery of a notification or an AI/worker action. Exact notifications transport, retry frequency and signing methods remain Proposed.
+
 ## Open decisions
 
 Identity provider, reviewer role delegation, session/2FA and audit signing, request expiry, currency conversion and tax treatment, UI confirmation format, maximum available ceiling, in-flight cancellation behavior and other human-review gates.
