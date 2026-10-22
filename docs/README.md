@@ -142,6 +142,7 @@ The paths above are a **planned inventory**, not links to files that already exi
 - [ADR 0021 — Scheduler modes: economical, balanced (default) and performance](decisions/0021-scheduler-selection-modes.md)
 - [ADR 0022 — Dynamic worker parallelism and optional preflight cap](decisions/0022-dynamic-worker-concurrency.md)
 - [ADR 0023 — Cross-project fair scheduling, priority and aging](decisions/0023-cross-project-scheduling-fairness.md)
+- [ADR 0024 — Owner, Editor and Viewer human roles](decisions/0024-project-human-roles.md)
 
 ## Coverage checklist
 
