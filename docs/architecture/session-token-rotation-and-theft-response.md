@@ -6,11 +6,11 @@ last-reviewed: 2026-10-22
 tags: [security, oidc, oauth, session, tokens, rotation, replay, csrf, account]
 ---
 
-# Human session renewal, token rotation and theft response — implementation proposal
+# Human session renewal, token rotation and theft response — implementation proposal (ADR 0028 principles approved)
 
 ## Scope and authority
 
-**Proposed implementation details, NOT implemented or individually approved.** This is a security-engineering design for the **already Approved** OIDC-first human sign-in ([ADR 0025](../decisions/0025-oidc-passkey-authentication.md)), secure account recovery ([ADR 0026](../decisions/0026-account-recovery.md)), risk-based user session continuity ([ADR 0027](../decisions/0027-risk-based-session-management.md)), and project-scoped Owner/Editor/Viewer roles ([ADR 0024](../decisions/0024-project-human-roles.md)). Work on any future mobile app or Jarvis-like voice interface is **NOT** authorized or required; both are optional concepts requiring a separate owner product decision.
+**Proposed engineering details, NOT implemented. The core security policy of secure renewal, credential reuse protection and per-device revocation is Approved [ADR 0028](../decisions/0028-human-session-token-safety.md); this Rust/BFF/SQLite-specific implementation proposal is NOT automatically approved.** This is a security-engineering design for the **already Approved** OIDC-first human sign-in ([ADR 0025](../decisions/0025-oidc-passkey-authentication.md)), secure account recovery ([ADR 0026](../decisions/0026-account-recovery.md)), risk-based user session continuity ([ADR 0027](../decisions/0027-risk-based-session-management.md)), and project-scoped Owner/Editor/Viewer roles ([ADR 0024](../decisions/0024-project-human-roles.md)). Work on any future mobile app or Jarvis-like voice interface is **NOT** authorized or required; both are optional concepts requiring a separate owner product decision.
 
 This policy concerns **human UI sessions**. Remote workers' task-scoped HTTPS claim credentials, OIDC issuer signing keys, GitHub installation tokens, and provider API credentials are distinct credential classes with separate lifecycle rules; **never interchange them**.
 
@@ -70,7 +70,7 @@ This policy concerns **human UI sessions**. Remote workers' task-scoped HTTPS cl
 
 ## Explicitly open for implementation approval
 
-OIDC provider capabilities and onboarding test, encrypted secret backend, whether IdP refresh tokens are retained at all, sender-constraining support, cookie renewal window/race protocol, *precise* idle/absolute duration choices (aside from owner-approved 7-day real-human-idle baseline), privileged step-up recency, risk signals, session cap per user, and the browser UI for device list/revocation. **Do not mark this proposal as an approved ADR or implemented code.**
+OIDC provider capabilities and onboarding test, encrypted secret backend, whether IdP refresh tokens are retained at all, sender-constraining support, cookie renewal window/race protocol, *precise* idle/absolute duration choices (aside from owner-approved 7-day real-human-idle baseline), privileged step-up recency, risk signals, session cap per user, and the browser UI for device list/revocation. **The core security principles are approved by ADR 0028; do not mark these specific technical choices as approved or implemented code without review.**
 
 ## Authoritative external security guidance
 
