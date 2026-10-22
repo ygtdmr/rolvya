@@ -1,0 +1,60 @@
+---
+title: "ADR 0030: Project Activity Log and Tamper-Evident Audit"
+status: Approved
+category: decisions
+last-reviewed: 2026-10-22
+tags: [activity, audit, security, provenance, events, observability]
+---
+
+# ADR 0030 — Project activity log and protected audit history
+
+- **Status:** Approved
+- **Date:** 2026-10-22
+- **Decision:** Rolvya maintains a project-scoped **Activity Log** showing material human, agent, worker, financial and security events. Ordinary users cannot edit or delete existing activity records. Sensitive data must not be revealed in event details.
+
+## Motivation
+
+Multiple authorized Owners, Editors, Viewers and independently authorized machine principals interact with one fixed DAG, bounded budget ledger, remote Git and cloud providers. Project participants need a trustworthy timeline of who did what, when, and what occurred, including failures, while preserving private credentials and tenant isolation.
+
+## Approved requirements
+
+1. **Project-scoped activity history:** Display key project events such as budget ceiling changes and budget pauses, membership/invitation/Owner changes, agent plan activation and task dispatch, worker task completion/failure/retry, approvals, critical system/security alerts and remotely published Git results.
+2. **Clear provenance:** Record timestamp, project ID, actor class and verified actor reference (human Owner/Editor, main agent, scheduler, worker, provider integration or system), event type, involved task/attempt IDs where relevant, outcome and useful bounded context. Differentiate user requests from actual server-verified effects; never fabricate actor identity.
+3. **Append-only at application level:** Ordinary users, including Owners, must not be able to rewrite or silently delete historical event records. Corrections use a later compensating event, preserving the original fact. Rust enforces authorization and atomic write rules through authoritative SQLite.
+4. **Integrity and recoverability:** Protect against accidental loss or unauthorized alteration; auditing should be durable, backed up consistently with project state, access controlled and capable of detecting unexpected modifications. This is a design requirement, **not** a claim that SQLite alone is immutable against a root/server/database administrator. Cryptographic tamper-evidence and external anchoring are implementation options needing separate evaluation.
+5. **Secret hygiene:** Redact or exclude raw credentials, tokens, passkeys, invitation secrets, private keys, user prompts containing secrets, private code snippets, sensitive worker stdout and other confidential data. Store safe structured summaries or pointers to separately authorized artifacts. Apply retention minimization to personal identifiers.
+6. **Role-aware viewing:** Owner and Editor may inspect activity permitted by project membership; Viewer can see an authorized read-only subset. Sensitive security events and actor metadata should be displayed according to independent least-privilege access rules, not made globally visible merely because a user can view the project. Cross-project leakage is prohibited.
+7. **Separate billing authority:** A timeline entry or notification is **not** proof that additional spend was approved. Approved budget/lease transactions and human approval records remain authoritative; Activity Log mirrors meaningful events without granting spend or roles.
+8. **Useful UX and economy:** Provide chronological timeline and practical filtering (actor, event category, task, time) without requiring a new external observability service on the initial small Rust/SQLite controller. Retention, pagination and archival must balance resource constraints and privacy.
+9. **Resilient event ingestion:** Critical events such as approval commits, membership changes and state transitions must have a crash-safe route into activity history (e.g., same SQLite transaction or durable outbox), with deduplication for retries. External exporter failure must not invent event success or silently override security rules.
+
+## Boundaries and open engineering choices
+
+- Exact list and severity of event types, data minimization schema, timestamps and ordering strategy, user-facing search filters, notification linking and pagination are unselected implementation details.
+- Exact history retention time, per-role view filtering for particular event categories, cryptographic chaining, offsite tamper-evident archival, compliance/legal deletion exceptions and disaster recovery verification are **not** approved numeric or operational choices. Legal data-erasure duties can require a separately controlled retention/deletion workflow; the application-level no-edit/no-delete rule does not supersede the law.
+- These approvals **do not** mean an Activity Log, event pipeline or UI already exists; this ADR specifies future behavior.
+
+## Future tests (specified; not executed)
+
+- Owner changes the ceiling with valid step-up: timeline contains actor, old/new amount, time and result, but no secrets. Repeated callback cannot duplicate the effective change.
+- Editor lacks permission to invite a member; show denied security event where appropriate without leaking user data.
+- Worker fails, retries then succeeds: task/attempt chain and reason are accurately shown with no fabricated completion.
+- Owner, Editor and Viewer attempt to overwrite or delete an audit event: server rejects all ordinary mutations; append correction preserves provenance.
+- Project A user attempts to access project B events: deny.
+- Worker stdout contains a token: log output has safe redaction, and sensitive text is not leaked through activity filters or notifications.
+- Crash between budget commit and Activity Log delivery: recovery reconstructs or delivers a single accurate durable event.
+- Authorized Viewer sees only permitted events and does not acquire secret access from viewing event details.
+- Controller restarts/backup restores preserve auditable sequence and can flag integrity anomalies.
+
+## Rationale and rejected alternatives
+
+- **Rejected:** editable activity rows as a regular project note feed; users could rewrite failures or approvals.
+- **Rejected:** dumping all model prompts and worker logs into one public event stream; confidentiality and cost risks.
+- **Chosen:** scoped structured activity records, app-level append-only behavior, secret redaction and durable provenance, with evidence-backed tamper detection planned.
+
+## Related
+
+- [Audit and observability architecture](../architecture/observability.md)
+- [Human authorization](../architecture/identity-authorization.md)
+- [Budget approval ADR 0002](0002-hard-budget-approval.md)
+- [Owner governance ADR 0029](0029-owner-controlled-project-invitations.md)
