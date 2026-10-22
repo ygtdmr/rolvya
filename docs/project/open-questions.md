@@ -29,7 +29,7 @@ Each question should ultimately have an owner decision, dated rationale, alterna
 | OQ-012 | P1 | Planner and worker context packaging, token quotas and handoffs? | Minimize tokens in **both** phases, retain required constraints, version hashes and prior verified artifacts | [Token efficiency](../architecture/token-context-efficiency.md) |
 | OQ-013 | P1 | UI stack, roles and plan approval interactions? | Budget approval security, task graph readability and accessibility | [User flows](../product/user-flows.md) |
 | OQ-014 | P1 | Backup RPO/RTO, encryption and retention? | Risk to approvals/ledger/artifacts, restore exercises, storage cost | [Backups](../operations/backup-recovery.md) |
-| OQ-015 | P1 | CI merge gates, review roles and release process? | Test scope, human security signoff, branch protection, MIT compliance | [Review](../development/review-process.md) |
+| OQ-015 | P1 | CI merge gates, review roles and release process? | Test scope, human security signoff, branch protection, MIT notice compliance | [Review](../development/review-process.md) |
 | OQ-016 | P1 | Alert delivery, monitoring stack and audit retention? | Low overhead, integrity, tenant privacy, noise controls | [Observability](../architecture/observability.md) |
 | OQ-018 | P2 | Non-GitHub self-hosted remote Git adapters? | Provider compatibility and authorization, never local computer sync | [Git integration](../architecture/integration-github.md) |
 
@@ -113,7 +113,7 @@ With multiple project Owners, **one authenticated, strongly reverified Owner may
 
 ## Decisions that are not open
 
-These have already been approved and must not be reopened by a worker without owner consent: Rust-only backend and SQLite-only authoritative database; non-executable group parents and independently validated aggregate success; running workers limited to pre-reserved enforceable exposure or stop-on-risk; one main agent creates a fully fixed task hierarchy and DAG before runtime; workers execute, not plan; dependencies govern parallelism; hard budget pause with explicit approval and no percentage overrun; preserve completed work; separate cost categories/scenarios; remote Git only; no Local Agent or personal-computer sync; GNU MIT license.
+These have already been approved and must not be reopened by a worker without owner consent: Rust-only backend and SQLite-only authoritative database; non-executable group parents and independently validated aggregate success; running workers limited to pre-reserved enforceable exposure or stop-on-risk; one main agent creates a fully fixed task hierarchy and DAG before runtime; workers execute, not plan; dependencies govern parallelism; hard budget pause with explicit approval and no percentage overrun; preserve completed work; separate cost categories/scenarios; remote Git only; no Local Agent or personal-computer sync; MIT License.
 
 ## How to resolve a question
 

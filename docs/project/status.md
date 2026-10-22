@@ -6,13 +6,13 @@ Last verified documentation checkpoint: 2026-10-21
 **Specification / repository foundation.** No executable Rolvya orchestration implementation is verified by this document.
 
 ## Verified repository artifacts
-- `LICENSE` — GNU MIT version 3 text present on `main`.
+- `LICENSE` — MIT License text present on `main`.
 - Root `README.md` — introductory project description and explicitly pre-implementation status.
 - `AGENTS.md` and initial `docs/` foundation — repository guidance and planning documents, not implementation.
 
 ## Established project decisions
 - Project name Rolvya; open-source AI coding-agent orchestration.
-- GitHub repository `ygtdmr/rolvya` (public, `main`); MIT selected.
+- GitHub repository `ygtdmr/rolvya` (public, `main`); current source license MIT.
 - Dependency-aware up-front DAG planning and parallel execution of independent tasks are core architectural intent.
 - Development will be performed by AI coding agents under the owner's direction; thorough documentation and handoffs required.
 - Budget is a hard human approval gate, not an automatic overrun allowance.
@@ -94,7 +94,7 @@ This **supersedes earlier chronological notes above** that described ADR 0006 or
 
 An audit of **available** Rolvya historical chat excerpts/summaries, historical diagram descriptions and the GitHub repository is recorded in [two-conversation coverage audit](two-conversation-coverage-audit.md). **A full line-by-line export of both conversations was not accessible**, so total verbatim completeness is **not certified**. At the audit start the repository contained **82 tracked files: 81 Markdown plus LICENSE**. The documents did not constitute working Rust software.
 
-The audit identified important under-specified or previously summary-only areas. Detailed **Proposed** documents were added for [Claude/Codex CLI vs API entitlement](../architecture/model-access-entitlement-contract.md), [multi-provider scheduler placement dimensions](../architecture/scheduler-selection-policy.md), [failure retry/escalation and nonbinding historical 1/3/10 minute examples](../architecture/retry-escalation-policy.md), [planner and worker token/context efficiency](../architecture/token-context-efficiency.md), [worked hypothetical 40-task cost scenarios](../architecture/cost-scenario-worked-examples.md), [brand/gold-palette/MIT correction provenance](../product/brand-history-license-governance.md), and [dated official provider access policy evidence](../reference/provider-cli-api-policy-evidence.md).
+The audit identified important under-specified or previously summary-only areas. Detailed **Proposed** documents were added for [Claude/Codex CLI vs API entitlement](../architecture/model-access-entitlement-contract.md), [multi-provider scheduler placement dimensions](../architecture/scheduler-selection-policy.md), [failure retry/escalation and nonbinding historical 1/3/10 minute examples](../architecture/retry-escalation-policy.md), [planner and worker token/context efficiency](../architecture/token-context-efficiency.md), [worked hypothetical 40-task cost scenarios](../architecture/cost-scenario-worked-examples.md), [brand and design provenance](../product/brand-history-license-governance.md), and [dated official provider access policy evidence](../reference/provider-cli-api-policy-evidence.md).
 
 These additions preserve approved architecture but **do not finalize** CLI entitlement, subscription automation permission, retry counts, Spot/On-Demand fallback, scheduler weights, concrete cloud providers, logo source assets or unresolved technical parameters. Neither UI acceptance/Obsidian rendering nor live cloud/provider tests were performed. No original complete chat export or original logo master was available to this audit.
 
@@ -131,3 +131,7 @@ The Owner approved a **5 → 10 → 20 second base delay** before the three allo
 4. Keep this file synchronized with actual commits, tests and releases.
 
 **Rule:** Do not promote a planned item to implemented without a linked code artifact and verification evidence.
+
+## Current project source license
+
+The authoritative [`LICENSE`](../../LICENSE) is the **MIT License**. Documentation and source-release guidance must use SPDX identifier `MIT` and retain its copyright/permission notice in qualifying distributions. Third-party dependency notices and independent trademark/brand policy remain separate. This repository is still in the specification phase; no product implementation or release is verified by this license change.

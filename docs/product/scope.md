@@ -66,7 +66,7 @@ A possible **mobile client** and a possible Jarvis-like **voice conversational a
 - Reliability: SQLite transaction integrity, stale attempt fencing, replay-safe external writes, verified backup restore.
 - Correctness: no runtime task creation, no dependency bypass, no admission without approved cost headroom.
 - Transparency: cost forecasts vs charges visibly separated, missing provider data marked unknown.
-- Licensing: MIT compliance with third-party dependencies and provider/tool terms.
+- Licensing: MIT copyright/permission notice compliance, compatible third-party dependency licenses and provider/tool terms.
 
 ## Scope-change rule
 

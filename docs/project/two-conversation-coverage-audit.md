@@ -39,8 +39,8 @@ Latest explicit owner decision supersedes incompatible earlier creative/technica
 | B-07 | Accepted short description and slogan; refrain from repeating slogan in root README | E | [Brand](../product/brand-positioning.md), [README](../../README.md) | Covered |
 | B-08 | Public `ygtdmr/rolvya`, `main`, initially personal account | E | [README](../../README.md), [decision register](../decisions/README.md) | Covered |
 | B-09 | Future organization/company/trademark considered, not authorized migration | H | [Brand](../product/brand-positioning.md), [evolution](../product/brand-history-license-governance.md) | Covered as open |
-| B-10 | Commercial competitor concern; discussed MIT/Apache/MIT | E/H | [Brand evolution](../product/brand-history-license-governance.md) | **Added detailed history** |
-| B-11 | Approved **GNU MIT**; earlier assistant's **MIT** mention was a mistake | E | [LICENSE](../../LICENSE), [brand evolution](../product/brand-history-license-governance.md) | Covered, explicit correction |
+| B-10 | Commercial competitor and permitted source-reuse concerns | E/H | [Brand evolution](../product/brand-history-license-governance.md) | Current MIT license and independent brand governance recorded |
+| B-11 | Current project source license is **MIT** | E | [LICENSE](../../LICENSE), [brand positioning](../product/brand-positioning.md) | Current authorized license decision recorded |
 | B-12 | User will not manually code; AI coding agents will implement under human decisions | E | [AGENTS](../../AGENTS.md), [standards](../development/standards.md) | Covered |
 | B-13 | README/docs in English and compatible with GitHub and Obsidian | E | [Docs policy](../development/documentation-policy.md) | Covered; **Obsidian UI not tested** |
 
@@ -138,7 +138,7 @@ Latest explicit owner decision supersedes incompatible earlier creative/technica
 3. **Retry/escalation history:** old diagrams' 1/3/10-minute and three-attempt illustrations were not sufficiently separated from production behavior. **Expanded** in [recovery policy](../architecture/retry-escalation-policy.md), explicitly nonbinding.
 4. **Planning + runtime token optimization:** existing [context spec](../architecture/context-memory.md) was broad; detailed staged prompt/diagnostic/caching techniques and negative tests were underspecified. **Expanded** in [token-efficiency contract](../architecture/token-context-efficiency.md); original complete accepted list remains unverified.
 5. **Budget worked example:** four categories/three scenarios were specified but no transparent arithmetic example with concurrency, separate reserved exposure and a $-limited hard gate was prominent. **Added** [40-task synthetic scenarios](../architecture/cost-scenario-worked-examples.md).
-6. **Brand/legal evolution:** final no-gold logo/MIT were captured, but rejected names, intermediate gold palette, MIT correction, missing final SVG/palette and trademark/competition concerns lacked a single detailed, time-ordered reference. **Added** [brand and license provenance](../product/brand-history-license-governance.md).
+6. **Brand/legal evolution:** final no-gold logo and brand governance were captured, but rejected names, intermediate gold palette, missing final SVG/palette and trademark/competition concerns lacked a single detailed, time-ordered reference. **Added** [brand and license provenance](../product/brand-history-license-governance.md).
 7. **Open vs implemented:** Rust, SQLite, HTTPS, GitHub App, group-only parents, bounded stop and multi-provider **are Approved architecture**, but provider accounts, exact permission sets, cloud adapter(s), migrations, executable code, actual invoices and E2E tests were **not verified**. Do not promote to “Implemented” merely because the documentation is extensive.
 8. **Historical snapshots:** older notes occasionally still said choices were open after later user approval. Canonical decision/status docs must explicitly mark supersession or correct the stale claim; see [decision register](../decisions/README.md).
 
@@ -178,7 +178,7 @@ A connector-backed static audit fetched **all 89 Markdown files** and checked **
 ## Change-control and safety notes
 
 - Do not modify the original final logo, add gold, or migrate the public repository account.
-- Never substitute MIT or a noncommercial restriction for MIT without a separate owner license decision.
+- Honor the MIT License and its notice obligation; any future source license change requires separate owner authorization.
 - Do not add a personal-computer worker, local sync or unapproved DAG runtime tasks.
 - Do not interpret a historical cloud/model/time/price example as a binding product limit.
 - Do not enable live paid providers without explicit separate spending authorization; no auto-raise or percentage overrun.

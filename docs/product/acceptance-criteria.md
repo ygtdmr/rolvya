@@ -66,7 +66,7 @@ Related designs: [budget reconciliation](../architecture/budget-reservation-reco
 | AC-033 | A retry instruction refers to historical 1/3/10-minute and three-attempt graphic | It is **not** silently activated as a universal default; requires explicit policy/config approval | PR-002, PR-005, [retry design](../architecture/retry-escalation-policy.md) |
 | AC-034 | Synthetic 40-task estimate has four cost classes and three scenarios | Arithmetic matches documented $2.23 / $4.15 / $8.96 **hypothetical** figures; distinct hard bound and explicit $5 ceiling cannot be silently raised | PR-008, PR-009, [worked example](../architecture/cost-scenario-worked-examples.md) |
 | AC-035 | Compress planner/worker context to save tokens | Task goals, security/budget constraints, required upstream validated artifacts and acceptance evidence remain preserved | PR-003, PR-005, PR-010, PR-013 |
-| AC-036 | Branding/license consistency check | README slogan non-repeated, final no-gold wordless logo not replaced by old gold design, code license stays GNU MIT rather than MIT | [Brand history](../product/brand-history-license-governance.md), [LICENSE](../../LICENSE) |
+| AC-036 | Branding/license consistency check | README slogan non-repeated, final no-gold wordless logo not replaced by old gold design, code license stays MIT (SPDX `MIT`) with the required copyright and permission notice | [Brand history](../product/brand-history-license-governance.md), [LICENSE](../../LICENSE) |
 
 These are **specified, not executed**, and tests depending on as-yet-unapproved CLI subscription use or scheduler parameters remain **blocked pending entitlement/policy evidence**, not passed.
 
