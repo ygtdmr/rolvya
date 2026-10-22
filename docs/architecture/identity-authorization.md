@@ -35,6 +35,10 @@ No fourth initial human role (such as an independent **Reviewer**) has been appr
 
 Owner promotion or ownership transfer is a **separate high-risk action** requiring verified recent strong reauthentication by the initiating Owner, independent OIDC login and **explicit acceptance by the recipient**. The current Owner remains authorized until the final transfer commits atomically; failed/expired transfers do not remove that Owner. Credential identity is based on stable IdP issuer+subject rather than email alone. Rust must enforce the project role, targeted invite and one-time redemption in **atomic SQLite state changes**, including replay and concurrent acceptance, and re-check permissions on queued effects. The **approved default invitation lifetime is 24 hours**; email service, transfer handoff UX, IdP recipient matching, membership schema and owner-quorum protocol remain Proposed.
 
+## Approved multiple-Owner projects
+
+A project may have **more than one Owner** under [ADR 0029](../decisions/0029-owner-controlled-project-invitations.md). Every Owner must authenticate as their own verified OIDC principal. New Owner promotion requires strong reauthentication by an existing Owner plus independent recipient authentication and explicit acceptance. Rust/SQLite must prohibit concurrent removal/demotion of the **last remaining Owner**. The presence of multiple Owners does not implicitly change the separately approved hard-budget gate or authorize agents to grant human roles. Co-Owner voting/quorum requirements beyond the two-party grant/transfer remain open.
+
 ## Authorization decision inputs
 
 Any privileged action must check `actor_id`, `actor_type`, authenticated session/worker identity, project membership, requested action, target resource and expected version/lease epoch. Cost-affecting actions additionally check approved ceiling, provider estimate/limit and budget reservations. Git operations check repository installation, pinned base SHA, allowed remote ref, and merge authority. Plan activation must verify the entire graph and approved constraints.
