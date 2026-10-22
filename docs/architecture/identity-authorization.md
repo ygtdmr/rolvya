@@ -33,7 +33,7 @@ No fourth initial human role (such as an independent **Reviewer**) has been appr
 
 [ADR 0029](../decisions/0029-owner-controlled-project-invitations.md) settles the product security rules: **only a current project Owner may issue project invitations**; an Editor cannot invite even Viewers. Normal Editor/Viewer invitations are explicitly project/role scoped, **expire**, are **single-use**, and do not grant membership until trusted **OIDC authentication** and applicable recipient binding checks succeed. An invite link/email by itself is insufficient authorization.
 
-Owner promotion or ownership transfer is a **separate high-risk action** requiring verified recent strong reauthentication and controlled acceptance/recovery rules; do not silently remove the last Owner. Credential identity is based on stable IdP issuer+subject rather than email alone. Rust must enforce the project role, targeted invite and one-time redemption in **atomic SQLite state changes**, including replay and concurrent acceptance, and re-check permissions on queued effects. The exact invite TTL, email service, transfer handoff UX, IdP recipient matching, membership schema and owner-quorum protocol remain Proposed.
+Owner promotion or ownership transfer is a **separate high-risk action** requiring verified recent strong reauthentication and controlled acceptance/recovery rules; do not silently remove the last Owner. Credential identity is based on stable IdP issuer+subject rather than email alone. Rust must enforce the project role, targeted invite and one-time redemption in **atomic SQLite state changes**, including replay and concurrent acceptance, and re-check permissions on queued effects. The **approved default invitation lifetime is 24 hours**; email service, transfer handoff UX, IdP recipient matching, membership schema and owner-quorum protocol remain Proposed.
 
 ## Authorization decision inputs
 
@@ -82,7 +82,7 @@ All protected operations require auditable traces with no raw credential content
 
 ## Decisions needed
 
-Exact OIDC provider selection, identity/session **implementation and assurance mapping** (OIDC and passkey capability themselves Approved ADR 0025; human session policy Approved ADR 0027); tenant model; enrollment and worker attestation; **role membership persistence, invitation delivery/TTL and transfer workflow specifics plus finer Editor scopes** (human roles Approved ADR 0024; invitation/Owner transfer protections Approved ADR 0029); protected Git branch merge approval; approval UI/2FA requirements; audit retention; secret manager and project isolation enforcement.
+Exact OIDC provider selection, identity/session **implementation and assurance mapping** (OIDC and passkey capability themselves Approved ADR 0025; human session policy Approved ADR 0027); tenant model; enrollment and worker attestation; **role membership persistence, invitation delivery and transfer workflow specifics plus finer Editor scopes** (human roles Approved ADR 0024; invitation/Owner transfer protections Approved ADR 0029); protected Git branch merge approval; approval UI/2FA requirements; audit retention; secret manager and project isolation enforcement.
 
 The [human approval workflow](approval-workflow.md) defines proposed request/decision/application state separation; a displayed approval request never itself authorizes billable admission.
 
