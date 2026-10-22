@@ -94,6 +94,6 @@ Security reporting instructions and a disclosure policy will be published before
 
 ## License
 
-Rolvya is licensed under the **MIT License v3.0 (MIT)**. See [LICENSE](LICENSE) for the full license text.
+Rolvya is licensed under the **MIT License** (SPDX: `MIT`). See [LICENSE](LICENSE) for the full text.
 
 ---

@@ -28,7 +28,7 @@ All Markdown documentation follows the [Obsidian-compatible documentation policy
 ## Product and quality specifications now available
 
 - [Product vision and success principles](product/vision.md)
-- [Brand evolution, superseded gold palette and MIT correction](product/brand-history-license-governance.md)
+- [Brand evolution and asset provenance](product/brand-history-license-governance.md)
 - [Product scope, exclusions and MVP candidates](product/scope.md)
 
 - [Product requirements](product/requirements.md)

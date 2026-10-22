@@ -10,7 +10,7 @@ tags: [vision, goals, product, open-source]
 
 ## Established identity
 
-**Project:** Rolvya. **Approved tagline:** “One Plan. Many Agents.” **Approved short description:** “Open-source orchestration for AI coding agents, with dependency-aware task planning and parallel execution.” Official project repository: `ygtdmr/rolvya`. Licensing: GNU MIT. Brand colors: navy/blue/gray; no gold. These are established decisions recorded in [brand positioning](brand-positioning.md) and the [decision register](../decisions/README.md).
+**Project:** Rolvya. **Approved tagline:** “One Plan. Many Agents.” **Approved short description:** “Open-source orchestration for AI coding agents, with dependency-aware task planning and parallel execution.” Official project repository: `ygtdmr/rolvya`. Licensing: MIT. Brand colors: navy/blue/gray; no gold. These are established decisions recorded in [brand positioning](brand-positioning.md) and the [decision register](../decisions/README.md).
 
 This vision elaboration is **Proposed** product guidance, not evidence that the product exists as working software.
 
@@ -46,7 +46,7 @@ Every point above is **design intent**, not a claim of shipped functionality.
 | Remote Git and remote worker infrastructure only | Approved | No Local Agent, desktop repository sync or personal-computer access |
 | Rust-only backend and SQLite authoritative database | Approved | Efficient small remote control-plane architecture |
 | Small remote control VPS with many scalable remote workers | Architectural direction | Measure rather than assert 2–4GB scale or number of workers |
-| Open-source and self-hostable | Approved open-source identity, proposed deployment experience | MIT source, reproducible builds and straightforward operations |
+| Open-source and self-hostable | Approved open-source identity, proposed deployment experience | MIT-licensed source, reproducible builds and straightforward operations |
 | Provider-agnostic adapters | Proposed architecture | Avoid unnecessary lock-in, validate costs and terms |
 | Readable user-facing graph and financial telemetry | Proposed product experience | Clear blockers and reliable project status |
 
@@ -56,7 +56,7 @@ Every point above is **design intent**, not a claim of shipped functionality.
 - A technically capable maintainer operating a self-hosted, small VPS control plane with remote worker capacity.
 - A team/organization experimenting with auditable AI-assisted development, subject to future multi-user security choices.
 
-The target audience, supported team size and business model require further research and approval. This document does not imply that commercial use is banned under MIT; see [brand positioning](brand-positioning.md).
+The target audience, supported team size and business model require further research and approval. MIT permits commercial reuse with its copyright/permission notice; see [brand positioning](brand-positioning.md).
 
 ## Success measurements to establish
 

@@ -18,9 +18,9 @@ tags: [brand, open-source, license]
 
 ## Repository and growth
 
-The source repository is public `ygtdmr/rolvya`, using `main` and GNU MIT. It is initially under the owner's personal account, with a possible future organization/company brand path; no migration is approved or implemented.
+The source repository is public `ygtdmr/rolvya`, using `main` and the MIT License. It is initially under the owner's personal account, with a possible future organization/company brand path; no migration is approved or implemented.
 
-The owner expressed concern about third parties commercially repackaging the code. **MIT does not generally prohibit commercial use or competing distributions.** Do not impose incompatible commercial-use restrictions while calling the repository MIT; any trademark or separately licensed brand assets need distinct legal consideration. The logo and brand use terms are not currently specified by a separate policy.
+The source code is licensed under **MIT**, allowing commercial use, redistribution and sublicensing when the required copyright and license notice is included. The source-code license does not automatically grant rights to trademarks or separately protected brand assets. The logo and brand use terms are not yet specified by a separate policy.
 
 ## Writing guidelines
 

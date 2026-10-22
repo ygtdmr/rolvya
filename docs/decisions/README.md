@@ -2,12 +2,12 @@
 
 This register separates **approved user decisions** from **earlier design concepts** and unresolved choices. It is not a claim that the platform has been implemented.
 
-## Confirmed decisions (2026-10-20 checkpoint)
+## Confirmed decisions (current project policy)
 | ID | Status | Decision | Implication |
 | --- | --- | --- | --- |
 | D-001 | Approved | Rolvya name, accepted logo and navy/blue/gray visual identity; no redesign requested. | Preserve brand identity. |
 | D-002 | Approved | Public `ygtdmr/rolvya` repository, default branch `main`. | GitHub-hosted project source of truth. |
-| D-003 | Approved | GNU MIT license. | Do not silently replace with MIT or another license. |
+| D-003 | Approved | MIT License (SPDX: `MIT`) is the project source license. | Include copyright and permission notice; further changes require explicit owner approval. |
 | D-004 | Approved | "Open-source orchestration for AI coding agents, with dependency-aware task planning and parallel execution." | Approved short description. |
 | D-005 | Approved | "One Plan. Many Agents." tagline. | Use sparingly; not repeatedly in one document. |
 | D-006 | Approved | Upfront dependency-aware DAG task planning and parallelization of independent tasks. | Scheduler must enforce dependencies. |
@@ -35,7 +35,7 @@ This register separates **approved user decisions** from **earlier design concep
 - Initial remote provider lineup/region and exact per-provider identity, permissions and cost caps (multi-provider architecture is Approved).
 - Concrete authentication/authorization, secrets, threat model, API schemas, budget enforcement and approval UX.
 - Roadmap milestones, test strategy, support and release process.
-- Legal/commercial implications of MIT and a separate future trademark policy. MIT does not generally prohibit commercial competing use; brand restrictions must not be falsely described as MIT requirements.
+- Legal implications of MIT licensing and future trademark/brand-use policy. MIT permits commercial reuse of code; trademark rights are distinct.
 
 ## Detailed approved ADRs
 
