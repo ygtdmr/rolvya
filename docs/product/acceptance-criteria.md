@@ -193,6 +193,26 @@ These tests are **specified, not implemented or executed**.
 
 These are **specified future tests, not implemented or executed**.
 
+## Resumable historical migration and recovery — specified future tests
+
+| Test ID | Scenario | Expected result | Requirement |
+| --- | --- | --- | --- |
+| AC-086 | Migration manifest contains 1,000 source objects; connectivity fails after 800 entries have independent, durable destination verification | Resume reuses still-valid verified evidence for 800 and processes/re-verifies remaining 200; no blind full recopy or source deletion; incomplete state visible until full manifest verifies | PR-024 |
+| AC-087 | Destination provider accepts upload but controller crashes before persisting acknowledgement | Reconcile staged object/version and external provider costs before retry; avoid double logical completion or overwriting verified object; unknown billing not treated as zero | PR-008, PR-024 |
+| AC-088 | Provider acknowledges a copied archive, but independent read-back/hash/version check fails | Object remains unverified; migration cannot complete, old source remains intact, discrepancy audited | PR-024 |
+| AC-089 | Historical source object changes mid-operation or a consistent snapshot/version is unavailable | Detect mismatch; block or revalidate safely; do not silently import a new source version or widen authorized manifest | PR-021, PR-024 |
+| AC-090 | Project has insufficient approved budget for the next storage/transfer/verification attempt | No new billable work; preserve prior verified progress and source; UI reports budget pause without automatic ceiling increase | PR-008, PR-024 |
+| AC-091 | An in-flight transfer loses enforceable billing bound; later provider charges arrive | Apply stop-on-risk/fence where feasible, reconcile unknown and late charges, refuse unsafe new admission; do not claim guaranteed refunds or extra headroom | PR-008, PR-024 |
+| AC-092 | Authorized Owner explicitly increases approved budget after pause; prior manifest and security scope remain valid | Re-run eligibility and provider/cost reconciliation before resuming incomplete work; no requirement to discard verified objects or expand scope | PR-008, PR-021, PR-024 |
+| AC-093 | Editor, Viewer, worker, automation or stale migration callback attempts resume with altered object set, destination or financial authority | Authorization and immutable scope checks reject change; no unauthorized data movement, deletion or spending | PR-008, PR-021, PR-024 |
+| AC-094 | Target is de-allowlisted, region changed or required capability revoked during pause | Resume denied and old source preserved; do not silently fall back to other target; record accurate partial-copy locations and security cause | PR-013, PR-024 |
+| AC-095 | Archive payloads copied, but protected audit-checkpoint trust continuity cannot be independently verified | Whole-manifest verified completion refused; original source and independent trust anchors survive | PR-024 |
+| AC-096 | Owner cancels migration during a remotely charged in-flight transfer | Prevent new work, fence/cancel when enforceable, reconcile possible late side effects and charges; keep original source and accurate partial destination status | PR-008, PR-021, PR-024 |
+| AC-097 | Old lease generation and duplicate callbacks race with resumed migration after restart | Stale generation cannot alter verified journal, expand scope or falsely mark operation completed; replay remains idempotent at logical-state level | PR-012, PR-024 |
+| AC-098 | Some objects are staged but not independently verified, followed by nonrecoverable provider failure | Preserve original sources, trusted checkpoints and durable proven work; show partial/blocked status, safe recovery options and attributable costs; never auto-delete | PR-024 |
+
+These are **future requirements, not implemented or executed tests**. Exact provider calls, retry counts, chunk sizes and SQLite schema remain proposed in [the migration state machine](../architecture/storage-migration-state-machine.md).
+
 ## Evidence rules
 
 Each implementation claim needs source commit, repeatable test command, environment/version, result and known limitations. A proposed acceptance test is not a completed test. Automated checks should run in CI before merging behavior changes; security-critical behavior must include negative tests.
