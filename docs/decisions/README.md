@@ -80,6 +80,7 @@ See the [historical conversation audit](../project/historical-decision-audit.md)
 - [ADR 0027 — Risk-based session management](0027-risk-based-session-management.md).
 - [ADR 0028 — Secure human session renewal, credential rotation and per-device revocation](0028-human-session-token-safety.md).
 - [ADR 0029 — Owner-only invitations and protected ownership changes](0029-owner-controlled-project-invitations.md).
+- [ADR 0030 — Protected project activity and audit history](0030-project-activity-audit-log.md).
 
 These are **Approved designs, not claims of implemented or production-verified software**. Detailed region/cost/adapter validation remains separate.
 
