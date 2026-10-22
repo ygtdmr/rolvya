@@ -1,6 +1,6 @@
 ---
 title: Failure Retry Escalation and Same-Task Recovery Policy
-status: Proposed
+status: Approved
 category: architecture
 last-reviewed: 2026-10-22
 tags: [failure, retries, escalation, workers, costs, idempotency]
@@ -10,9 +10,19 @@ tags: [failure, retries, escalation, workers, costs, idempotency]
 
 ## Historical material and approved boundaries
 
-Earlier architecture diagrams explored **three execution attempts** with example backoff **1 → 3 → 10 minutes**, escalation to a stronger model, larger CPU/RAM allocation, transfer between worker providers and finally human/main-agent intervention. These are **illustrative historical suggestions**, **not** an owner-approved global retry count, timer schedule, mandatory model ladder or automatic costly failover. Never encode 1/3/10 or 3 retries as default without an explicit configuration/ADR.
+Earlier architecture diagrams explored three attempts and a 1 → 3 → 10 minute backoff. As of 2026-10-22, **three total attempts (initial + two retries) is the approved configurable project default**, but historical fixed backoff times remain illustrations, not runtime defaults. No mandatory model escalation ladder is approved.
 
 **Approved:** the complete hierarchical DAG is built once; no task nodes/edges can be created during execution. A failed worker can trigger main-agent diagnosis and a **new attempt on the same executable leaf**, potentially using an allowed alternative model/effort/remote provider. Rust and SQLite enforce budget/authorization/leases. Group parents never execute. HTTPS workers, GitHub App and multi-provider host architecture are selected. An in-flight worker continues only within enforceable pre-reserved exposure, otherwise stop-on-risk.
+
+## Approved retry defaults and autonomous recovery (2026-10-22)
+
+- **Maximum attempts per executable leaf: 3 total by default**, counting the initial execution. The owner may configure a different positive maximum (e.g. 5) **during project preflight**, subject to the approved budget and security policy. The chosen value is recorded in the approved plan/policy snapshot. A maximum of 3 does not authorize a fourth automatic attempt.
+- Every failed attempt is reported to the **main agent first** for typed diagnosis, not escalated as a separate user question. The main agent can select a different **authorized** model family, specific model, effort, worker/provider, resource class, repaired instructions/required context, validated checkpoint or equivalent implementation strategy for the **same task and acceptance criteria**.
+- **Backoff is failure-specific and bounded**, rather than mandatory fixed 1/3-minute intervals. Transient rate limits may require waiting; deterministic code errors or resource exhaustion require corrective changes. Control-plane limits, rate-limit headers and budget/time bounds still apply.
+- After the configured attempt cap is reached, the main agent analyzes outcomes and proposes an actionable resolution. It may not launch another billable attempt unless a **separately pre-authorized contingency allowance** explicitly covers it or the owner approves an increase of the attempt limit; the user-approved budget cap is never implicitly raised.
+- For each permitted new billable attempt, Rust checks current SQLite ledger budget reservations, eligible model/provider/access mode, lease fencing, security and provider side effects. Ambiguous running/charged jobs are reconciled before another launch.
+- While an affected task is blocked, independent leaves may continue if authorized; dependents wait. Ask the user only for genuinely necessary new approval, permission, scope or budget; group related decisions into one request and preserve completed artifacts.
+- No runtime creation of DAG nodes or worker execution of group parents.
 
 ## Distinguish failure, attempt, and terminal task state
 
@@ -67,7 +77,7 @@ The Rust backend makes final admission decisions; the main agent recommends a re
 ## Retry budget and termination conditions (proposed)
 
 Separate:
-- **Attempt count** (bounded by an eventual owner-approved max, currently not specified).
+- **Attempt count** (approved project default 3 total, configurable at preflight).
 - **Total wall-clock window** including backoff and provider startup.
 - **AI model token/call quota** when API metering supports limits.
 - **Compute/transfer/storage maximum exposure** for each new paid attempt.
@@ -98,7 +108,7 @@ Historical diagram:
   repeated failure → diagnose / human intervention
 
 Interpretation: these numbers were an example of backoff/escalation in a graphic.
-No owner approval establishes 1, 3, 10 minutes as runtime defaults.
+Three total attempts is now an approved default, but no owner approval establishes 1, 3, 10 minutes as runtime backoff defaults.
 ```
 
 Do not treat “three attempts” as both three retries plus the original attempt; exact max attempts and timer semantics must be deliberately defined.
@@ -109,7 +119,7 @@ Do not treat “three attempts” as both three retries plus the original attemp
 - Cloud launch response lost after job created → inspect by operation key, **zero blind duplicate launch**.
 - A1 task failure → A2 on alternative authorized provider with same task ID, changed attempt ID, new ledger reservation.
 - Disallowed model/API mode fallback → block even if higher capability might help.
-- Historical backoff constants absent from approved configuration → code does not silently assume 1/3/10.
+- Historical backoff constants absent from approved configuration → code does not silently assume 1/3/10; default total attempts is 3 unless preflight overrides it.
 - Plan group parent cannot be retried as a paid worker task; underlying executable leaves can.
 - Cost exhaustion blocks new paid attempt and preserves accepted sibling artifacts.
 - A task without progress across configured bounded retries becomes a typed blocked/failed outcome, not infinite new tasks.
@@ -117,6 +127,6 @@ Do not treat “three attempts” as both three retries plus the original attemp
 
 ## Open questions
 
-Max attempts, bounded retry delay/timeouts, repeat-failure thresholds, model/effort escalation permissions, worker size increase rules, auto/manual retry boundary, retry fairness and conflict repair, how to authorize a superseding plan, whether already partially published Git changes can be reused, and entitlement-specific usage caps.
+Bounded retry delay/timeouts, repeat-failure thresholds, model/effort escalation permissions, worker size increase rules, auto/manual retry boundary, retry fairness and conflict repair, how to authorize a superseding plan, whether already partially published Git changes can be reused, and entitlement-specific usage caps.
 
 Related: [existing failure recovery](failure-recovery.md), [scheduler selection](scheduler-selection-policy.md), [model entitlement](model-access-entitlement-contract.md), [cost reconciliation](budget-reservation-reconciliation.md), [agent handoffs](../development/agent-handoffs.md), [historical audit](../project/historical-decision-audit.md).
