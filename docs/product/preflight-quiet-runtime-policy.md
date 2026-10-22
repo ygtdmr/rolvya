@@ -21,6 +21,7 @@ Ask questions in logical batches; prefer defaults and explicit trade-offs to rep
 - Full DAG and scope approval; required/optional work semantics when relevant.
 - Allowed model families, specific models, effort ranges, CLI/API access modes, supported entitlements, acceptable automatic fallback ladder, and cost constraints.
 - Permitted provider accounts, worker regions/resource classes, remote-host permissions, external effects, GitHub repositories, branches and publishing/merge authority.
+- Scheduler preference (**Economical**, **Balanced** default or **Performance**) and any optional positive maximum number of concurrent worker attempts. **No arbitrary global/default concurrency ceiling** is assumed if none is specified; automatic capacity remains limited by actual quotas, risk and budget under [ADR 0022](../decisions/0022-dynamic-worker-concurrency.md).
 - Total hard budget cap and time/resource bounds; expected/pessimistic estimates separated into AI API, worker compute, storage and transfer. Per-attempt reservations must fit remaining budget; automatic percentage overruns prohibited.
 - Retry bounds, diagnostic authority, allowed context/prompt repairs, permitted checkpoints/artifact reuse and expected validation.
 - Security/data-handling constraints, secrets, data residency, side-effect controls and conditions that require explicit approval.
