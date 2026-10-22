@@ -54,6 +54,12 @@ Rolvya is an open-source orchestration system for AI coding agents. This specifi
 | --- | --- | --- |
 | PR-021 | Each project supports **Owner, Editor and Viewer** human roles. Owner exclusively authorizes hard-budget increases and critical permission/plan scope changes; Editor may start previously owner-approved work and examine permitted results but cannot expand the approved scope; Viewer sees only permitted read-only status/results. | Project-scoped RBAC negative tests and preflight/budget approval audit; see [ADR 0024](../decisions/0024-project-human-roles.md). |
 
+## Approved session security requirements
+
+| ID | Requirement | Verification expectation |
+| --- | --- | --- |
+| PR-022 | Human web sessions use secure unobtrusive renewal, issuer-capability-aware token rotation/replay protection, explicit server-side per-device revocation, and strong verified reauthentication for critical budget/access actions. Backend work never counts as human activity; mobile and voice remain uncommitted future ideas. | Negative tests for stolen/revoked sessions, legitimate concurrent renewals, issuer supported replay protection, independent workers and Owner step-up; [Approved ADR 0028](../decisions/0028-human-session-token-safety.md). |
+
 ## Non-functional constraints (targets; thresholds not yet approved)
 
 - Fast scheduling and state reads on constrained control hardware; minimize unnecessary polling and database scans.
