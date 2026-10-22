@@ -75,6 +75,7 @@ See the [historical conversation audit](../project/historical-decision-audit.md)
 - [ADR 0022 — Dynamic concurrency and optional user cap](0022-dynamic-worker-concurrency.md).
 - [ADR 0023 — Cross-project fairness, preflight priority and queue aging](0023-cross-project-scheduling-fairness.md).
 - [ADR 0024 — Owner, Editor and Viewer project roles](0024-project-human-roles.md).
+- [ADR 0025 — OIDC-first sign-in, passkey support and strong sessions](0025-oidc-passkey-authentication.md).
 
 These are **Approved designs, not claims of implemented or production-verified software**. Detailed region/cost/adapter validation remains separate.
 
