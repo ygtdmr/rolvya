@@ -131,6 +131,18 @@ These are **specified only**, not implemented or executed.
 
 | AC-061 | Owner A increases ceiling, Owner B allows email and Owner C disables it | Both B and C receive in-app notifications; only B is eligible for email; notices never act as approvals | PR-008, PR-021 |
 
+## Project Activity Log — specified future tests
+
+| Test ID | Scenario | Expected result | Requirement |
+| --- | --- | --- | --- |
+| AC-062 | Owner increases budget; worker task fails and retries; Editor changes permitted project setting | Activity timeline shows correct chronological project events, verified human/machine attribution and separate approval/attempt outcomes | PR-024 |
+| AC-063 | Owner/Editor/Viewer submits activity-history edit or delete | Rust denies the mutation for all ordinary roles; a correction can only be appended as a new event | PR-021, PR-024 |
+| AC-064 | User from project A queries project B events; Viewer requests sensitive unauthorized event details | Cross-project read denied; Viewer sees only permitted read-only subset | PR-021, PR-024 |
+| AC-065 | Worker stdout or incoming event contains a token; renderer lists timeline details | Confidential content is redacted/excluded from event store, UI, search and notifications | PR-013, PR-024 |
+| AC-066 | Crash or repeated callback occurs immediately after budget or membership commit | Recovery yields one truthful durable activity record per effective state change, without authorizing duplicate spending | PR-008, PR-012, PR-024 |
+
+These are **specified but not executed**; no deployed Activity Log or test pass is claimed.
+
 ## Evidence rules
 
 Each implementation claim needs source commit, repeatable test command, environment/version, result and known limitations. A proposed acceptance test is not a completed test. Automated checks should run in CI before merging behavior changes; security-critical behavior must include negative tests.
