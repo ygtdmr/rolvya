@@ -109,6 +109,16 @@ These are *specified future tests, not executed*. The proposed implementation me
 
 All scenarios are **specified only**. No end-to-end implementation or validation has been performed.
 
+## Multiple Owners — specified future tests
+
+| Test ID | Scenario | Expected result | Requirements |
+| --- | --- | --- | --- |
+| AC-055 | Add a second Owner with authenticated current Owner step-up and prospective Owner OIDC login/explicit acceptance | Both independently verified identities hold scoped Owner membership; no inherited session or role confusion | PR-021, PR-023 |
+| AC-056 | Two concurrent removals/demotions could leave project with zero active Owners | SQLite authorization transaction rejects the operation that would remove the final Owner; retain at least one verified Owner | PR-021, PR-023 |
+| AC-057 | Co-Owners perform separate budget management actions | Each must authenticate as themselves and explicitly approve permitted changes; no implicit authority for AI agents, no hidden override of hard budget | PR-008, PR-023 |
+
+Tests specified, **not implemented or executed**.
+
 ## Evidence rules
 
 Each implementation claim needs source commit, repeatable test command, environment/version, result and known limitations. A proposed acceptance test is not a completed test. Automated checks should run in CI before merging behavior changes; security-critical behavior must include negative tests.
