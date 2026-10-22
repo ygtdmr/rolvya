@@ -96,6 +96,19 @@ These are **specified, not executed**; the exact login/session provider and role
 
 These are *specified future tests, not executed*. The proposed implementation mechanisms are not owner-approved by documenting these scenarios.
 
+## Owner-controlled project invitations — future acceptance cases
+
+| Test ID | Scenario | Expected result | Requirement |
+| --- | --- | --- | --- |
+| AC-049 | Editor or Viewer requests Editor or Viewer invite | Rejected: **only Owner** may invite; role checks server-side | PR-021, PR-023 |
+| AC-050 | Owner invites Editor to project A, token is opened without sign-in | Token alone cannot confer access; valid verified OIDC identity and matching recipient constraints required | PR-023 |
+| AC-051 | One-use invitation is redeemed concurrently twice in SQLite | At most one atomic successful redemption and membership grant | PR-012, PR-023 |
+| AC-052 | Expired/revoked/tampered invitation, or invitation addressed to another authenticated account, is redeemed | No membership grant and no cross-project data leakage | PR-013, PR-023 |
+| AC-053 | Owner attempts new Owner elevation/transfer without recent verified strong step-up | Denied; existing Owner retained; no unintentional orphaned project | PR-021, PR-023 |
+| AC-054 | New Editor after successful invite attempts to raise budget, expand Git/provider scope or activate unapproved DAG | Denied: membership never overrides prior Owner approvals or frozen execution plan | PR-008, PR-019, PR-023 |
+
+All scenarios are **specified only**. No end-to-end implementation or validation has been performed.
+
 ## Evidence rules
 
 Each implementation claim needs source commit, repeatable test command, environment/version, result and known limitations. A proposed acceptance test is not a completed test. Automated checks should run in CI before merging behavior changes; security-critical behavior must include negative tests.
