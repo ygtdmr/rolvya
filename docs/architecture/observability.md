@@ -94,6 +94,12 @@ Instrumentation failure must not silently bypass authoritative scheduling or bud
 
 Exact provider verification methods, migration/cleanup state machines, deletion APIs and step-up UX are **not implemented and remain engineering choices**.
 
+## Resumable historical migration progress and recovery
+
+The **resumability, source preservation, full-manifest verification and hard-budget pause** behavior is now **Approved** in [ADR 0030](../decisions/0030-project-activity-audit-log.md). The [migration state-machine design](storage-migration-state-machine.md) defines **Proposed** Rust/SQLite states, durable per-object progress and safe external-effect reconciliation; exact state names and retries are not yet approved implementation details.
+
+The panel and protected Activity Log must distinguish **pending, copied/staged, independently verified, budget-paused, retryable interruption, blocked, cancelled and fully verified** outcomes. A partial result is not a successful migration; a resume cannot erase earlier verified evidence, change the authorized scope or waive budget/security checks. Report committed and uncertain provider costs separately, including transfer, storage and verification reads as applicable. The original source and independent checkpoints survive every outcome and are **never auto-deleted**.
+
 ## Open decisions
 
 Telemetry backend, event schema, audit integrity strategy, dashboards, alert destinations/thresholds, log redaction implementation, retention/tenant isolation and observability cost ceiling.
