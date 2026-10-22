@@ -32,13 +32,20 @@ Multiple authorized Owners, Editors, Viewers and independently authorized machin
 
 - Keep **90 days of project Activity Log events readily accessible in the normal project panel**. This is an active-access window, **not automatic permanent deletion** after 90 days.
 - Once an event ages beyond this active window, it **may be moved to a secure compressed archive** to minimize resource use on the small Rust/SQLite controller. Archival must preserve integrity, authorization, chronological provenance, search/retrieval via an authorized workflow, and safe recovery.
-- **Critical budget approval, financial accounting, ownership/security and incident records may require longer retention** than routine activity events. The precise longer durations, archive location, retrieval service levels and applicable privacy/legal deletion rules are separate policy/engineering decisions; do not infer a fixed overall retention period.
+- **Critical budget approval, financial accounting, ownership/security and incident records may require longer retention** than routine activity events. The **approved total durations are 1 year for routine activity and at least 3 years for critical finance/security events**, subject to applicable law. Archive location, retrieval service levels and detailed privacy/legal deletion workflow remain engineering decisions.
 - The transition from active storage to archive must be resumable, audited and loss-resistant, with no ordinary user erase/edit capability. Avoid claiming SQLite itself is tamper-proof.
+
+## Approved total retention windows (2026-10-22)
+
+- **Routine project activity events:** retain for **1 year total from event creation**, including the first **90 days readily accessible in the project panel** and the remainder in a protected compressed archive when archival is enabled.
+- **Critical financial, budget-approval, ownership, security and incident events:** retain for **at least 3 years total**, subject to applicable law, legitimate retention need and privacy safeguards. Where relevant law requires shorter deletion or longer preservation, legal obligations take precedence.
+- **Expiration does not authorize unchecked deletion:** apply documented, project-scoped, permissioned lifecycle controls and auditable deletion/anonymization after applicable retention expires; preserve legitimate legal holds where appropriate. Backups and exported archives need consistent lifecycle handling, not hidden perpetual copies.
+- **Minimize confidential/personal data** regardless of retention category. A record's category must be assigned by server policy, not by a worker or untrusted content. No ordinary role may edit existing events or bypass retention workflows.
 
 ## Boundaries and open engineering choices
 
 - Exact list and severity of event types, data minimization schema, timestamps and ordering strategy, user-facing search filters, notification linking and pagination are unselected implementation details.
-- Exact **archive lifespan** and critical-record extension periods (the **90-day active-panel window is Approved**), per-role view filtering for particular event categories, cryptographic chaining, offsite tamper-evident archival, compliance/legal deletion exceptions and disaster recovery verification are **not** approved numeric or operational choices. Legal data-erasure duties can require a separately controlled retention/deletion workflow; the application-level no-edit/no-delete rule does not supersede the law.
+- Exact **archive technology and lawful deletion/anonymization procedures** (the **90-day active panel, total 1-year routine retention and minimum 3-year critical retention** are Approved), per-role view filtering for particular event categories, cryptographic chaining, offsite tamper-evident archival, compliance/legal deletion exceptions and disaster recovery verification are **not** approved numeric or operational choices. Legal data-erasure duties can require a separately controlled retention/deletion workflow; the application-level no-edit/no-delete rule does not supersede the law.
 - These approvals **do not** mean an Activity Log, event pipeline or UI already exists; this ADR specifies future behavior.
 
 ## Future tests (specified; not executed)
