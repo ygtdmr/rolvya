@@ -81,6 +81,21 @@ These are **specified, not executed**, and tests depending on as-yet-unapproved 
 
 These are **specified, not executed**; the exact login/session provider and role storage implementation still require engineering decisions.
 
+## Human web sessions and token theft defense — proposed future tests
+
+| Test ID | Scenario | Expected result | Scope |
+| --- | --- | --- | --- |
+| AC-041 | Active authorized web user renews a server-managed session | Low-risk interaction proceeds without unnecessary login, while server controls expiration and revocation | ADR 0027, [proposed token contract](../architecture/session-token-rotation-and-theft-response.md) |
+| AC-042 | No human interaction for 7 days, but background workers/automatic polling continue | Background requests never extend web-user idle lifetime; session expires under policy while independently authorized workers remain governed by their own credentials | ADR 0027 |
+| AC-043 | Stolen old session handle is replayed after rotation or device revocation | Stale/revoked handle denied, no restored privileges or extra budget | ADR 0027, proposed token contract |
+| AC-044 | OIDC provider refresh token reuse is detected under a rotation-capable IdP | Affected grant/session family blocked and incident recorded; IdP capabilities are verified; no false claim of guaranteed theft detection | ADR 0025, proposed token contract |
+| AC-045 | Concurrent tab session renewals or lost response | Atomic state cannot resurrect stale token generation; legitimate session handling is defined and testable | Proposed token contract |
+| AC-046 | Owner requests budget increase through normal renewed session without recent verified strong step-up | Critical action denied pending strong reauthentication; UI continuity alone cannot approve spending | ADRs 0002, 0025, 0027 |
+| AC-047 | User revokes an individual device session or all web sessions | Server-side revocation effective for selected sessions, audited, without indiscriminately cancelling unrelated preapproved worker attempts | ADR 0027 |
+| AC-048 | Product scope is assessed for web v1 | No implicit commitment to mobile app or Jarvis-like voice assistant; both explicitly remain optional future concepts | [Product scope](scope.md), ADR 0027 |
+
+These are *specified future tests, not executed*. The proposed implementation mechanisms are not owner-approved by documenting these scenarios.
+
 ## Evidence rules
 
 Each implementation claim needs source commit, repeatable test command, environment/version, result and known limitations. A proposed acceptance test is not a completed test. Automated checks should run in CI before merging behavior changes; security-critical behavior must include negative tests.
