@@ -48,6 +48,12 @@ Rolvya is an open-source orchestration system for AI coding agents. This specifi
 7. For failure, diagnose and retry/reassign an existing task within policy. Do not append new task nodes. For insufficient budget, stop admitting new billable tasks and await explicit ceiling increase.
 8. Report results, remaining risks, unverified items, costs and handoff to next agent.
 
+## Approved human project access
+
+| ID | Requirement | Verification expectation |
+| --- | --- | --- |
+| PR-021 | Each project supports **Owner, Editor and Viewer** human roles. Owner exclusively authorizes hard-budget increases and critical permission/plan scope changes; Editor may start previously owner-approved work and examine permitted results but cannot expand the approved scope; Viewer sees only permitted read-only status/results. | Project-scoped RBAC negative tests and preflight/budget approval audit; see [ADR 0024](../decisions/0024-project-human-roles.md). |
+
 ## Non-functional constraints (targets; thresholds not yet approved)
 
 - Fast scheduling and state reads on constrained control hardware; minimize unnecessary polling and database scans.
