@@ -77,6 +77,7 @@ See the [historical conversation audit](../project/historical-decision-audit.md)
 - [ADR 0024 — Owner, Editor and Viewer project roles](0024-project-human-roles.md).
 - [ADR 0025 — OIDC-first sign-in, passkey support and strong sessions](0025-oidc-passkey-authentication.md).
 - [ADR 0026 — Secure account recovery and Owner protection](0026-account-recovery.md).
+- [ADR 0027 — Risk-based session management](0027-risk-based-session-management.md).
 
 These are **Approved designs, not claims of implemented or production-verified software**. Detailed region/cost/adapter validation remains separate.
 
