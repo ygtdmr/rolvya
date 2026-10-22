@@ -168,6 +168,9 @@ These tests are **specified, not executed**; integrity design and protected key/
 | AC-074 | Configure independent audit checkpoint adapter with S3-compatible and a distinct non-S3-capable fake provider | Both satisfy the same verification/retrieval contract without binding audit logic to S3-specific APIs | PR-024 |
 | AC-075 | SQLite event history is rewritten while protected checkpoint storage is unchanged; selected provider does not support retention/versioning | Tampering is detected; unavailable protection is surfaced instead of claiming immutable storage | PR-024 |
 
+| AC-076 | Deployment administrator allows storage target A for project, denies B; Owner selects destination; Editor or worker tries to add endpoint B | Owner may select only A, and unauthorized endpoints/writes are rejected in Rust before secrets or data leave the deployment | PR-013, PR-021, PR-024 |
+| AC-077 | Administrator disables configured checkpoint target or Owner switches among allowed targets | Data cannot silently migrate to forbidden target; prior checkpoints remain verifiable, and unavailable protections/destinations are surfaced safely | PR-024 |
+
 ## Evidence rules
 
 Each implementation claim needs source commit, repeatable test command, environment/version, result and known limitations. A proposed acceptance test is not a completed test. Automated checks should run in CI before merging behavior changes; security-critical behavior must include negative tests.
