@@ -149,9 +149,11 @@ These are **specified but not executed**; no deployed Activity Log or test pass 
 | --- | --- | --- | --- |
 | AC-067 | Authorized project member views activity events aged 1–90 days | Permitted records remain readily accessible in the project panel with scoped role authorization | PR-024 |
 | AC-068 | Normal event ages beyond 90-day active window and archived storage is enabled | Compression/archive preserves provenance, integrity, scoped retrieval and recovery without treating age 90 days as mandatory deletion | PR-024 |
-| AC-069 | Critical budget/security approval event ages beyond 90 days | Preserve the record under applicable longer-retention requirements; don't silently apply ordinary short retention or expose secrets | PR-008, PR-024 |
+| AC-069 | Critical budget/security approval event ages beyond 90 days | Preserve for at least 3 years total subject to law; keep secrets excluded | PR-008, PR-024 |
 
-These tests are **specified, not implemented or executed**. Total archive/critical-event retention durations remain unselected.
+These tests are **specified, not implemented or executed**. Total retention windows are Approved: 1 year routine history and at least 3 years critical financial/security records, subject to law. Archive/deletion mechanics remain open.
+
+| AC-070 | Routine event is older than one year; critical security event is within three-year retention window | Enforce lawful routine lifecycle and preserve critical event; exported and backup copies follow approved retention controls | PR-024 |
 
 ## Evidence rules
 
