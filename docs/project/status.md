@@ -108,6 +108,12 @@ Owner approval extends [ADR 0030](../decisions/0030-project-activity-audit-log.m
 
 The new [storage migration state-machine document](../architecture/storage-migration-state-machine.md) is **Proposed technical implementation**; [AC-086–AC-098](../product/acceptance-criteria.md) are future acceptance scenarios. No actual provider transfers, Rust implementation, SQLite schema migration, automated tests or spend occurred in this documentation-only update.
 
+## Approved bounded retry for historical storage migration — specification checkpoint (2026-10-22)
+
+The Owner approved **finite automatic retry with bounded exponential backoff for transient migration-transfer failures only**, recorded in [ADR 0030](../decisions/0030-project-activity-audit-log.md) and the [Proposed storage migration state-machine design](../architecture/storage-migration-state-machine.md). Ambiguous provider outcomes must be reconciled before paid retries; security/authorization violations, independent integrity mismatches, exhausted retry limits and insufficient/unbounded approved exposure **must not** trigger automated transfer retries. Source copies and durably verified progress remain protected. Storage operation retry policy is distinct from the approved three-total-attempt default for AI coding workers.
+
+[AC-099–AC-108](../product/acceptance-criteria.md) define **10 additional specified, unexecuted tests**; the acceptance catalogue now covers AC-001–AC-108. Exact retry count, wait durations, jitter, provider error mapping, Rust/SQLite implementation and CI remain **open/not implemented**. This work changed documentation only; no remote storage API calls, transfer costs, infrastructure deployments or executable verification tests were performed.
+
 ## Next documentation tasks
 1. For **literal complete two-chat coverage**, acquire full original chat exports and any original architecture/logo assets, then compare every message against [the evidence matrix](two-conversation-coverage-audit.md). Continue keeping unrecoverable details explicitly unknown.
 2. Resolve remaining open **implementation** choices (Rust crates/tooling, SQLite WAL/migrations, HTTPS schema/identity, exact GitHub App permissions/merge policy, first cloud provider rollout, subscription CLI entitlement, provider cost caps and UI) before dependent work. Rust, SQLite, HTTPS, GitHub App and multi-provider architecture selections are already Approved.
