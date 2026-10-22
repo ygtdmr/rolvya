@@ -182,6 +182,17 @@ These tests are **specified, not executed**; integrity design and protected key/
 
 These tests are **specified, not implemented or executed**.
 
+## Post-migration original-copy protection — specified future tests
+
+| Test ID | Scenario | Expected result | Requirement |
+| --- | --- | --- | --- |
+| AC-082 | Owner-approved migration completes and all new destination objects verify successfully | Old-provider archives and independent integrity checkpoints remain present; no automatic delete command is sent | PR-024 |
+| AC-083 | Owner separately requests cleanup with verified destination and legal retention fulfilled | Rust validates project Owner authority, destination integrity evidence, affected objects and required policy; executes auditable bounded deletion | PR-021, PR-024 |
+| AC-084 | Owner requests deletion while critical record is within mandatory retention or a legal hold; or destination copy/checkpoint is incomplete | Cleanup denied/deferred, source data and trusted verification anchors retained; no implied override from Owner approval | PR-024 |
+| AC-085 | Editor/worker or migration-complete callback triggers source deletion without a distinct approved cleanup | Deletion denied; no automatic source purge, and denial/outcome is logged without secrets | PR-021, PR-024 |
+
+Future tests only — **not implemented or executed**.
+
 ## Evidence rules
 
 Each implementation claim needs source commit, repeatable test command, environment/version, result and known limitations. A proposed acceptance test is not a completed test. Automated checks should run in CI before merging behavior changes; security-critical behavior must include negative tests.
