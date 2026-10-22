@@ -152,6 +152,7 @@ The paths above are a **planned inventory**, not links to files that already exi
 - [ADR 0022 — Dynamic worker parallelism and optional preflight cap](decisions/0022-dynamic-worker-concurrency.md)
 - [ADR 0023 — Cross-project fair scheduling, priority and aging](decisions/0023-cross-project-scheduling-fairness.md)
 - [ADR 0024 — Owner, Editor and Viewer human roles](decisions/0024-project-human-roles.md)
+- [ADR 0029 — Owner-only project invitations and secure ownership transfer](decisions/0029-owner-controlled-project-invitations.md)
 
 ## Coverage checklist
 
