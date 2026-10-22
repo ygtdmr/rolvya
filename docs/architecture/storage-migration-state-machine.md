@@ -24,6 +24,30 @@ tags: [storage, migration, recovery, audit, budget, security]
 
 A migration must never transform an earlier approval into permission to expand object scope, use a forbidden target, increase the spending ceiling or delete source objects. Multiple Owners, if present, authenticate individually under existing project governance.
 
+## Approved retry behavior and proposed bounded scheduling mechanics
+
+[ADR 0030](../decisions/0030-project-activity-audit-log.md) **approves limited automatic retry with exponential backoff for transient migration-transfer failures**. Every retry is a resumed/renewed storage operation inside the *same* separately authorized migration and must pass fresh provider/security/budget checks. **Unlike executable AI coding-task attempts, storage object/part requests are not governed by the project default of three total worker attempts**; see [ADR 0019](../decisions/0019-centralized-worker-retries.md).
+
+| Failure classification | Automatic retry decision (Approved policy) | Implementation behavior (Proposed) |
+| --- | --- | --- |
+| Transient network interruption, connection timeout or recoverable transport reset | Eligible only if provider-side effects are reconciled first | Persist pending intent; after reconciliation schedule within finite retry and delay limits |
+| Provider throttling (e.g. 429), declared temporary outage or confirmed recoverable 5xx | Eligible under rate-limit instructions, budget and bounded retry policy | Honor provider-specified cool-down where valid, back off exponentially with jitter/cap and per-provider backpressure |
+| Request outcome unknown after timeout, restart or lost acknowledgement | **Not** eligible for blind replay | Query provider operation/version/part status and charges first; only retry if needed and authorized |
+| Temporary verification read unavailability | A limited read-only retry may be eligible | Re-read using verified source/version expectations; do **not** re-upload an already verified object merely because a verification read timed out |
+| Read-back hash/content mismatch, invalid signed checkpoint or altered source version | **No automatic transfer retry** | Block/escalate integrity issue and retain source/anchors; no false verified completion |
+| Revoked/invalid credentials, non-allowlisted endpoint/region, authorization failure, legal retention constraint or suspected compromise | **No automatic retry** | Block until explicitly authorized remediation, without provider switching or scope expansion |
+| Insufficient approved budget, lost enforceable cost bound, or uncertain unaccounted charges | **No new billable retry** | Mark budget/risk pause; reconcile costs and seek distinct ceiling authorization if required |
+| Finite retry limit exhausted or repeated failure without verified progress | **No further automatic retry** | Preserve verified artifacts and source; surface typed blocker, recovery options and cost uncertainty |
+
+### Proposed durable retry scheduler (not a fixed numerical policy)
+
+- Record per **migration and object/part or provider operation**: safe error category, count of admitted failed retry attempts, bounded retry policy snapshot, last attempt time, next eligible attempt time, provider operation/idempotency key, lease generation/fence, last independently verified evidence and known/uncertain costs. Classify errors on the Rust control plane, not solely from untrusted provider/worker message text.
+- For an eligible transient failure, a **proposed** scheduling strategy is capped exponential delay (e.g. `min(max_delay, base_delay * 2^attempt_index)`) with jitter, subject to **at least** any trustworthy provider `Retry-After`/rate-limit constraint. Use overflow-safe arithmetic and control-plane-scheduled work rather than a worker sleeping forever. No `base_delay`, `max_delay`, numeric retry count or jitter distribution has been approved.
+- Bound both per-item retries and total migration/provider pressure in the eventual implementation; avoid hot loops and synchronized retry storms. For repeated errors, exhaustion must be durable and visible, not silently reset after process crash. Do not assert exactly-once external charges even if logical operations are idempotent.
+- On every eligible retry, recheck **manifest identity/version, administrator allowlist, project Owner authorization, destination security/capabilities, provider limits, active lease/fence and available already-approved budget**. Admit new billable work only with a safe enforceable exposure bound and reservation. A retry does **not** re-authorize deletion, budget increase, new objects or a different endpoint.
+- If the provider reports a successful/staged prior write, inspect its *version and integrity evidence* and complete independent verification instead of uploading blindly again. A transient read error can lead to another bounded read; **cryptographic/content mismatch stops automatic retries**.
+- The UI and protected Activity Log must distinguish waiting-for-retry (and next eligible time), retry limit exhausted, budget/security block, resumed copy, staged-but-unverified and independently verified; report remaining scope and uncertain costs. Those are **proposed fields/UX** in service of the approved bounded/reliable behavior.
+
 ## Proposed operation states
 
 | State (illustrative) | Meaning and entry condition | Permitted next states (illustrative) |
@@ -33,7 +57,7 @@ A migration must never transform an earlier approval into permission to expand o
 | `READY` | Approved scope and headroom permit safe admission of an eligible unit of work | `COPYING`, `VERIFYING`, `PAUSED_BUDGET`, `BLOCKED`, `CANCELLED` |
 | `COPYING` | Perform bounded copy/staging of manifest entries, with durable per-object/chunk progress | `COPYING`, `VERIFYING`, `PAUSED_RETRYABLE`, `PAUSED_BUDGET`, `BLOCKED`, `CANCELLED` |
 | `VERIFYING` | Independently enumerate all approved manifest entries, retrieve/read what is needed, verify exact versions/content and trusted checkpoint continuity | `COMPLETED_VERIFIED`, `COPYING`, `PAUSED_RETRYABLE`, `BLOCKED`, `CANCELLED` |
-| `PAUSED_RETRYABLE` | Recoverable network/provider/controller interruption or uncertain result; verified work and source survive | `PREFLIGHT`, `CANCELLED`; no blind paid replay |
+| `PAUSED_RETRYABLE` | Recoverable transient interruption or uncertain result; verified source/progress survive and a durable bounded next eligible retry is recorded; exhaustion suspends further automatic retries | `PREFLIGHT` after eligible delay/reconciliation and renewed gates, `BLOCKED` if retry limit exhausted/unsafe, `CANCELLED`; no blind paid replay |
 | `PAUSED_BUDGET` | Authorized headroom insufficient or remaining provider exposure cannot be bounded; no new billable copy/retry admitted | `PREFLIGHT` after legitimate budget eligibility, `CANCELLED` |
 | `BLOCKED` | Security/retention/allowlist/snapshot/integrity condition cannot safely be resolved automatically | `PREFLIGHT` only after authorized remediation, `CANCELLED` |
 | `COMPLETED_VERIFIED` | Whole approved manifest verified independently and atomic completion record persisted; **source remains intact** | Terminal for this migration (not a deletion grant) |
@@ -69,8 +93,8 @@ The diagram summarizes policy only. Source cleanup is **outside** the migration 
 | --- | --- |
 | Migration identity | `migration_id`, `project_id`, initiating and approving Owner references, independent approval ID, source/destination adapter IDs and scoped target bindings |
 | Immutable manifest | Manifest hash, object count, source immutable version/snapshot ID or equivalent consistency evidence, per-object safe opaque ID, kind (archive vs integrity checkpoint), size/hash metadata when available, required retention/trust dependency and target identity |
-| Operation progress | Current state, monotonic operation generation/fencing token, last durable transition, reason codes, resumable cursor/checkpoint, timestamps and version for compare-and-set |
-| Object/part progress | Object ID/version, staged destination key/version, part/chunk IDs, copy attempt ID, provider operation ID, confirmed bytes, verification state and evidence refs; distinguish attempted, uploaded, acknowledged, **independently verified** |
+| Operation progress | Current state, monotonic operation generation/fencing token, last durable transition, reason codes, resumable cursor/checkpoint, retry-policy snapshot and exhaustion status, timestamps and version for compare-and-set |
+| Object/part progress | Object ID/version, staged destination key/version, part/chunk IDs, copy attempt ID, provider operation/idempotency key, durable retry count/error class/next-eligible time, confirmed bytes, verification state and evidence refs; distinguish attempted, uploaded, acknowledged, **independently verified** |
 | Financial authority | Explicit approved cost envelope, reservation IDs, authorized headroom at admission, AI API/compute/storage/transfer categories as relevant, known settled charges and uncertain/unreconciled exposure |
 | Integrity | Source expected fingerprints or authenticated manifest, independently obtained destination verification, checkpoint trust-root refs, validation results and discrepancies |
 | Audit | Redacted actor/correlation IDs and records for approvals, state transitions, transfer errors, pause/retry decisions and completion; no secrets or raw sensitive content |
@@ -85,7 +109,7 @@ A manifest must describe a **consistent historical source view**. If source obje
 2. **Admit bounded work:** acquire a durable operation lease/generation and a budget reservation sufficient for the full enforceable maximum exposure of a copy/verify attempt. Reject admission when insufficient; if provider cannot bound in-flight charges, stop/fence and mark exposure uncertain per [in-flight budget policy](inflight-cost-policy.md).
 3. **Copy only work still needed:** derive pending entries from durable journal; never trust an in-memory cursor as sole proof. Revalidate previously staged but unverified objects before skipping an upload. For each unit, write to a staging/versioned destination without clobbering verified data or source.
 4. **Confirm each staged object:** verify provider acknowledgement and independent content/metadata evidence as supported. Keep individual `VERIFIED` object evidence durable; staged/unverified objects are **not** completed units.
-5. **Recover conservatively:** on restart, expired lease, duplicate callback, timeout or ambiguous provider response, fence stale generation, reconcile outstanding provider writes/costs and existing destination objects, then retry only those not verifiably complete and still within the **unchanged approved scope and budget**. Do not assume retry costs are zero.
+5. **Recover conservatively:** on restart, expired lease, duplicate callback, timeout or ambiguous provider response, fence stale generation and reconcile outstanding provider writes/costs and existing destination objects. Automatic retries are only for classified transient failures within **durable finite limits with bounded exponential backoff**, after any required provider cool-down and renewed eligibility/budget checks; do not blindly reissue an operation of unknown outcome. Persist retry exhaustion, and never silently reset the limit on restart. Do not assume retry costs are zero.
 6. **Pause rather than overrun:** when authorized cost exposure is insufficient, preserve source, verified staged objects and journal; do not admit new billable retries or copies until current approval actually covers their risk, or an Owner separately approves an increased ceiling. A paused state is visible in the panel, with last completed unit, estimated remaining cost and unreconciled charges.
 7. **Validate the whole manifest:** independent verification must prove all approved objects present, retrievable, correctly versioned and cryptographically/integrity consistent, including audit archive sequence and protected verification anchor continuity. Missing, corrupted or unverifiable entries block completion; preserve previously verified work and source.
 8. **Commit verified completion:** atomically persist terminal migration evidence and update only authorized storage pointers for the exact manifest, with safe recovery on transaction failure. Never imply that existing history has moved before this validated handover. **No deletion or source cleanup follows automatically.**
@@ -130,7 +154,7 @@ The normative acceptance scenarios are [AC-078–AC-098](../product/acceptance-c
 
 - Stable Rust types, SQLite schema/indices and exact transactional outbox/fencing implementation.
 - Provider snapshot/version semantics, multipart/chunk sizing, read-back vs signed digests, crypto algorithms and protected checkpoint promotion.
-- Retry/backoff limit, pause timeout, concurrent transfer cap and rate limits; no default counts or delays are approved.
+- **Numeric** storage retry count, exponential backoff base/cap, jitter, pause timeout, concurrent transfer cap and provider-specific throttling; **bounded exponential retry for transient faults is already Approved**, but no numeric defaults are approved.
 - Provider-specific cost caps and charging exposure for multipart uploads, verification reads, retries, egress and staging retention; no promise of universally enforceable transfer ceilings.
 - Resume UX, user cancellation authority, approval expiration/revocation, critical alert delivery and escalation after permanent corruption.
 - Staged-object garbage collection, retention/legal erasure, billing reconciliation and destination location mapping after verified handover.
