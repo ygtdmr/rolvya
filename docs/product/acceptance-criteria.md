@@ -143,6 +143,16 @@ These are **specified only**, not implemented or executed.
 
 These are **specified but not executed**; no deployed Activity Log or test pass is claimed.
 
+## Activity Log access window and archival — specified future tests
+
+| Test ID | Scenario | Expected result | Requirement |
+| --- | --- | --- | --- |
+| AC-067 | Authorized project member views activity events aged 1–90 days | Permitted records remain readily accessible in the project panel with scoped role authorization | PR-024 |
+| AC-068 | Normal event ages beyond 90-day active window and archived storage is enabled | Compression/archive preserves provenance, integrity, scoped retrieval and recovery without treating age 90 days as mandatory deletion | PR-024 |
+| AC-069 | Critical budget/security approval event ages beyond 90 days | Preserve the record under applicable longer-retention requirements; don't silently apply ordinary short retention or expose secrets | PR-008, PR-024 |
+
+These tests are **specified, not implemented or executed**. Total archive/critical-event retention durations remain unselected.
+
 ## Evidence rules
 
 Each implementation claim needs source commit, repeatable test command, environment/version, result and known limitations. A proposed acceptance test is not a completed test. Automated checks should run in CI before merging behavior changes; security-critical behavior must include negative tests.
