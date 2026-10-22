@@ -124,10 +124,12 @@ Tests specified, **not implemented or executed**.
 | Test ID | Scenario | Expected result | Requirements |
 | --- | --- | --- | --- |
 | AC-058 | Project has two authenticated Owners; Owner A explicitly raises budget after verified strong step-up; Owner B has not approved | Exactly one atomic auditable increase is applied; no unanimous co-Owner approval required; admission remains bounded by the new ceiling | PR-008, PR-021 |
-| AC-059 | Budget increase from Owner A succeeds but notification to Owner B temporarily fails | Committed increase remains valid; missing delivery is durably logged and retried without duplicate spending or another approval | PR-008, PR-021 |
+| AC-059 | Budget increase from Owner A succeeds; Owner B's in-app delivery temporarily fails and Owner B disabled email | Committed increase remains valid; mandatory in-app notice is durably queued/retried and auditable; no email is sent against preference; no duplicate spending or second approval | PR-008, PR-021 |
 | AC-060 | Editor/Viewer/agent tries to authorize increase; two Owners race with stale ceiling versions | Unauthorized changes rejected, stale version rechecked; no lost update, duplicate increment or automatic overrun | PR-008, PR-021 |
 
 These are **specified only**, not implemented or executed.
+
+| AC-061 | Owner A increases ceiling, Owner B allows email and Owner C disables it | Both B and C receive in-app notifications; only B is eligible for email; notices never act as approvals | PR-008, PR-021 |
 
 ## Evidence rules
 
