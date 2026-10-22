@@ -55,6 +55,10 @@ Which of these are *required for a public MVP* versus a later release is an **Op
 
 Multiple remote Git providers including self-hosted, broader cloud adapter coverage, team roles and enterprise auth, richer graph exploration, provider pricing dashboards, advanced fairness/scheduling, automatic source conflict analysis, optional long-term result reuse and expanded observability integrations. Their inclusion requires a separate product decision, acceptance criteria and development plan.
 
+## Future client possibilities — not approved product scope
+
+A possible **mobile client** and a possible Jarvis-like **voice conversational assistant** were discussed only as ideas, not commitments. They have **no approved release date, development work package, budget, MVP requirement or implementation authority**. Neither is a prerequisite for secure web sessions or Rolvya's core remote orchestrator. If later requested and separately approved, evaluate client-specific authentication, device secret storage, voice-initiated action authorization, consent, threat model and session continuity without relaxing Owner budget/permission step-up requirements. The current baseline is [web risk-based sessions](../decisions/0027-risk-based-session-management.md).
+
 ## Nonfunctional acceptance dimensions
 
 - Resource budget: prioritize low control-plane RAM/CPU; benchmark on the intended remote VPS, do not assume 20 workers fit 4GB.
