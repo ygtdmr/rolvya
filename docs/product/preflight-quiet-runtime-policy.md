@@ -30,6 +30,10 @@ Ask questions in logical batches; prefer defaults and explicit trade-offs to rep
 
 Persist the approved policy snapshot, owner identity, timestamp and plan hash in SQLite; workers receive only their narrowly authorized task context and never permission to enlarge these limits.
 
+## Approved human authorization boundaries (ADR 0024)
+
+The three project-scoped human roles are **Owner**, **Editor** and **Viewer**, as approved in [ADR 0024](../decisions/0024-project-human-roles.md). The Owner approves preflight plan/scope and hard budget changes. Editors may start or manage a **previously owner-approved** run inside its permitted execution envelope, but cannot increase ceiling or grant new critical model/provider/Git/security authority. Viewers see only authorized read-only status/results. Human roles do not confer permissions on AI main agents or remote workers. Do not prompt the Owner for each routine Editor-started job or main-agent retry when its approvals already exist.
+
 ## Quiet runtime and escalation
 
 - **Runtime normal:** main agent receives failure telemetry, diagnoses cause, adjusts attempt-scoped strategy only within authorized model/effort/provider/resource/retry bounds, and preserves verified outputs; scheduler verifies budget and security for each new attempt. Independent leaves continue; dependent leaves wait.
