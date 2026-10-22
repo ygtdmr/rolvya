@@ -60,6 +60,12 @@ Rolvya is an open-source orchestration system for AI coding agents. This specifi
 | --- | --- | --- |
 | PR-022 | Human web sessions use secure unobtrusive renewal, issuer-capability-aware token rotation/replay protection, explicit server-side per-device revocation, and strong verified reauthentication for critical budget/access actions. Backend work never counts as human activity; mobile and voice remain uncommitted future ideas. | Negative tests for stolen/revoked sessions, legitimate concurrent renewals, issuer supported replay protection, independent workers and Owner step-up; [Approved ADR 0028](../decisions/0028-human-session-token-safety.md). |
 
+## Approved invitation and ownership security
+
+| ID | Requirement | Verification expectation |
+| --- | --- | --- |
+| PR-023 | **Owner-only** project invitations for Editor or Viewer, with expiry, one-use redemption and OIDC-authenticated recipient identity; link possession alone cannot grant access. Owner grants/transfers require separate recent strong step-up and safeguards against unintentional last-Owner loss. Membership actions are project-scoped and auditably enforced by Rust/SQLite. | Negative tests for Editor/Viewer invitations, expired/replayed/mismatched invites, concurrent redemption, cross-project privilege grants and unverified Owner elevation; [Approved ADR 0029](../decisions/0029-owner-controlled-project-invitations.md). |
+
 ## Non-functional constraints (targets; thresholds not yet approved)
 
 - Fast scheduling and state reads on constrained control hardware; minimize unnecessary polling and database scans.
