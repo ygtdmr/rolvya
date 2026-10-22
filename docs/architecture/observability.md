@@ -84,13 +84,15 @@ Instrumentation failure must not silently bypass authoritative scheduling or bud
 
 [ADR 0030](../decisions/0030-project-activity-audit-log.md) requires the **deployment administrator to configure and allowlist storage providers and destinations**. Project Owners may select only allowlisted, project-permitted targets; Editors, Viewers and workers cannot introduce unapproved external endpoints. Provider-neutral adapters remain mandatory, with credentials protected, writes and migrations permission-checked, and all changes audited. Detailed migration and configuration mechanisms remain Proposed.
 
-## Approved destination change and explicit archive migration
+## Approved storage cutover, migration and source cleanup
 
-[ADR 0030](../decisions/0030-project-activity-audit-log.md) approves an **explicit-only migration policy**. Switching an Owner-selected allowlisted provider requires destination security/capability verification and only affects future writes. Existing audit archives and integrity checkpoints **are not automatically copied**. A distinct Owner-approved migration, with scope and applicable hard-budget/transfer exposure approved, is required for historical data. Migration must be resumable and integrity verified before accepting the new copy; failed migration never silently deletes or reclassifies old data. **Old source copies are never automatically deleted after migration.** A distinct strongly reauthenticated Owner approval, successful independent destination verification, lawful retention checks and auditable cleanup are required (Approved ADR 0030). Adapter health probes and cleanup mechanics remain engineering decisions.
+[ADR 0030](../decisions/0030-project-activity-audit-log.md) establishes three **independently authorized** stages:
 
-## Approved post-migration source cleanup
+1. **Storage destination change:** project Owner selects an administrator-allowed target, and Rust verifies capability, security, integrity and applicable cost constraints. This affects only future eligible writes; old archives/checkpoints remain at their recorded provider.
+2. **Historical migration:** a separately approved, cost-bounded Owner operation stages and independently verifies data and protected checkpoints; retries, partial failure and restore cannot silently destroy old copies or misstate availability.
+3. **Old-provider cleanup:** **never automatic**, even when migration succeeds. It requires new, strongly authenticated, scoped Owner approval after independent destination retrieval/integrity verification; mandatory retention, legal holds, administrator/provider constraints and surviving trustworthy checkpoints must all remain protected. Denials, partial failures and confirmed deletions are represented accurately in the protected audit history.
 
-[ADR 0030](../decisions/0030-project-activity-audit-log.md) requires **retaining old-provider data even after a successful migration**. Verify destination completeness, retrieval and cryptographic/checkpoint integrity before considering any cleanup. **Deleting old copies is a separate explicitly Owner-approved operation** with clear scope and consequences, enforced by Rust using administrator-authorized storage access. Never automatically purge old data on migration completion. Respect mandatory retention, legal holds, privacy/deletion requirements and the preservation of trustworthy integrity references. Source cleanup is auditable and must not silently erase the last verifiable copy. Exact provider deletion mechanics and confirmation UI remain Proposed.
+Exact provider verification methods, migration/cleanup state machines, deletion APIs and step-up UX are **not implemented and remain engineering choices**.
 
 ## Open decisions
 
