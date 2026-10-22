@@ -59,6 +59,15 @@ Multiple authorized Owners, Editors, Viewers and independently authorized machin
 - Reconfiguration or migration cannot silently invalidate protected checkpoints. Existing data remains verifiable and recoverable under approved lifecycle and transfer rules. No automatic external storage access is assumed if an administrator has configured no eligible target.
 - **Multiple providers remain supported** by the extensible storage interface; the administrator may authorize S3-compatible, other cloud or eligible self-hosted remote adapters. Exact UI, credential vault, target health probes and migration mechanics remain engineering questions.
 
+## Approved explicit storage migration and safe destination changes (2026-10-22)
+
+- **Changing a project's configured storage target is not authorization to copy or relocate existing data.** Switching an Owner-selected, administrator-allowlisted provider applies only to newly eligible writes after the replacement destination is verified. Existing archives, integrity checkpoints and other pre-existing stored data **remain where they are** until a separately approved migration is initiated.
+- **Validate the destination before cutover:** confirm the adapter and endpoint are still administrator-permitted for that project; verify credentials, required durability/retention capabilities, encryption/access policy, integrity-checkpoint controls, health and applicable spending constraints. Failed verification blocks cutover and does not silently fall back to an unapproved target.
+- **Old-data migration is a distinct Owner-initiated operation, with explicit approval of its scope and financial exposure** under the existing hard budget gates. No background agent, worker, switch UI event or administrative allowlist update may infer consent to billable data copying. Preserve exact source/destination identities, audit state and expected transfer costs before beginning.
+- Migration must protect data integrity and continuity: stage/copy and independently verify migrated archives and trusted checkpoints before a target is treated as authoritative; handle partial transfers, retries and restore, and do not accidentally replace trusted checkpoints with unverified ones. **Do not silently delete old copies** as a side effect of selecting a target or of a failed migration.
+- Where switching the configured target makes old records temporarily unavailable, show that honestly and retain safe access/recovery instructions; do not claim data were migrated or fully accessible. Whether/when old redundant copies can be cleaned up is a separate governed retention/deletion decision.
+- Exact verification probes, migration state machine, transfer limits, cross-provider copy method and final source cleanup workflow remain unselected engineering details. These requirements are approved architecture, **not implemented code**.
+
 ## Approved total retention windows (2026-10-22)
 
 - **Routine project activity events:** retain for **1 year total from event creation**, including the first **90 days readily accessible in the project panel** and the remainder in a protected compressed archive when archival is enabled.
