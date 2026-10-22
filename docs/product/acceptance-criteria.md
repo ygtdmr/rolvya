@@ -165,6 +165,9 @@ These tests are **specified, not implemented or executed**. Total retention wind
 
 These tests are **specified, not executed**; integrity design and protected key/checkpoint mechanics remain open.
 
+| AC-074 | Configure independent audit checkpoint adapter with S3-compatible and a distinct non-S3-capable fake provider | Both satisfy the same verification/retrieval contract without binding audit logic to S3-specific APIs | PR-024 |
+| AC-075 | SQLite event history is rewritten while protected checkpoint storage is unchanged; selected provider does not support retention/versioning | Tampering is detected; unavailable protection is surfaced instead of claiming immutable storage | PR-024 |
+
 ## Evidence rules
 
 Each implementation claim needs source commit, repeatable test command, environment/version, result and known limitations. A proposed acceptance test is not a completed test. Automated checks should run in CI before merging behavior changes; security-critical behavior must include negative tests.
