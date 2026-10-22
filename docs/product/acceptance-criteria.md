@@ -70,6 +70,17 @@ Related designs: [budget reconciliation](../architecture/budget-reservation-reco
 
 These are **specified, not executed**, and tests depending on as-yet-unapproved CLI subscription use or scheduler parameters remain **blocked pending entitlement/policy evidence**, not passed.
 
+## Approved three-role project permissions — future acceptance tests
+
+| Test ID | Scenario | Required result | Requirement |
+| --- | --- | --- | --- |
+| AC-037 | An Editor starts a run already approved by the Owner, with valid remaining project budget | Allowed only within the unchanged approved preflight plan, model/provider/security limits and new atomic cost reservation | PR-008, PR-021 |
+| AC-038 | An Editor or Viewer requests higher budget, unapproved provider/Git scope, or a new immutable plan | Denied for lack of Owner authorization; no billable expansion or privilege escalation | PR-008, PR-019, PR-021 |
+| AC-039 | Viewer requests only authorized status/results, then attempts to launch a worker or inspect raw secrets | Scoped read succeeds; privileged actions and secret access are rejected | PR-021 |
+| AC-040 | Editor has project A access but not project B; revoked role attempts a delayed queued action | Project B read/launch denied; queued action revalidates membership and refuses when revoked | PR-013, PR-021 |
+
+These are **specified, not executed**; the exact login/session provider and role storage implementation still require engineering decisions.
+
 ## Evidence rules
 
 Each implementation claim needs source commit, repeatable test command, environment/version, result and known limitations. A proposed acceptance test is not a completed test. Automated checks should run in CI before merging behavior changes; security-critical behavior must include negative tests.
