@@ -186,16 +186,12 @@ These tests are **specified, not implemented or executed**.
 
 | Test ID | Scenario | Expected result | Requirement |
 | --- | --- | --- | --- |
-| AC-082 | Owner-approved migration completes and all new destination objects verify successfully | Old-provider archives and independent integrity checkpoints remain present; no automatic delete command is sent | PR-024 |
-| AC-083 | Owner separately requests cleanup with verified destination and legal retention fulfilled | Rust validates project Owner authority, destination integrity evidence, affected objects and required policy; executes auditable bounded deletion | PR-021, PR-024 |
-| AC-084 | Owner requests deletion while critical record is within mandatory retention or a legal hold; or destination copy/checkpoint is incomplete | Cleanup denied/deferred, source data and trusted verification anchors retained; no implied override from Owner approval | PR-024 |
-| AC-085 | Editor/worker or migration-complete callback triggers source deletion without a distinct approved cleanup | Deletion denied; no automatic source purge, and denial/outcome is logged without secrets | PR-021, PR-024 |
+| AC-082 | Owner-approved migration completes and independent destination integrity and retrieval verification succeeds | Old-provider archives and integrity checkpoints remain intact; no automatic delete, purge or inferred cleanup approval | PR-024 |
+| AC-083 | Strongly reauthenticated project Owner explicitly approves a separately scoped source cleanup after destination checks and applicable retention/hold checks pass | Only approved objects are eligible for bounded auditable deletion under administrator-allowed provider rules; report confirmed and uncertain outcomes truthfully with protected verification evidence | PR-021, PR-024 |
+| AC-084 | Cleanup is requested when destination completeness/checkpoint integrity fails, mandatory retention has not elapsed, a legal hold applies, or deletion would destroy the final trusted reference | Cleanup denied or deferred; source and trusted anchors preserved; attempted action and reason auditable without secrets | PR-024 |
+| AC-085 | Editor, Viewer, worker, autonomous agent or migration-completion callback attempts deletion without distinct strongly authenticated Owner approval | Deletion denied; no implicit permission from target selection or migration success; denial and source preservation auditable | PR-021, PR-024 |
 
-Future tests only — **not implemented or executed**.
-
-| AC-082 | Migration succeeds and destination integrity verifies | Old source copies remain intact; no implicit delete or cleanup permission follows from migration approval | PR-024 |
-| AC-083 | Owner separately approves old-source cleanup with strong reauthentication, but destination verification fails or retention hold applies | Cleanup rejected; old copies remain; reason and attempt are auditable | PR-021, PR-024 |
-| AC-084 | Eligible source cleanup is explicitly approved after independent destination and retention checks | Only approved objects are removed under provider safeguards; deletion outcome and verification evidence are recorded without exposing secrets | PR-024 |
+These are **specified future tests, not implemented or executed**.
 
 ## Evidence rules
 
