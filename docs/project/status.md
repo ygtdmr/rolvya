@@ -147,3 +147,7 @@ The Owner approved the proposed first usable v0.1 scope: up-front immutable DAG 
 ## Approved atomic task and budget admission (2026-10-23)
 
 The Owner approved [ADR 0031](../decisions/0031-atomic-task-budget-admission.md), closing the **OQ-003 architecture decision**. A short SQLite `BEGIN IMMEDIATE` transaction must recheck executable leaf readiness, current budget and liabilities, then atomically create a same-task attempt, lease fencing generation, financial hold, audit and durable outbox before commit. No billable provider launch may happen before commit. [T-031–T-035](../development/rust-sqlite-test-matrix.md) specify additional future cases; **no Rust implementation, migration, running tests or billable work has occurred**.
+
+## Owner-approved passwordless human authentication (2026-10-23)
+
+[ADR 0032](../decisions/0032-passwordless-human-sign-in.md) approves **Google**, **GitHub**, and **verified-email one-time link/code** as v0.1 human sign-in. User passwords, password recovery and fallback are explicitly excluded. Existing OIDC/passkey and Owner recent strong reauthentication protections remain binding; email-only proof cannot confer high-risk Owner approvals. **OQ-004 remains P0 for broker/provider protocol, immutable identity linking, assurance, sessions and secure delivery/anti-abuse implementation.** No actual human auth provider or tests were deployed.
