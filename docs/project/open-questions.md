@@ -20,7 +20,7 @@ Each question should ultimately have an owner decision, dated rationale, alterna
 
 | ID | Priority | Question | Candidate directions / decision criteria | Related specification |
 | --- | --- | --- | --- | --- |
-| OQ-004 | P0 | Which concrete OIDC providers, assurance mapping, session implementation, membership/invite schema and fine-grained permissions? | **ADRs 0024–0029 already approve roles, OIDC/passkeys, account recovery, secure sessions, token safeguards, and Owner-only expiring single-use OIDC-verified invitations + protected ownership changes.** Remaining details: IdP integration, invite delivery, recipient identity binding, ownership transfer technical timeout/atomic schema and UI | [Identity](../architecture/identity-authorization.md), [ADR 0029](../decisions/0029-owner-controlled-project-invitations.md) |
+| OQ-004 | P0 | Implement approved human passwordless entry points and complete assurance, sessions and membership safeguards | **ADR 0032 approves Google, GitHub and verified-email one-time-link/code login; all password login/fallback prohibited.** Remaining: secure provider/broker protocol, trusted subject binding, email challenge delivery/throttling, account linking, strong Owner step-up, sessions and membership/invite schema | [ADR 0032](../decisions/0032-passwordless-human-sign-in.md), [identity](../architecture/identity-authorization.md) |
 | OQ-005 | P0 | Secrets storage and remote worker identity? | Secret-manager references, ephemeral worker identity, revocation, sandbox boundary | [Secrets](../operations/secrets.md) |
 | OQ-008 | P0 | Provider-valid subscription CLI vs API usage on unattended third-party remote workers? | Check official current terms, owner entitlement, secure CLI/OAuth delegation, no silent paid fallback | [CLI/API entitlement contract](../architecture/model-access-entitlement-contract.md), [dated official evidence](../reference/provider-cli-api-policy-evidence.md) |
 | OQ-010 | P1 | Which first-provider **regions, images, sandbox settings and cost guarantees** are viable? | First adapter priorities **Approved ADR 0018**: Cloud Run Jobs, Hetzner Cloud and user remote VPS; validate each one's actual cost bounds, isolation and billing | [ADR 0018](../decisions/0018-initial-worker-adapters.md), [ADR 0007](../decisions/0007-remote-worker-hosting.md) |
@@ -38,6 +38,10 @@ Each question should ultimately have an owner decision, dated rationale, alterna
 ## Closed atomic admission decision
 
 - **OQ-003 closed 2026-10-23:** [ADR 0031](../decisions/0031-atomic-task-budget-admission.md) approves a short SQLite `BEGIN IMMEDIATE` transaction that rechecks ready executable task/dependencies and authorized budget, atomically creates the same-task attempt, fenced lease, reservation, audit and durable outbox; paid dispatch occurs **only after commit**. Exact schema, unknown billing/driver behavior, concurrency tuning and live verification remain open implementation work.
+
+## Approved human login methods — OQ-004 partially resolved
+
+[ADR 0032](../decisions/0032-passwordless-human-sign-in.md) approves **Google, GitHub and verified-email passwordless link/code**, strictly **no passwords**. The vendor selection and allowed credential types are closed; security-sensitive identity binding, OIDC-compatible GitHub identity verification, strong Owner step-up and session implementation are **still OQ-004/P0** until separately specified and tested. Do not close the entire OQ-004 engineering gate.
 
 ## Recently approved remote integration architecture — no longer open
 
