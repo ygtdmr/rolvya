@@ -10,7 +10,7 @@ tags: [identity, rbac, authorization, approvals, security]
 
 ## Status and scope
 
-**Proposed security architecture, not deployed authentication.** The user approved a **hard human approval gate for budget increases**, a fixed DAG, remote workers only and remote Git providers only. **ADR 0024 approved three project-scoped human roles: Owner, Editor and Viewer.** **OIDC-first sign-in and passkey-capable providers are Approved ADR 0025; secure recovery is Approved ADR 0026; low-friction risk-based web session management is Approved ADR 0027.** Specific IdP vendors, assurance mapping, secure token/renewal implementation, concrete tenancy topology and remaining fine-grained authorization rules are still unselected. Rust is the approved backend; SQLite is authoritative state. The implementation **must not infer authority** from possession of a task lease, a webhook, an LLM message, an API callback or UI notification acknowledgement.
+**Proposed security architecture, not deployed authentication.** The user approved a **hard human approval gate for budget increases**, a fixed DAG, remote workers only and remote Git providers only. **ADR 0024 approved three project-scoped human roles: Owner, Editor and Viewer.** **OIDC-first sign-in and passkey-capable providers are Approved ADR 0025; secure recovery is Approved ADR 0026; low-friction risk-based web session management is Approved ADR 0027.** **Google, GitHub and verified-email passwordless login (one-time link/code) are approved in ADR 0032. No password login, password store or password recovery is permitted.** Trusted broker/provider protocol, email delivery, assurance mapping, secure token/renewal implementation, concrete tenancy topology and remaining fine-grained authorization rules are still unselected. Rust is the approved backend; SQLite is authoritative state. The implementation **must not infer authority** from possession of a task lease, a webhook, an LLM message, an API callback or UI notification acknowledgement.
 
 ## Approved human roles and separate system principals
 
@@ -95,3 +95,7 @@ Exact OIDC provider selection, identity/session **implementation and assurance m
 The [human approval workflow](approval-workflow.md) defines proposed request/decision/application state separation; a displayed approval request never itself authorizes billable admission.
 
 Related: [security](security.md), [GitHub App design](github-app-integration-design.md), [budget reconciliation](budget-reservation-reconciliation.md), [API contracts](api-contracts.md), [open questions](../project/open-questions.md).
+
+## Approved passwordless human sign-in (ADR 0032)
+
+v0.1 offers Google, GitHub and single-use verified-email link/code, with no user password login or password fallback. Verify issuer/subject and identity claims (GitHub OAuth alone is not automatically OIDC), prevent auto-merging accounts based on email alone, atomically consume email challenges, apply abuse controls, and preserve high-risk Owner/passkey assurance gates: **mailbox verification by itself cannot authorize budget increases or ownership changes**. No sign-in integration or email provider has been deployed. See [ADR 0032](../decisions/0032-passwordless-human-sign-in.md).
