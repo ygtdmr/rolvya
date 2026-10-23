@@ -99,3 +99,7 @@ Related: [security](security.md), [GitHub App design](github-app-integration-des
 ## Approved passwordless human sign-in (ADR 0032)
 
 v0.1 offers Google, GitHub and single-use verified-email link/code, with no user password login or password fallback. Verify issuer/subject and identity claims (GitHub OAuth alone is not automatically OIDC), prevent auto-merging accounts based on email alone, atomically consume email challenges, apply abuse controls, and preserve high-risk Owner/passkey assurance gates: **mailbox verification by itself cannot authorize budget increases or ownership changes**. No sign-in integration or email provider has been deployed. See [ADR 0032](../decisions/0032-passwordless-human-sign-in.md).
+
+### Approved default email sign-in experience (2026-10-23)
+
+Magic Link is the default passwordless email entry option; one-time email OTP is an equally supported alternative in that flow. Both require short-lived atomic one-use challenges, browser/session binding protections, enumeration resistance, rate limiting and safe account linking. Neither method alone substitutes for strong Owner reauthentication. See [ADR 0032](../decisions/0032-passwordless-human-sign-in.md). This is an approved UX policy, not deployed authentication.
