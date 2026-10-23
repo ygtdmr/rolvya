@@ -107,3 +107,7 @@ Build deterministic fake billing providers, randomize completion/invoice orderin
 Owner policy for in-flight handling is **Approved**. Still requiring design/approval: currency conversion, liability/hold parameters, provider-specific caps/cancellation timing and refund mechanics. Implementation choices: SQLite transaction locking, exact schema, billing driver, stale reservation expiry, provider ledger reconciliation latency and alert thresholds.
 
 Related: [approved budget ADR](../decisions/0002-hard-budget-approval.md), [SQLite blueprint](sqlite-schema-draft.md), [scheduler](scheduler.md), [failure recovery](failure-recovery.md), [worker provider evaluation](../operations/worker-provider-evaluation.md), [user flows](../product/user-flows.md), [open questions](../project/open-questions.md).
+
+## Approved admission transaction (ADR 0031)
+
+The previously proposed serialized SQLite admission pattern is now **Owner-approved**: `BEGIN IMMEDIATE`, revalidate executable leaf readiness, authoritative financial headroom including ambiguous spend, and atomically store attempt, lease/fence, budget reservation, audit and durable dispatch outbox, then **commit before launching paid work**. External provider requests do not belong inside the transaction. Duplicate and uncertain provider outcomes still require reconciliation; do not claim exactly-once provider billing. Exact schemas, provider caps and integration remain unimplemented. See [ADR 0031](../decisions/0031-atomic-task-budget-admission.md).
