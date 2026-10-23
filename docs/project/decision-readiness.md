@@ -34,9 +34,9 @@ Track which architectural decisions are approved and which are still proposals. 
 | GitHub App configuration | **Approved ADR 0008** | Finalize App permissions, key storage, webhook validation, branch protections and human merge authorization |
 | In-flight budget implementation details | **Approved policy ADR 0010**; [budget design](../architecture/budget-reservation-reconciliation.md) | Validate provider-specific caps, cancellation timing, unknown bills, artifact preservation; policy choice itself is closed |
 | Human and worker authorization | [Identity design](../architecture/identity-authorization.md) | Test owner approval, actor roles, project separation and audit |
-| SQLite operational configuration | [SQLite operations](../operations/sqlite-operations.md) | Test transaction locking, WAL option, backup consistency and recovery |
+| SQLite operational configuration | **Approved [ADR 0014](../decisions/0014-sqlite-initial-configuration.md): WAL, maximum four SQLx pool connections, five-second SQLite busy timeout** | Test atomic task/lease/budget transactions, locking, durability/checkpoint choices, backup consistency and recovery; approved defaults are not performance benchmarks |
 
-Approved: Rust, SQLite, HTTPS worker control, GitHub App authentication and multi-provider infrastructure (plus fixed DAG/group/budget policies). **Still open:** specific crates, wire details, security roles/permissions, initial providers/regions and live deployment. Approved design does not imply implementation.
+Approved: Rust, SQLite, HTTPS worker control, GitHub App authentication and multi-provider infrastructure (plus fixed DAG/group/budget policies). **Still open:** remaining crate versions, wire details, identity-provider/worker permissions, initial provider regions and measured cost limits, and live deployment. **Axum (ADR 0012), SQLx (ADR 0013) and the initial SQLite settings (ADR 0014) are already Approved.** Approved design does not imply implementation.
 
 ## Proposed implementation sequence
 
