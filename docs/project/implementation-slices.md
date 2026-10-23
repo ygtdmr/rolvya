@@ -20,7 +20,7 @@ The [decision readiness checklist](decision-readiness.md) separates approved arc
 
 ## Mandatory foundations before implementation
 
-1. **Rust-only backend and SQLite database are approved** by [ADR 0004](../decisions/0004-control-plane-language.md) and [ADR 0005](../decisions/0005-authoritative-database.md). Resolve remaining worker communication and initial hosting choices using [proposed ADRs 0006–0008](../decisions/README.md) and the [open-decision register](open-questions.md).
+1. **Rust-only backend and SQLite database are approved** by [ADR 0004](../decisions/0004-control-plane-language.md) and [ADR 0005](../decisions/0005-authoritative-database.md). Worker-initiated HTTPS is already approved in [ADR 0006](../decisions/0006-worker-communication.md) and GitHub App authentication in [ADR 0008](../decisions/0008-github-authentication.md). Initial provider categories and priorities are approved in [ADRs 0017–0018](../decisions/README.md); concrete provider regions, budget limits and identity/wire implementation remain open in the [decision register](open-questions.md).
 2. **Implement Approved ADR 0010**: previously admitted workers can continue only within enforceably bounded pre-reserved exposure, otherwise stop-on-risk; assess actual provider-side bill limits and delayed invoices. Approved invariant: **no percentage overrun, explicit human approval for higher ceiling**.
 3. Approve security/identity and Git merge authority and define tenant isolation.
 4. Establish a sandboxed remote development/test environment using fake provider adapters first; no user's local computer worker or repository access.
@@ -86,6 +86,6 @@ Do not advance from fake providers to paid live cloud/model testing without expl
 
 ## Known gaps
 
-Formal timeline, remaining owner choices, Rust framework/crates, SQLite configuration/schema details, tenant model, performance SLOs, exact API schema, retry caps, official CLI automation permissions and provider credentials remain unresolved. **Rust and SQLite choices are fixed.** Track them in [open questions](open-questions.md).
+Formal timeline, remaining owner choices, Remaining framework dependency versions, SQLite schema and unapproved durability/checkpoint tuning, tenant model, performance SLOs, exact API schema, provider-specific retries/timeouts, official CLI automation permissions and provider credentials remain unresolved. **Axum, SQLx and the initial WAL/pool/busy-timeout settings are already Approved** (ADRs 0012–0014); do not reopen these. **Rust and SQLite choices are fixed.** Track them in [open questions](open-questions.md).
 
 Related: [documentation index](../README.md), [project status](status.md), [open questions](open-questions.md), [architecture overview](../architecture/overview.md), [testing](../development/testing.md).
