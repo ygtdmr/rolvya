@@ -50,7 +50,7 @@ Each question should ultimately have an owner decision, dated rationale, alterna
 ## Approved technology choices — no longer open
 
 - **OQ-001 closed 2026-10-21:** Rust is the **only** Rolvya backend language ([ADR 0004 — Approved](../decisions/0004-control-plane-language.md)). Rust frameworks/crates and performance benchmarks remain open implementation details.
-- **OQ-002 closed 2026-10-21:** SQLite is the **only** authoritative database engine ([ADR 0005 — Approved](../decisions/0005-authoritative-database.md)). SQLite transaction strategy, WAL configuration, schema, locking, backups and RPO/RTO are not yet approved.
+- **OQ-002 closed 2026-10-21:** SQLite is the **only** authoritative database engine ([ADR 0005 — Approved](../decisions/0005-authoritative-database.md)). **ADR 0014 already approves initial WAL, maximum four pool connections and a five-second SQLite busy timeout; ADR 0013 approves SQLx.** Atomic lease/budget transactions, exact schema, `synchronous`/checkpoint policy, backup schedules and RPO/RTO remain unimplemented or unresolved.
 
 ## Candidate decision packages (not approved)
 
