@@ -234,6 +234,20 @@ These are **future requirements, not implemented or executed tests**. Exact prov
 
 These are **specified future tests, not implemented or executed**. The **4-total-attempt storage retry default**, **5/10/20-second base delays**, **small bounded jitter**, and **priority of a longer provider-mandated wait** are Approved. Exact jitter magnitude/distribution, provider cool-down parsing, operation granularity, error mapping and scheduling implementation remain Proposed. See [storage retry design](../architecture/storage-migration-state-machine.md) and [ADR 0030](../decisions/0030-project-activity-audit-log.md).
 
+## Passwordless human sign-in — specified future tests
+
+| Test ID | Scenario | Expected result | Requirement |
+| --- | --- | --- | --- |
+| AC-113 | User authenticates using trusted Google identity | Validated provider identity is bound to stable issuer/subject and project role rules; spoofed or unverified claims are denied | ADR 0032 |
+| AC-114 | User authenticates using GitHub identity | Securely verified GitHub identity; an OAuth access token alone is not mistakenly treated as OIDC proof; no automatic project role escalation | ADR 0032 |
+| AC-115 | User enters email for a one-time link or code | Successful verified, single-use unexpired challenge grants only permitted ordinary sign-in; rate limits and enumeration defenses apply | ADR 0032 |
+| AC-116 | Expired, replayed, concurrent, tampered or brute-forced email challenge is submitted | Deny authentication; atomic one-time consumption, token confidentiality and safe redirect hold | ADR 0032 |
+| AC-117 | A user or API attempts password registration/login/reset or an implicit password fallback | Deny; no password credential store, UI field or password reset flow exists in Rolvya | ADR 0032 |
+| AC-118 | User tries to merge Google, GitHub and email identities using a matching displayed email only | Deny unsafe auto-link; require verified control and durable issuer/subject bindings for both sides | ADR 0032 |
+| AC-119 | Email-only authenticated Owner requests a budget-ceiling increase, transfer or high-risk recovery without separately verified strong step-up | Deny until approved strong assurance is satisfied; email verification never bypasses Owner safeguards | ADRs 0025–0029, 0032 |
+
+**These acceptance scenarios are specifications only; no authentication implementation or test has been executed.**
+
 ## Evidence rules
 
 Each implementation claim needs source commit, repeatable test command, environment/version, result and known limitations. A proposed acceptance test is not a completed test. Automated checks should run in CI before merging behavior changes; security-critical behavior must include negative tests.
