@@ -82,6 +82,7 @@ See the [historical conversation audit](../project/historical-decision-audit.md)
 - [ADR 0029 — Owner-only invitations and protected ownership changes](0029-owner-controlled-project-invitations.md).
 - [ADR 0030 — Protected project activity and audit history](0030-project-activity-audit-log.md).
 - [ADR 0031 — Atomic task admission and budget reservation](0031-atomic-task-budget-admission.md).
+- [ADR 0032 — Passwordless Google/GitHub/verified-email sign-in](0032-passwordless-human-sign-in.md).
 
 These are **Approved designs, not claims of implemented or production-verified software**. Detailed region/cost/adapter validation remains separate.
 
