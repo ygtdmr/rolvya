@@ -89,7 +89,7 @@ BEGIN IMMEDIATE;
 COMMIT;
 ```
 
-Do not execute the sketch verbatim; it is deliberately incomplete. `BEGIN IMMEDIATE` is a **candidate mechanism** for early writer reservation under SQLite; alternative correct transaction structure can be considered without replacing SQLite. Critically, validate the budget condition **inside** the write transaction rather than calculating it beforehand. Dispatch to cloud providers happens **after** commit via a durable outbox reader; the outbox and provider idempotency key permit crash recovery.
+Do not execute the sketch verbatim; it is deliberately incomplete. `BEGIN IMMEDIATE` is the **Owner-approved admission mechanism** in [ADR 0031](../decisions/0031-atomic-task-budget-admission.md). The precise physical SQL schema remains Proposed. Critically, validate the budget condition **inside** the write transaction rather than calculating it beforehand. Dispatch to cloud providers happens **after** commit via a durable outbox reader; the outbox and provider idempotency key permit crash recovery.
 
 ## Concurrency and WAL design (not yet approved configuration)
 
@@ -151,3 +151,7 @@ Rust edition/toolchain, crate dependencies and async runtime; SQLite journal/syn
 - [SQLite backup API](https://www.sqlite.org/backup.html)
 
 Related: [approved Rust ADR](../decisions/0004-control-plane-language.md), [approved SQLite ADR](../decisions/0005-authoritative-database.md), [schema/model](data-model.md), [scheduler](scheduler.md), [worker protocol](worker-protocol.md), [budget](budget-costs.md), [operations](../operations/deployment.md).
+
+## Approved transaction admission boundary (ADR 0031)
+
+The Owner approved one **short `BEGIN IMMEDIATE` SQLite write transaction** to recheck active immutable plan and ready executable task/dependencies, explicit Owner-approved project headroom and known/uncertain exposure, and atomically persist same-task attempt + fenced lease epoch + budget hold + audit + durable outbox intent. **Commit before any billable remote provider call.** Rollback must leave no launch intent. Recover stale/duplicate dispatch with stable idempotency and provider-cost reconciliation. This is **Approved policy**, but schema, migration, implementation and passing tests are still absent. See [ADR 0031](../decisions/0031-atomic-task-budget-admission.md).
