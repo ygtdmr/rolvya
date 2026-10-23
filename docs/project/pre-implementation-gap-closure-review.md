@@ -21,12 +21,16 @@ All rows below are **documentation/decision or future engineering tasks**. No ru
 - Reconciled [implementation slices](implementation-slices.md): removed stale reference to worker HTTPS and GitHub App as Proposed choices.
 - The active licensing policy is **MIT**. Full Git-host retention, third-party forks/caches and any previously granted historical license rights cannot be guaranteed erased merely by a force-push.
 
+## Recently approved v0.1 product scope
+
+On 2026-10-23 the Owner approved the proposed **v0.1 first usable release** boundaries: complete up-front DAG planning; parallel and dependency-safe remote agents; project configuration; model/effort selection; hard budget tracking/approval; remote GitHub integration; verified outputs; basic web panel; and necessary secure runtime/operations. Native mobile, conversational voice assistant and optional advanced integrations remain deferred. Exact technology/provider choices, legal access checks, costs and all executable implementation are **not** approved merely by this product-scope approval.
+
 ## Gap closure queue
 
 | Order | Work item | Current status | Closure evidence | Source |
 | --- | --- | --- | --- | --- |
 | 0 | Ensure document consistency with approved ADRs and current MIT release policy | **Partially reconciled** | All tracked Markdown audited against approved ADRs, internal links checked and discrepancies resolved | [Decisions](../decisions/README.md), [status](status.md) |
-| 1 | Confirm public MVP boundaries vs technical fake-only demo | **Open — Owner product approval required** | Approved first-release matrix, exclusions, milestone tests and acceptance IDs | [Product scope](../product/scope.md) |
+| 1 | Confirm public MVP boundaries vs technical fake-only demo | **Approved 2026-10-23 — implementation pending** | v0.1 first-release feature matrix and explicit exclusions recorded; test mappings still to be verified | [Product scope](../product/scope.md) |
 | 2 | Atomic SQLite lease, budget reservation, fence and durable outbox design | **P0 Open — implementation contract and tests needed** | Approved transaction algorithm, fault matrix, no unauthorized billable dispatch | [OQ-003](open-questions.md), [backend](../architecture/rust-sqlite-backend.md) |
 | 3 | Human identity provider and project-scoped authorization implementation | **P0 Open — provider/security choice required** | IdP selection, session security, role matrix, denied cross-tenant access and revocation tests | [OQ-004](open-questions.md), [identity](../architecture/identity-authorization.md) |
 | 4 | Worker identity, remote secrets and isolation | **P0 Open — contract and threat model needed** | Trust boundary, signed/short-lived tokens, secret lease/revocation, isolation negative tests | [OQ-005](open-questions.md), [secrets](../operations/secrets.md) |
