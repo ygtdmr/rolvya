@@ -1,8 +1,8 @@
 ---
 title: Product Scope and Non-Goals
-status: Proposed
+status: Approved
 category: product
-last-reviewed: 2026-10-21
+last-reviewed: 2026-10-23
 tags: [scope, mvp, non-goals, phases]
 ---
 
@@ -10,7 +10,7 @@ tags: [scope, mvp, non-goals, phases]
 
 ## Status and intent
 
-**Proposed first-release scope**, not yet a human-approved product roadmap. Approved constraints remain binding regardless of which features ship first: complete immutable DAG planned up front, **non-executable group parents and executable leaves**, separate hierarchy/dependencies, dependent tasks wait, remote execution only, hard owner budget gate and **bounded-or-stop in-flight worker spending**, Rust backend only, SQLite database only, **HTTPS remote worker communication**, **GitHub App** for GitHub and **multi-provider remote worker adapter architecture**. Refer to [ADRs](../decisions/README.md).
+**Owner-approved Rolvya v0.1 MVP feature boundary (2026-10-23)**. This approves the capabilities below for the first usable release, **not** exact UI/provider implementations, cloud costs, milestone dates or a claim that code exists. Approved constraints remain binding regardless of which features ship first: complete immutable DAG planned up front, **non-executable group parents and executable leaves**, separate hierarchy/dependencies, dependent tasks wait, remote execution only, hard owner budget gate and **bounded-or-stop in-flight worker spending**, Rust backend only, SQLite database only, **HTTPS remote worker communication**, **GitHub App** for GitHub and **multi-provider remote worker adapter architecture**. Refer to [ADRs](../decisions/README.md).
 
 ## Candidate initial vertical slice
 
@@ -26,9 +26,9 @@ The first technical demonstration should prove **correctness of orchestration** 
 
 No live cloud, API key, subscription session or production GitHub App needs to be active in this *synthetic slice*. Its success does not by itself satisfy a releasable MVP.
 
-## Candidate public MVP capabilities (subject to selection)
+## Approved Rolvya v0.1 public MVP capabilities
 
-| Capability | Proposed MVP outcome | Dependency / open choice |
+| Capability | Approved v0.1 outcome | Implementation dependency / still-open choice |
 | --- | --- | --- |
 | Create and configure project | Register user goal, remote Git repo, resource constraints and budget | Identity UX, supported provider policy |
 | Up-front planning | Full versioned DAG and task hierarchy; per-task model+effort | Planner model and access mode |
@@ -40,7 +40,7 @@ No live cloud, API key, subscription session or production GitHub App needs to b
 | Owner panel | Project DAG, blockers, worker state, artifacts, charges and alerts | Frontend framework, identity, accessibility |
 | Operations | Reproducible remote deployment, backups, audit and recovery | SQLite WAL/backup decision, secrets and release policy |
 
-Which of these are *required for a public MVP* versus a later release is an **Open product decision**; no date or feature completeness is asserted.
+**All nine capabilities above are in the approved v0.1 feature boundary.** Specifically mandatory: goal/project configuration, complete up-front frozen DAG including hierarchy and per-task model/effort, dependency-aware concurrent real remote workers, secure permitted model execution, remote GitHub App reviewable outputs, independent result verification, hard budget accounting and explicit Owner approval, and a basic web panel. Minimal recovery, secure human/worker identity, audit and backup safeguards are release-critical supporting requirements. The approved multi-provider architecture does not imply every provider must be fully implemented at initial launch; actual provider release subset is a separately governed rollout decision. No date, working implementation or live provider authorization is asserted.
 
 ## Scope explicitly excluded by prior approval
 
@@ -51,13 +51,18 @@ Which of these are *required for a public MVP* versus a later release is an **Op
 - A non-Rust Rolvya backend or non-SQLite authoritative database.
 - Describing diagrams or draft schema as tested production services.
 
+## Explicitly deferred beyond the v0.1 MVP
+
+- Native mobile client, voice/Jarvis-style assistant, and optional advanced integrations are **not required for v0.1**. They would need separate owner-approved scope, security and schedule.
+- Expanded provider catalog, advanced dashboards and deeper nonessential customization can follow after the first usable secure release; do not silently downgrade approved v0.1 core functionality.
+
 ## Potential later features (not commitments)
 
 Multiple remote Git providers including self-hosted, broader cloud adapter coverage, team roles and enterprise auth, richer graph exploration, provider pricing dashboards, advanced fairness/scheduling, automatic source conflict analysis, optional long-term result reuse and expanded observability integrations. Their inclusion requires a separate product decision, acceptance criteria and development plan.
 
 ## Future client possibilities — not approved product scope
 
-A possible **mobile client** and a possible Jarvis-like **voice conversational assistant** were discussed only as ideas, not commitments. They have **no approved release date, development work package, budget, MVP requirement or implementation authority**. Neither is a prerequisite for secure web sessions or Rolvya's core remote orchestrator. If later requested and separately approved, evaluate client-specific authentication, device secret storage, voice-initiated action authorization, consent, threat model and session continuity without relaxing Owner budget/permission step-up requirements. The current baseline is [web risk-based sessions](../decisions/0027-risk-based-session-management.md).
+A possible **mobile client** and a possible Jarvis-like **voice conversational assistant** were discussed only as ideas, not commitments, and are explicitly **out of scope for approved v0.1**. They have **no approved release date, development work package, budget, MVP requirement or implementation authority**. Neither is a prerequisite for secure web sessions or Rolvya's core remote orchestrator. If later requested and separately approved, evaluate client-specific authentication, device secret storage, voice-initiated action authorization, consent, threat model and session continuity without relaxing Owner budget/permission step-up requirements. The current baseline is [web risk-based sessions](../decisions/0027-risk-based-session-management.md).
 
 ## Nonfunctional acceptance dimensions
 
@@ -74,6 +79,6 @@ Changes to a draft plan can be proposed/validated before activation. Once activa
 
 ## Required approval and traceability
 
-Before release planning, owner should approve MVP feature boundaries, authentication/hosting/remote Git baseline, provider-specific limits for the approved in-flight budget behavior, review/merge UX and licensing assumptions. Each feature maps to [requirements](requirements.md), [acceptance criteria](acceptance-criteria.md), [implementation slices](../project/implementation-slices.md) and [project status](../project/status.md).
+**The v0.1 MVP feature boundary is Owner-approved.** Before implementation and release, remaining authentication/hosting/remote Git details, provider-specific limits for the approved in-flight budget behavior, review/merge UX and third-party licensing/operational assumptions still require appropriate approval and evidence. Each feature maps to [requirements](requirements.md), [acceptance criteria](acceptance-criteria.md), [implementation slices](../project/implementation-slices.md) and [project status](../project/status.md).
 
 Related: [vision](vision.md), [user journeys](user-flows.md), [agent roles](../architecture/agents.md), [decision readiness](../project/decision-readiness.md).
