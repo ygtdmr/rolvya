@@ -92,6 +92,8 @@ These are **proposed architectural specifications**, not verified implementation
 
 The paths above are a **planned inventory**, not links to files that already exist. Create individual documents as their requirements are verified. Avoid empty placeholder documents masquerading as completed specifications.
 
+- [Pre-implementation gap closure and full-project review](project/pre-implementation-gap-closure-review.md) — Live P0/P1 decision queue and end-to-end review checklist.
+
 ## Engineering and agent execution specifications
 
 - [Engineering standards](development/standards.md)
