@@ -135,3 +135,7 @@ The Owner approved a **5 → 10 → 20 second base delay** before the three allo
 ## Current project source license
 
 The authoritative [`LICENSE`](../../LICENSE) is the **MIT License**. Documentation and source-release guidance must use SPDX identifier `MIT` and retain its copyright/permission notice in qualifying distributions. Third-party dependency notices and independent trademark/brand policy remain separate. This repository is still in the specification phase; no product implementation or release is verified by this license change.
+
+## Gap closure before full architecture review (2026-10-23)
+
+The Owner asked to resolve remaining gaps before a complete project walkthrough. The [gap closure and full review register](pre-implementation-gap-closure-review.md) now separates already approved decisions from unresolved P0/P1 engineering/security/product gates and outlines an eleven-part review sequence. This checkpoint corrected stale SQLite WAL/pool/busy settings and HTTPS/GitHub App approval-status references. **No new architecture policy was silently approved and no executable Rolvya code or CI tests were created.**
