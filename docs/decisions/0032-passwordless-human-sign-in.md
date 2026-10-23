@@ -7,6 +7,13 @@ Date: 2026-10-23
 
 The Rolvya v0.1 human login offers **Google sign-in, GitHub sign-in, and verified-email passwordless sign-in**. **No Rolvya password registration, password field, password login, or password-based fallback/recovery** is permitted. Users may authenticate through a one-time email verification link or one-time email code. Trusted OIDC providers, passkey-capable authentication and strong reauthentication requirements from ADRs 0025–0029 remain binding. This is an approval of supported human methods, **not** permission to skip security checks.
 
+## Approved email sign-in presentation (2026-10-23)
+
+- **Default: Magic Link.** After entering an email address, the user receives a short-lived, one-use login link. Link verification creates an ordinary authenticated session only after all challenge and session checks succeed.
+- **Alternative: email OTP.** The same email entry flow lets the user choose a one-time verification code instead. OTP security, one-time consumption, expiry, anti-abuse and session restrictions are equivalent; no password field or fallback exists.
+- The login UI should avoid confirming whether an email address is already registered. A clicked link on a different browser/device must be treated as an account-takeover risk and require appropriate secure challenge/session binding rather than automatically authenticating an unrelated session.
+- This choice does **not** relax required recent strong Owner step-up, account linking rules, or trusted provider controls.
+
 ## Security and identity invariants
 
 - Google/GitHub authentication must verify trusted issuer and subject, strict redirect and callback integrity, PKCE/state/nonce as applicable, token signature/audience/time, and actual verified email evidence; a GitHub OAuth access token alone is not proof of a validated OIDC identity. Provider protocol details and any secure identity-broker integration remain engineering choices, and must be checked against provider capabilities before deployment.
@@ -18,7 +25,7 @@ The Rolvya v0.1 human login offers **Google sign-in, GitHub sign-in, and verifie
 
 ## Open implementation questions
 
-The specific email sending service, link-versus-code primary UX (both allowed), code entropy/expiration/throttle constants, anti-abuse measures, secure login/account-linking broker, provider credential scope and reliable assurance mapping are **not yet selected**. Google/GitHub availability, current OAuth/OIDC and passkey capabilities require vendor-compliant verification. Exact Owner step-up UX must be proved, not inferred from email verification.
+**The Owner approved Magic Link as the default email sign-in experience, with one-time email code (OTP) as an alternative.** The specific email sending service, challenge entropy/expiration/throttle constants, anti-abuse measures, secure login/account-linking broker, provider credential scope and reliable assurance mapping are **not yet selected**. Google/GitHub availability, current OAuth/OIDC and passkey capabilities require vendor-compliant verification. Exact Owner step-up UX must be proved, not inferred from email verification.
 
 ## Future acceptance tests (specified, not executed)
 
