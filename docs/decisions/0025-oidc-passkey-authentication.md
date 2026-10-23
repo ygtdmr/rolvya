@@ -17,7 +17,7 @@ Rolvya needs secure human sign-in for the approved Owner, Editor and Viewer role
 - Prefer a secure server-managed session with Secure, HttpOnly, SameSite cookies; protect against CSRF, session fixation, token leakage and replay. Rotate/invalidate sessions appropriately, enforce idle and absolute expiration, and provide logout/revocation behavior.
 - Require recent strong reauthentication/step-up for sensitive actions such as approving a budget increase, changing critical security settings or managing access. Reject or defer high-risk changes if the required authentication assurance cannot be verified; do not assume that an ordinary OIDC token proves recent passkey authentication.
 - Maintain auditable sign-in, failed login, privileged-change and session events without exposing credentials or tokens; apply rate limiting, provider key rotation validation and secure secret storage.
-- Do not develop a Rolvya-local password store for the initial release. Recovery and account linking must not silently downgrade authentication assurance.
+- **ADR 0032 additionally approves passwordless-only human sign-in for v0.1:** Google, GitHub and verified-email one-time link/code. Do not develop a Rolvya-local password store, password form or password-based recovery/fallback. Email-only proof cannot substitute for independently verified strong Owner step-up. Recovery and account linking must not silently downgrade authentication assurance.
 - Deployment must use HTTPS and trusted origin/redirect configuration. Preserve support for self-hosted instances via compatible OIDC providers.
 
 ## Implementation status and boundaries
@@ -29,3 +29,7 @@ This reduces password-handling burden and supports phishing-resistant sign-in, b
 ## Related decisions
 - [ADR 0024 — Project human roles](0024-project-human-roles.md)
 - [Identity and authorization architecture](../architecture/identity-authorization.md)
+
+## Subsequent Owner-approved methods (2026-10-23)
+
+[ADR 0032](0032-passwordless-human-sign-in.md) specifies Google, GitHub, and verified-email one-time link/code, with **no password login or recovery**. GitHub's consumer login integration needs validated identity provenance and cannot assume a GitHub OAuth token is itself an OIDC ID token. The trusted OIDC/broker integration and high-assurance human step-up implementation remain unverified.
