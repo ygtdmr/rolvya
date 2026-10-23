@@ -20,7 +20,6 @@ Each question should ultimately have an owner decision, dated rationale, alterna
 
 | ID | Priority | Question | Candidate directions / decision criteria | Related specification |
 | --- | --- | --- | --- | --- |
-| OQ-003 | P0 | SQLite-atomic task lease + budget reservation transaction? | Serialized SQLite write transaction, idempotent outbox, fencing epochs, delayed charges | [Scheduler](../architecture/scheduler.md) |
 | OQ-004 | P0 | Which concrete OIDC providers, assurance mapping, session implementation, membership/invite schema and fine-grained permissions? | **ADRs 0024–0029 already approve roles, OIDC/passkeys, account recovery, secure sessions, token safeguards, and Owner-only expiring single-use OIDC-verified invitations + protected ownership changes.** Remaining details: IdP integration, invite delivery, recipient identity binding, ownership transfer technical timeout/atomic schema and UI | [Identity](../architecture/identity-authorization.md), [ADR 0029](../decisions/0029-owner-controlled-project-invitations.md) |
 | OQ-005 | P0 | Secrets storage and remote worker identity? | Secret-manager references, ephemeral worker identity, revocation, sandbox boundary | [Secrets](../operations/secrets.md) |
 | OQ-008 | P0 | Provider-valid subscription CLI vs API usage on unattended third-party remote workers? | Check official current terms, owner entitlement, secure CLI/OAuth delegation, no silent paid fallback | [CLI/API entitlement contract](../architecture/model-access-entitlement-contract.md), [dated official evidence](../reference/provider-cli-api-policy-evidence.md) |
@@ -35,6 +34,10 @@ Each question should ultimately have an owner decision, dated rationale, alterna
 
 | OQ-019 | P2 | Which exact accepted logo source file/SVG, final no-gold HEX values and brand-use policy are authoritative? | Obtain original approved asset and provenance; avoid redrawing, superseded brass and trademark assumptions | [Brand history](../product/brand-history-license-governance.md) |
 | OQ-020 | P1 | Which *numeric* priority/aging weights, fairness algorithm, provider fallbacks and measured backpressure thresholds are safe? | [ADR 0022](../decisions/0022-dynamic-worker-concurrency.md) **Approved** dynamic concurrency; [ADR 0023](../decisions/0023-cross-project-scheduling-fairness.md) **Approved** cross-project fair sharing and aging. Only algorithm details, fairness parameters and thresholds are open | [Selection policy](../architecture/scheduler-selection-policy.md) |
+
+## Closed atomic admission decision
+
+- **OQ-003 closed 2026-10-23:** [ADR 0031](../decisions/0031-atomic-task-budget-admission.md) approves a short SQLite `BEGIN IMMEDIATE` transaction that rechecks ready executable task/dependencies and authorized budget, atomically creates the same-task attempt, fenced lease, reservation, audit and durable outbox; paid dispatch occurs **only after commit**. Exact schema, unknown billing/driver behavior, concurrency tuning and live verification remain open implementation work.
 
 ## Recently approved remote integration architecture — no longer open
 
@@ -56,7 +59,7 @@ Each question should ultimately have an owner decision, dated rationale, alterna
 
 | Open question | Proposed ADR | Evidence required before owner approval |
 | --- | --- | --- |
-| OQ-003 | [Approved ADR 0005: SQLite engine](../decisions/0005-authoritative-database.md) and [backend contract](../architecture/rust-sqlite-backend.md) | Test SQLite transactional lease/reservation, WAL/busy behavior, crash replay and ledger consistency; engine choice is closed |
+| OQ-003 (closed) | [Approved ADR 0031: atomic admission](../decisions/0031-atomic-task-budget-admission.md) and [backend contract](../architecture/rust-sqlite-backend.md) | **Policy settled**; implement and test lease/reservation/outbox atomicity, WAL/busy behavior, crash replay and billing consistency |
 | OQ-010 | [ADR 0007: first provider rollout](../decisions/0007-remote-worker-hosting.md) with [Approved ADR 0011](../decisions/0011-multi-provider-worker-infrastructure.md) | Benchmark initial provider adapters on billable minimums, latency, isolation, region and four cost classes; extensibility itself is settled |
 
 The [implementation slice proposal](implementation-slices.md) explicitly blocks production coding on unresolved critical choices. ADR 0007 remains `status: Proposed` for initial provider rollout. ADR 0006 (HTTPS), ADR 0008 (GitHub App) and ADR 0011 (multi-provider) are now `status: Approved`; only their concrete contracts/enrollment and security details remain to be implemented.
