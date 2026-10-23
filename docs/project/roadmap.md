@@ -12,7 +12,7 @@ tags: [roadmap, phases, delivery, milestones]
 
 This is a **proposed software development roadmap**, not an approved date-based schedule, and **not** a runtime Rolvya task DAG. The user-approved product rule requires each *actual Rolvya project execution* to have one fully preplanned immutable task graph. Developers may refine the **future product delivery roadmap** between releases with owner approval; that does not authorize changing the graph of an already activated project.
 
-The backend is definitively Rust, authoritative DB SQLite, worker control **HTTPS**, GitHub authentication **GitHub App**, and remote worker architecture **multi-provider** (Approved ADRs 0004, 0005, 0006, 0008 and 0011). **Which concrete cloud providers ship first**, exact credentials/protocol implementation and frontend stack remain open. No implementation milestone is marked complete without evidence.
+The backend is definitively Rust, authoritative DB SQLite, worker control **HTTPS**, GitHub authentication **GitHub App**, and remote worker architecture **multi-provider** (Approved ADRs 0004, 0005, 0006, 0008 and 0011). **The v0.1 feature boundary is now Owner-approved** in [product scope](../product/scope.md). Which concrete cloud adapters ship first, exact credentials/protocol implementation and frontend stack remain open. No implementation milestone is marked complete without evidence.
 
 ## Delivery phases
 
@@ -41,7 +41,7 @@ The sequence is a *suggested dependency order*; unrelated development tasks with
 
 ## Proposed product MVP vs technical demos
 
-A **technical demo** may use fake models, synthetic repositories and stub owner identities to validate algorithms with zero cloud charges. A **publicly usable MVP** needs secure real remote worker and remote Git integrations, transparent spend controls, identity/approval UX and recovery evidence. Scope of that MVP needs explicit owner approval; see [product scope](../product/scope.md).
+A **technical demo** may use fake models, synthetic repositories and stub owner identities to validate algorithms with zero cloud charges. A **publicly usable MVP** needs secure real remote worker and remote Git integrations, transparent spend controls, identity/approval UX and recovery evidence. The **v0.1 feature boundary is now approved**; its technical implementation and per-provider release readiness still need independent evidence. See [product scope](../product/scope.md).
 
 ## Planning artifacts and agent workflow
 
@@ -49,6 +49,6 @@ For every development phase, require a scoped plan that includes task ownership,
 
 ## Remaining scheduling choices
 
-Release cadence, public MVP features, which clouds/providers ship initially, multi-user account support, production deployment target, support policy, numerical performance SLOs and milestone dates remain **Open**.
+The **public v0.1 MVP feature boundary is Approved**. Release cadence, initial cloud adapter subset/regions, production deployment target, support policy, numerical performance SLOs and milestone dates remain **Open**; multi-user roles/permissions policies already have approved ADRs, but implementation is not ready.
 
 Related: [milestones](milestones.md), [decision readiness](decision-readiness.md), [implementation slices](implementation-slices.md), [open questions](open-questions.md), [actual status](status.md).
