@@ -132,3 +132,13 @@ This is a **template, not a run report**. For every actual test include command,
 - R11: performance tests T-023 and stack boundary check T-024, with independent review and actual commit identifiers.
 
 Related: [implementation task packages](initial-implementation-task-packages.md), [testing strategy](testing.md), [SQLite operations](../operations/sqlite-operations.md), [plan activation](../architecture/plan-activation-and-versioning.md), [group policy](../architecture/parent-task-aggregation.md), [budget policy options](../architecture/inflight-cost-policy.md), [project status](../project/status.md).
+
+## Approved ADR 0031 admission tests (future; not executed)
+
+- **T-031:** two concurrently ready attempts claim remaining funds insufficient for both; at most one transaction commits and creates a dispatch outbox entry.
+- **T-032:** crash/rollback before commit leaves no authoritative attempt, lease, reserved funds, audit admission or launch outbox; billable dispatch is forbidden.
+- **T-033:** crash immediately after commit but before dispatch retains one reconcilable outbox intent; replay fences stale delivery and reconciles provider charges.
+- **T-034:** incomplete dependencies, non-executable group, revoked authorization, invalid budget or uncertain unbounded exposure prevent admission without paid side effects.
+- **T-035:** SQLite WAL + four-connection pool + five-second busy timeout concurrent simulation preserves single-writer budget invariants, with bounded busy error handling.
+
+These test cases are **specified, not implemented or run**. See [ADR 0031](../decisions/0031-atomic-task-budget-admission.md).
