@@ -143,3 +143,7 @@ The Owner asked to resolve remaining gaps before a complete project walkthrough.
 ## Owner-approved v0.1 product feature boundary (2026-10-23)
 
 The Owner approved the proposed first usable v0.1 scope: up-front immutable DAG planning and agent model/effort assignment; dependency-aware parallel remote workers; secure authorized model execution; GitHub App-backed remote Git and verified outputs; hard budget tracking with explicit Owner gates; project configuration; basic web panel; and essential authentication, audit and recovery safeguards. Mobile, voice assistant and optional advanced integrations are deferred. See [product scope](../product/scope.md) and [gap closure register](pre-implementation-gap-closure-review.md). Provider rollout subset, exact security/worker/DB contracts and performance figures remain open. **This is a product-scope decision only; no feature has been implemented or exercised.**
+
+## Approved atomic task and budget admission (2026-10-23)
+
+The Owner approved [ADR 0031](../decisions/0031-atomic-task-budget-admission.md), closing the **OQ-003 architecture decision**. A short SQLite `BEGIN IMMEDIATE` transaction must recheck executable leaf readiness, current budget and liabilities, then atomically create a same-task attempt, lease fencing generation, financial hold, audit and durable outbox before commit. No billable provider launch may happen before commit. [T-031–T-035](../development/rust-sqlite-test-matrix.md) specify additional future cases; **no Rust implementation, migration, running tests or billable work has occurred**.
