@@ -28,7 +28,7 @@ No live cloud, API key, subscription session or production GitHub App needs to b
 
 ## Approved first-working provider sequence (2026-10-24)
 
-[ADR 0040](../decisions/0040-single-provider-first-working-version.md) approves a staged build: synthetic fake-worker tests, then an initial real **Google Cloud Run Jobs** adapter for the **first working version**, followed incrementally by **Amazon ECS on AWS Fargate** and user-enrolled remote VPS. This is **not** a downgrade of the previously approved functional v0.1 MVP requirements below: a fake-only demonstration is not a public release, and one real provider is not by itself a certification of complete secure production operations. Concrete regions, CPU/RAM, costs, provider eligibility, implementation and release signoff remain unselected.
+[ADR 0041](../decisions/0041-aws-fargate-first-real-worker.md) refines [ADR 0040](../decisions/0040-single-provider-first-working-version.md): synthetic fake-worker tests, then **AWS ECS on Fargate** as the **first real adapter** for the first working version, followed incrementally by **Google Cloud Run Jobs** and user-enrolled remote VPS. This is **not** a downgrade of the previously approved functional v0.1 MVP requirements below: a fake-only demonstration is not a public release, and one real provider is not by itself a certification of complete secure production operations. Concrete regions, CPU/RAM, costs, provider eligibility, implementation and release signoff remain unselected.
 
 ## Approved Rolvya v0.1 public MVP capabilities
 
@@ -37,7 +37,7 @@ No live cloud, API key, subscription session or production GitHub App needs to b
 | Create and configure project | Register user goal, remote Git repo, resource constraints and budget | Identity UX, supported provider policy |
 | Up-front planning | Full versioned DAG and task hierarchy; per-task model+effort | Planner model and access mode |
 | Scheduler | Ready queue, dependency checks, isolation, lease fencing | Rust + SQLite transactional implementation |
-| Remote worker | Securely launch/provision a real remote executor, support CLI/API mode where permitted | HTTPS worker transport **Approved**, multi-provider architecture **Approved**; first working real adapter Cloud Run Jobs approved ADR 0040; production configuration and additional adapter rollout still open |
+| Remote worker | Securely launch/provision a real remote executor, support CLI/API mode where permitted | HTTPS worker transport **Approved**, multi-provider architecture **Approved**; first working real adapter **AWS ECS Fargate** approved ADR 0041; production configuration and additional adapter rollout still open |
 | Remote Git | Read approved repo, publish isolated task result and obtain reviewable refs | GitHub App **Approved** for GitHub; actual permission matrix and protected branch/merge policy open |
 | Verification | Tests/artifact provenance, failure classification, same-task retries | Result schema, validator policy |
 | Budget | Approved ceiling, holds/actuals, four categories and 3 scenarios, pause/approval | In-flight policy, cost source confidence |
