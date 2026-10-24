@@ -290,3 +290,14 @@ Each implementation claim needs source commit, repeatable test command, environm
 Performance thresholds, service reliability targets, supported worker providers, concrete authentication tests, timeout policy, UX/approval presentation and which tests gate initial release.
 
 See [testing strategy](../development/testing.md), [project status](../project/status.md), and [decision register](../decisions/README.md).
+
+## Multi-account CLI and API validation (future tests)
+
+| AC-145 | Connect two distinct Claude Code accounts and one Codex account using separately authorized, provider-supported CLI sign-in | Each connection binds a distinct account/grant and private remote home; no access to a personal-computer CLI login is required | ADR 0038 |
+| AC-146 | Run separate eligible account connections in parallel on remote workers | No accidental shared CLI credential, CLI history, model access account or filesystem; respect verified per-account concurrency/quota limits | ADRs 0037, 0038 |
+| AC-147 | CLI session needs reconnect, terms cannot be verified, or subscription quota is exhausted | Block the affected connection; no silent account rotation, official client impersonation or paid API fallback | ADR 0038 |
+| AC-148 | Disconnect or replace one provider account while another is running | Access revocation and credential rotation remain isolated; no other account's grant is overwritten or leaked | ADR 0038 |
+| AC-149 | API-key access and CLI subscription account are configured for the same project | Exact selected mode and authorized connection are enforced; API billing, cloud compute, storage and transfer remain distinguishable | ADRs 0037, 0038 |
+
+**AC-145–149 are proposed future validation tests for the approved ADR 0038 architecture. No runtime or provider-permission tests have been performed.**
+
