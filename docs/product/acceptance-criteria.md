@@ -311,3 +311,22 @@ See [testing strategy](../development/testing.md), [project status](../project/s
 | AC-152 | Add Google Cloud Run Jobs or an enrolled remote VPS after the AWS Fargate-first working version | Existing DAG/task IDs, independent credentials, Rust provider interface and SQLite budget reservation remain valid; no local-device agent or silent additional spending | ADRs 0011, 0039–0041, PR-028 |
 
 **Specified for future verification, not implemented or run.**
+
+## Browser frontend single-bundle, PWA, accessibility and UX — future tests (ADR 0043)
+
+| Test ID | Scenario | Pass condition | Requirement |
+| --- | --- | --- | --- |
+| AC-153 | Activated plan has group hierarchy and dependency edges | React Flow graph is read-only for active DAG, group tree is separately keyboard-navigable; attempt/status overlay cannot rewrite immutable plan or edge hash | PR-029 |
+| AC-154 | SSE disconnect, stale event, REST authorization denial and reconnect occur | Correctly scoped authenticated reconnection/snapshot and visible staleness; unauthorized state and forged data never shown or accepted; Rust remains authority | PR-029 |
+| AC-155 | Production Vite build output inspected recursively | Exactly **one minified app JavaScript bundle** with compiled CSS, exactly one separate `sw.js`, no other .js/.mjs executable files or .css files; HTML does not inline app scripts | PR-030 |
+| AC-156 | Inspect final JS/CSS/HTML/assets and reject font/icon provider outage | No font/icon binaries, glyph/component SVG, base64/data URI or icon fonts embedded; external images/fonts only; readable system-font and text-label fallback | PR-030 |
+| AC-157 | Deployed one-JS app loads under strict CSP and after SW update/rollback | Injected stylesheet and single JS work without blanket unsafe-inline/eval; static cache hashes, MIME, HTML update and SW updates never mix incompatible assets | PR-030 |
+| AC-158 | PWA installability/manifest/favicon/touch/maskable icons verified on supported OS/browser | Manifest parsed, permitted install works, separate SW registers and updates, appropriate icons exist with valid content; normal web UX works when PWA unsupported | PR-031 |
+| AC-159 | Offline/unauthenticated/compromised-session browser or SW attempts mutation | No queued/replayed paid dispatch, budget increase, approval or credential change; cached shell never exposes user secrets, private API response or misleading bill data | PR-031 |
+| AC-160 | Security headers, unsupported browser feature, denied notifications/clipboard and public/metadata files checked | No unauthorized permission prompt; functional fallback for each relevant feature; HTTPS/CSP/Permissions-Policy/noindex/appropriate MIME/cache behavior; unnecessary native association/sitemap files not fabricated | PR-031 |
+| AC-161 | Complete five-section flows by keyboard and screen reader; run automated audit | WCAG 2.2 AA targeted with tested labels, landmarks, focus management, status announcements, no keyboard trap, understandable alternatives to drag-only DAG and clear errors | PR-032 |
+| AC-162 | RTL and pseudolocalized UI, translated overflow, browser locale/timezone/currency changes | Locale switch preserves route/intent, `lang` and `dir` correct, Intl formatting accurate, monetary numeric value preserved, no truncated privileged-action text | PR-032 |
+| AC-163 | Browser at 200% zoom, mobile viewport, reduced motion, blocked icon/font endpoints | Critical flows functional; labels and status not color/icon-only, content reflows and remains keyboard/touch usable without reliance on unavailable CDN | PR-032 |
+| AC-164 | User reviews completed browser UX build/design package | UX tests trace to approved behavior; no **unapproved** font, icon provider, visual identity replacement, stylistic choice or falsely claimed cross-browser support | PR-032 |
+
+**These are specified future checks, not executed builds, installed PWAs, WCAG conformance certification or production releases.** Record browser and operating-system versions and unsupported API exceptions with evidence.
