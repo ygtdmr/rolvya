@@ -5,9 +5,11 @@ Date: 2026-10-22
 
 ## Decision
 
+**Updated Owner decision (2026-10-24):** [ADR 0039](0039-aws-ecs-fargate-replaces-hetzner.md) replaces Hetzner Cloud with **Amazon ECS using AWS Fargate** as priority 2. The list below reflects the current approved set. The previous Hetzner choice remains historical, not a current initial integration target.
+
 The first three remote worker integrations to implement and validate are:
 1. **Google Cloud Run Jobs** — serverless container job category.
-2. **Hetzner Cloud** — cloud virtual machine category.
+2. **Amazon ECS on AWS Fargate** — isolated, on-demand ECS task execution category; direct RunTask, not an additional independent task scheduler.
 3. **User-enrolled remote VPS** — user-controlled remote server category.
 
 The project owner approved this initial development priority on 2026-10-22. This is an implementation priority, **not evidence that any adapter is already deployed or that all three providers are certified production-ready**. The user retains the ability to use additional providers once supported; the common Rust adapter architecture must remain extensible.
@@ -28,6 +30,6 @@ The project owner approved this initial development priority on 2026-10-22. This
 - Demonstrate safe cross-provider reassignment only for the same task as a new attempt.
 
 ## Open details
-Versions, SDK/CLI implementation strategy, pricing and region choices, first release maturity, default routing order and formal performance thresholds remain subject to evaluation. AWS, Azure, DigitalOcean and other providers remain eligible for later adapters; no permanent provider cap is imposed.
+Versions, ECS Fargate task CPU/memory and image compatibility, unsupported privileged Docker-in-Docker workloads, SDK/CLI implementation strategy, pricing and region choices, first release maturity, default routing order and formal performance thresholds remain subject to evaluation. AWS, Azure, DigitalOcean and other providers remain eligible for later adapters; no permanent provider cap is imposed.
 
-Related: [Worker host categories](0017-worker-host-categories.md), [Multi-provider infrastructure](0011-multi-provider-worker-infrastructure.md), [Adapter contract](../architecture/multi-provider-adapter-contract.md).
+Related: [Current priority revision ADR 0039](0039-aws-ecs-fargate-replaces-hetzner.md), [Worker host categories](0017-worker-host-categories.md), [Multi-provider infrastructure](0011-multi-provider-worker-infrastructure.md), [Adapter contract](../architecture/multi-provider-adapter-contract.md).
