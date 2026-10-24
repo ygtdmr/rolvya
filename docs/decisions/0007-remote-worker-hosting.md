@@ -8,6 +8,10 @@ tags: [adr, cloud, worker, aws, google-cloud, budget]
 
 # ADR 0007: Remote worker hosting and cost model
 
+## Subsequent approved adapter priority clarification (ADR 0018)
+
+[ADR 0018](0018-initial-worker-adapters.md) **already selects** the first integration priorities: Google Cloud Run Jobs, Hetzner Cloud and user-enrolled remote VPS. Earlier exploratory comparisons in this ADR (including AWS Fargate) are **historical candidates, not the active initial three**. The [staged rollout proposal](../architecture/initial-remote-worker-rollout-proposal.md) is only **Proposed**; no default release count, benchmark budget, region or live provider integration is newly approved.
+
 ## Status and authority
 
 **Proposed — initial concrete provider(s), regions, sizing and cost benchmarking only.** **Approved [ADR 0011](0011-multi-provider-worker-infrastructure.md)** requires Rolvya to support extensible **multiple remote worker providers** through common Rust adapters; that architecture selection is NOT open. AWS ECS/Fargate, Google Cloud Run Jobs and user-provided remote VPS are candidate adapters, not approved first-release implementations. Personal-computer workers are excluded. No provider, region or concurrency cap is selected; past 20-worker and cost figures were illustrative, not benchmarks.
