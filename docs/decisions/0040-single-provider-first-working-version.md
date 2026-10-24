@@ -1,7 +1,11 @@
 # ADR 0040 — First working version with one real remote provider
 
-Status: **Approved**  
+Status: **Approved (one-real-provider-first principle); first real provider ORDER SUPERSEDED by [ADR 0041](0041-aws-fargate-first-real-worker.md)**  
 Date: 2026-10-24
+
+## Supersession notice — effective 2026-10-24
+
+The Owner subsequently selected **AWS ECS on Fargate as the first real adapter**, followed by **Google Cloud Run Jobs** and user-enrolled remote VPS ([ADR 0041](0041-aws-fargate-first-real-worker.md)). The original Google-first order below is retained solely as the historical decision snapshot. **ADR 0041 is authoritative for current implementation order**; fake tests first and a single real provider for the initial working version remain approved.
 
 ## Decision
 
