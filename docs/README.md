@@ -148,6 +148,7 @@ The paths above are a **planned inventory**, not links to files that already exi
 - [P0 human authentication, recovery and Owner step-up implementation proposal](architecture/human-authentication-implementation-contract.md) — **Proposed** contract with owner-approval gates; no runtime implementation.
 - [Owner privileged reauthentication without mandatory TOTP](architecture/owner-non-totp-reauthentication-design.md) — **ADR 0034 approves the core flow**; duration, risk, schema and recovery implementation remain Proposed.
 - [ADR 0034 — Action-bound Owner reauthentication](decisions/0034-owner-action-bound-reauthentication.md) — **Approved**, including no mandatory TOTP and no automatic suspicious-action approval.
+- [ADR 0035 — Scoped suspicious-action containment and worker continuity](decisions/0035-scoped-human-incident-containment.md) — **Approved**; implementation/risk thresholds remain P0.
 
 - [ADR 0033 — Current login methods: password/email + authenticator-app TOTP](decisions/0033-configurable-password-email-login-and-totp.md) — Approved, superseding initial-login rules in ADR 0032 and earlier OIDC-only wording.
 - [ADR 0025 — Conditional federation and passkey safeguards](decisions/0025-oidc-passkey-authentication.md) — Approved where OIDC is separately enabled; not required for v0.1.

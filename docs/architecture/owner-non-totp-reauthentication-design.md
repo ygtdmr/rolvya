@@ -76,7 +76,7 @@ All names and types are **illustrative, not approved schema migrations**. Use re
 ## Abuse and denial handling — fail safely without mandatory 2FA
 
 - Risk signals: newly initialized device/session, recent credentials/factor/address change, suspicious login/recovery, replayed challenge, unusual spending change, changed target permissions, known stolen session or impossible audit state. IP/device/geographic heuristics are signals, **not** independent authentication factors and not reliable evidence of identity.
-- Under credible compromise, the controller can hold the **specific high-risk action** and require independent incident review/recovery. This is **not** a requirement to enroll TOTP; retaining optional 2FA must not make a compromised account automatically spend-authorized.
+- **Approved ADR 0035:** under credible compromise, hold/deny the affected high-risk Owner action and invalidate any other pending critical authorization linked to that same compromised credential/session. Revoke affected stolen human sessions under ADR 0028; do **not** suspend unrelated valid human activity or separately authorized safe/budget-bounded remote workers. Escalate a worker/financial stop only on independent evidence that their own credentials, isolation or enforceable budget is at risk. This is never a TOTP enrollment requirement. Exact risk signals/review thresholds remain Proposed.
 - On outage of SQLite/auth proof/policy engine, deny new privileged changes and new billable admission; preserve existing verified work and bounded preauthorized worker policy.
 - Never approve by refreshing an old session, showing "Yes" without credential proof, clicking a previewed link, resending the same OTP, or reusing a consumed action authorization.
 - Allow safe non-TOTP recovery after independent identity verification, bounded approval and auditable credential re-enrollment; the **administrator is not by default the same principal or authority as project Owner**.
@@ -103,7 +103,7 @@ All names and types are **illustrative, not approved schema migrations**. Use re
 
 ## What still needs explicit Owner/security review
 
-1. Exact risk signals and mandatory evidence for routine versus unusually risky Owner approvals, including when to hold/alert rather than automatically execute. **The principle of refusing automatic approval under credible compromise is approved ADR 0034.**
+1. **Approved ADRs 0034–0035:** no automatic sensitive approval on credible compromise; hold/deny the affected critical action (and related approvals sharing compromised proof), revoke stolen human session, preserve otherwise safe remote workers. **Open:** evidence thresholds, false positives, review state/authority, release/cooldown, notifications and incident automation.
 2. **Already approved:** 5-minute one-action proof life, 10-minute email link/OTP issuance TTL, up to 5 failed email OTP verifications per challenge and one-use consumption. **Still open:** per-account/IP and resend rate limits, password/TOTP-app-code limits, and account-recovery cooldown before privileges can be used.
 3. Trust boundary between deployment administrator and project Owner, particularly bootstrap and sole-Owner recovery; no hidden administrator override of hard financial gates.
 4. How to compare authentication strength between enrolled methods while preserving voluntary TOTP and preventing downgrade.

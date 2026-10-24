@@ -273,7 +273,13 @@ These are **specified future tests, not implemented or executed**. The **4-total
 | AC-138 | A user submits incorrect email OTP values five times for one issued challenge, including concurrent attempts | Fifth failure exhausts challenge; later submission (even a correct code) is denied; enforce atomically and protect against restart/resend bypass | ADR 0034 |
 | AC-139 | A successful email challenge or exact-action authorization is replayed, concurrently or after server restart | Reject replay; one successful consume/one effect at most even when token has not reached expiry | ADR 0034 |
 
-**These acceptance scenarios implement future security requirements from ADRs 0033–0034; no authentication implementation or test has been executed.**
+| AC-140 | Owner submits a budget or security change using a credibly stolen/replayed human credential | Deny/hold affected high-risk action before commit, invalidate authorizations tied to stolen proof/session, record sanitized incident | ADR 0035 |
+| AC-141 | Unrelated project/users and a second valid human session exist when one Owner operation is held | Do not globally pause those unaffected principals/projects; revoke the stolen affected human session as appropriate and preserve safe ordinary use | ADRs 0028, 0035 |
+| AC-142 | Unrelated already-authorized worker continues with valid lease, isolated credentials, verified reservation and unchanged spending bound | No automatic cancellation from human suspicion alone; outputs/budget remain intact and no new permission/spend granted | ADRs 0010, 0031, 0035 |
+| AC-143 | Human account incident also reveals compromised worker credential, revoked provider token or unenforceable budget | Apply independent affected worker/financial stop-on-risk and fencing despite default continuity of unrelated healthy workers | ADRs 0010, 0031, 0035 |
+| AC-144 | New-IP-only signal is asserted as account compromise or held action is retried without new proof after review | No automatic account takeover verdict from signal alone; held action requires fresh transaction-bound authorization and a risk policy review | ADRs 0034–0035 |
+
+**These acceptance scenarios implement future security requirements from ADRs 0033–0035; no authentication implementation or test has been executed.**
 
 ## Evidence rules
 

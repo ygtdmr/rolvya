@@ -30,6 +30,10 @@ The Owner **approved the fundamental non-TOTP security model** after reviewing [
 6. **Preserve existing governance:** One authenticated, freshly reverified Owner may explicitly raise a project budget ceiling; all other active Owners receive in-app notifications after successful commit. No silent spending overrun, no blanket co-Owner unanimity. Ownership transfers require separate recipient identity proof/acceptance and transactionally preserve at least one Owner. Deployment administrator identity must not be treated as project Owner membership.
 7. **No unsafe mail fallback:** Without working outbound mail, an email-only proof cannot be treated as completed. Existing [ADR 0033](0033-configurable-password-email-login-and-totp.md) password-reset UI instructs the user to contact the instance administrator; administration cannot view or arbitrarily set passwords or bypass enrolled protections.
 
+## Subsequent Owner approval: scoped suspicious-action containment (ADR 0035)
+
+[ADR 0035](0035-scoped-human-incident-containment.md) approves denying/holding the **affected** suspicious Owner operation and invalidating other pending authorizations relying on its compromised credential/session, without automatically pausing unrelated valid users/projects or previously authorized safe and budget-bounded remote workers. Existing ADR 0028 still requires revocation of stolen human sessions; independently compromised worker credentials or spend authority still trigger their own scoped stop-on-risk. Exact risk thresholds and recovery remain P0.
+
 ## Subsequent Owner-approved timeouts and OTP attempt ceiling (2026-10-24)
 
 The Owner explicitly approved the four proposed values, now binding for initial v0.1 authentication flows:
