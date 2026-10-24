@@ -193,3 +193,7 @@ The Owner explicitly rejected requiring authenticator-app TOTP for budget increa
 ## Owner-approved first-version panel navigation (2026-10-25)
 
 [ADR 0042](../decisions/0042-five-section-web-panel-navigation.md) approves exactly five high-level web panel navigation sections: **Projects**, **Execution**, **Costs & Approvals**, **Connections**, and **Results & Activity**. The [panel specification](../product/initial-web-panel-structure.md) marks the navigation approved while keeping detailed screen UX, frontend framework, live updates and initial plan-activation consent as Proposed/Open **OQ-013/P1**. No web panel code, UI test, deployed service or additional AWS spending was created or verified by this documentation change.
+
+## Web panel implementation stack candidate — Proposed 2026-10-25
+
+The [web panel technical stack proposal](../architecture/web-panel-technical-stack-proposal.md) compares a static React + TypeScript/Vite frontend, React Flow for **read-only dependency DAG visualization** alongside a distinct accessible task hierarchy, and REST plus Server-Sent Events through the already approved Rust Axum + SQLite/SQLx backend. **The technology selection is NOT Owner-approved.** It remains OQ-013/P1; no web application, Node runtime service, backend endpoint, graph test, UI benchmark or deployment was created, and no cloud spend was authorized.
