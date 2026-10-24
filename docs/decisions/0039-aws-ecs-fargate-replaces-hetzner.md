@@ -4,6 +4,10 @@ Status: **Approved**
 Date: 2026-10-24  
 Revises: [ADR 0018 — Initial Remote Worker Adapter Priorities](0018-initial-worker-adapters.md), **provider number 2 only**
 
+## Current ordering notice (superseded subsequently)
+
+**ADR 0041, approved later on 2026-10-24, changed the order to AWS Fargate first, Google Cloud Run Jobs second and user-enrolled remote VPS third.** The list below records the prior decision to replace Hetzner and its historical placement. See [the current approved order](0041-aws-fargate-first-real-worker.md) and [current initial adapter priorities](0018-initial-worker-adapters.md).
+
 ## Owner decision
 
 The Owner explicitly requested replacing **Hetzner Cloud** with the **best-fitting AWS service** for Rolvya. The selected AWS integration is **Amazon ECS using the AWS Fargate launch type**, specifically **on-demand ECS tasks via RunTask**, not an always-on ECS Service or a second independently controlling job scheduler.
