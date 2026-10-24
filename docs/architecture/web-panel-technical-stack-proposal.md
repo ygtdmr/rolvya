@@ -57,6 +57,8 @@ This is an illustration, **not** deployed topology. A single-origin deployment m
 - The UI cannot launch cloud jobs directly or raise budget ceilings. Only an approved Rust domain command with atomic SQLite admission may authorize a paid dispatch.
 - Fail closed on unverified model subscriptions, secret-broker errors, uncertain provider billing and compromised sessions. Avoid logging plaintext secrets or private model contexts.
 
+For proposed source directories, one-JS CSS bundling mechanics and CI build-proof stages, see the [frontend source/build plan](../development/web-frontend-source-and-build-plan.md). The plan does not authorize visual design choices or claim working code.
+
 ## Practical verification before implementation
 
 1. Follow the Owner-approved ADR 0043; verify the actual production output contract with exactly one app JS (including CSS), a separate `sw.js`, and external-only font/icon assets. Frontend routing and package versions still require implementation review.
