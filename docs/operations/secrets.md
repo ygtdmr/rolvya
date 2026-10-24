@@ -45,3 +45,7 @@ Freeze new affected privileged admissions; revoke/rotate exposed identities; iso
 Secret manager and storage encryption, role-based access policy, tenant isolation, key lifecycle, worker sandbox/eBPF/container restrictions, audit retention, approved incident response contacts and provider-specific scopes.
 
 Related: [security](../architecture/security.md), [Git integration](../architecture/integration-github.md), [deployment](deployment.md), [worker lifecycle](worker-lifecycle.md).
+
+## Approved central credential architecture (ADR 0037, 2026-10-24)
+
+[ADR 0037](../decisions/0037-central-secret-broker-task-scoped-access.md) approves centralized protected credential storage, a trusted Secret Broker validating active project/attempt/lease/budget authority, broker-side provider calls when feasible, and minimum-scope credential access for isolated remote executors only when technically necessary. Directly injected upstream keys can be extracted from compromised workers; audit/rotation and fail-closed isolation remain necessary. Provider subscription rights are **not** guaranteed by this architectural choice and remain OQ-008. No broker is implemented or tested.
