@@ -26,6 +26,13 @@ On first setup, the Owner **must enable at least one primary login method** (pas
 - **High-risk Owner step-up still applies:** managing Owners, expanding spending limits, secrets or Git/provider privileges requires a recently verified strong step-up. A plain password alone or inbox possession alone is not automatically phishing-resistant. TOTP provides an additional factor but is not phishing-resistant; retain risk-based denial, alerts and secure recovery when appropriate.
 - Role authorization (Owner/Editor/Viewer), project isolation, sessions, reset and recovery, TLS, audit and machine-identity separation remain mandatory. Email verification is required when establishing/recovering an address; 2FA never uses SMS in the initial scope.
 
+## Password reset when outbound email is not configured (Owner-approved 2026-10-24)
+
+- When the deployment's outbound email service is **not configured or unavailable**, the password-reset screen must not claim that a reset message was sent or generate an unusable email link. Explain that self-service email-based password reset is unavailable and instruct the user to **contact the instance administrator** through the configured support channel. Do not reveal whether the submitted account exists.
+- Administrator assistance is a **secure recovery workflow**, not a right to read passwords, set an arbitrary replacement password, bypass TOTP or grant an Owner role. Require independent identity verification, recorded authorization, single-use bounded recovery or password re-enrollment, session/token revocation as appropriate and audit. The exact non-email recovery method remains an implementation/security design question.
+- If verified-email login is enabled as the **only** primary sign-in method, initial setup must check operational email delivery before allowing activation; missing email configuration cannot produce an unusable sole method. Likewise password-reset recovery readiness and a reachable administrator contact route should be validated for deployments using password sign-in.
+- The recovery instructions must not disclose secrets or private account information, and must not silently weaken the approved multi-Owner/last-Owner and step-up controls.
+
 ## Implementation decisions still open
 
 Concrete email delivery provider, instance-versus-project policy inheritance, password strength/breach checking and hashing tuning, TOTP secret key management and recovery policy, session cookies/expiration, assurance mapping, UI details, login challenges and abuse throttles. These require security review and tests, but **do not reopen which initial login methods the Owner approved**.
