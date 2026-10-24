@@ -47,6 +47,10 @@ Owner manages approved critical budget/permissions/connection scope with action-
 - Accessible keyboard/navigation design and responsive layout; do not interpret responsive web as a commitment to a native mobile app.
 - Reuse the approved navy/blue/gray Rolvya identity; no gold accent, no invented replacement logo.
 
+## Technology option for review — not approved
+
+A lightweight [React/TypeScript + Vite, React Flow and Rust Axum REST/SSE architecture](../architecture/web-panel-technical-stack-proposal.md) is documented as **Proposed**. This does not approve libraries, lock files, UI scaffolding, endpoint paths, detailed screen design or deployment.
+
 ## Still open after navigation approval
 
 Sidebar position/size, exact dashboard widgets, frontend framework and component library, real-time transport (SSE/WebSocket/polling), responsive breakpoints, precise graph library, animation, filter/search behavior, per-screen final copy, first plan activation UX and release accessibility test levels remain for a light design/implementation pass.
