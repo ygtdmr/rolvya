@@ -7,7 +7,8 @@ Date: 2026-10-22
 Rolvya enforces uniform minimum security boundaries for executing untrusted coding workloads while allowing the concrete sandbox technology to vary by remote provider and host capability. Approved by owner on 2026-10-22.
 
 - Google Cloud Run Jobs: use managed per-execution isolation plus Rolvya-scoped identities, filesystem/network/resource limits; validate effective provider security capabilities.
-- Hetzner Cloud: evaluate gVisor as a preferred stronger sandbox candidate, subject to compatibility, kernel/runtime features and benchmarking; do not assume it is deployed or supported.
+- **Amazon ECS on AWS Fargate (approved initial adapter after ADR 0039):** use task-level isolation, minimum-scope IAM, network egress controls, bounded CPU/RAM and task-specific secrets; validate real provider guarantees. No privileged containers or conventional Docker-in-Docker. A later optional EC2 adapter is a separate choice.
+- Hetzner Cloud: previously discussed VM candidate, **not an active first-three adapter priority after ADR 0039**. If reconsidered later, validate provider/kernel/sandbox compatibility; do not assume gVisor is supported.
 - Enrolled user remote VPS: inspect kernel/container/virtualization capabilities and fail closed for untrusted execution if adequate isolation is unavailable.
 - Rootless Docker/Podman alone is not considered a universally sufficient hostile-code security boundary. Firecracker microVMs are a possible alternative only where required virtualization support is available.
 
