@@ -11,7 +11,7 @@ Rolvya uses the password/email primary authentication choices with optional app-
 
 ## Approved decision
 - **Low-friction normal use:** Authenticated users may perform permitted routine actions within a valid session without repeating login for every operation.
-- **Step-up for sensitive actions:** Require recent verified strong reauthentication suited to the actually configured login method/factors for budget increases, security changes and Owner/role actions. Password-only, mailbox-only and ordinary OIDC login alone do not prove phishing resistance. App TOTP adds a factor but is not phishing-resistant; concrete assurance thresholds remain a P0 security detail.
+- **Step-up for sensitive actions:** Require recent verified strong reauthentication suited to the actually configured login method/factors for budget increases, security changes and Owner/role actions. Password-only, mailbox-only and ordinary OIDC login alone do not prove phishing resistance. App TOTP adds a factor but is not phishing-resistant. **Enrollment must stay voluntary for Owners and all high-risk actions**; concrete risk and permitted fresh non-TOTP reauthentication rules remain P0.
 - **Session inventory and remote termination:** Users can inspect their currently active Rolvya sessions (with device/browser details and last activity where feasible) and revoke individual other sessions or all sessions. Enforce revocation server-side, promptly, not just by removing browser cookies.
 - **Secure server-managed sessions:** Prefer opaque session identifiers in Secure, HttpOnly and appropriate SameSite cookies over storing browser tokens in local storage; use CSRF defenses and session rotation where appropriate.
 - **Expiration and risk controls:** Enforce idle and absolute timeouts, invalidate sessions after appropriate security events (including account recovery), and require reauthentication after suspicious activity. Apply server-side authorization for every request.
@@ -35,7 +35,7 @@ Mobile applications and Jarvis-like voice interaction are **possible future conc
 The **7-day web-session real-user-inactivity baseline** above is approved; absolute lifetime and renewal limits, maximum simultaneous sessions, trusted-device handling, recent-authentication window, session storage, high-risk action catalog, and method-specific assurance mapping are **not yet approved**. Choose them during security implementation with explicit review and tests. No session-management functionality is claimed implemented.
 
 ## Rationale and trade-offs
-Balances usability against account takeover risk; server-side revocation and privileged reauthentication add state and integration complexity. Reject permanent sessions and password-only proof as authorization for high-risk Owner actions; password login itself is approved in ADR 0033.
+Balances usability against account takeover risk; server-side revocation and privileged reauthentication add state and integration complexity. Reject permanent sessions and stale password/email sessions as authorization for high-risk Owner actions; password/email login itself is approved in ADR 0033 and secure fresh non-TOTP reauthentication must be available without compelling TOTP enrollment.
 
 ## Related
 - [ADR 0024 — Project human roles](0024-project-human-roles.md)

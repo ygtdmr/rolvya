@@ -13,7 +13,7 @@ tags: [p0, auth, password, magic-link, otp, totp, owner, sessions, security]
 ## Authority and provenance
 
 - **Approved human primary methods** (ADR 0033): password; verified-email login with Magic Link as default and OTP as alternative. No Google/GitHub social login mandate and no SMS requirement. App-based TOTP 2FA is an optional additional factor, not a primary login method.
-- **Approved enrollment/administration** (ADR 0033): Owner selects at least one primary login method at first setup; a suitably reauthenticated Owner can later enable permitted alternatives. Do not disable the last working method or silently enroll users into new credentials.
+- **Approved enrollment/administration** (ADR 0033): Owner selects at least one primary login method at first setup; a suitably reauthenticated Owner can later enable permitted alternatives. **2026-10-24 clarification: TOTP is never required for Owner sensitive actions.** Do not disable the last working method or silently enroll users into new credentials.
 - **Approved governance** (ADRs 0024/0029): project-scoped Owner, Editor and Viewer; only Owners invite; invitation default 24 hours, one-use, Owner transfer requires separate action, both humans independently authenticate, and SQLite protects the final Owner.
 - **Approved sessions** (ADRs 0027/0028): server-revocable per-device sessions, secure renewal/replay defense, 7-day real-user-inactivity baseline; no automatic blanket logout each 30 days. Worker background traffic does not count as human interaction.
 - **Approved recovery** (ADRs 0026/0033): secure password reset when available; if outgoing email is unavailable, show **contact the instance administrator**, never falsely claim delivery. Admin assistance requires independent identity proof, audit, safe session revocation and no TOTP/Owner bypass. Email-only sign-in cannot be the sole enabled primary method without functioning outgoing email.
@@ -76,9 +76,9 @@ tags: [p0, auth, password, magic-link, otp, totp, owner, sessions, security]
 - OTP: rate-limit per email/IP/instance, bound tries and resend, compare a protected keyed digest and atomically mark consumed. Plain unsalted hashes of short numeric OTPs are susceptible to cheap offline guessing.
 - Email route grants an ordinary session subject to any enrolled TOTP policy; **email-only proof is not MFA and cannot by itself satisfy critical Owner step-up**. Failure to deliver must not reveal whether a user exists.
 
-### D — App-based TOTP setup and recovery
+### D — Voluntary app-based TOTP setup and recovery
 
-- Use interoperable RFC 6238 authenticators (QR/provisioning URI shown only to the verified user); activate only after the first valid user-entered code. Encrypt seeds at rest using a separately protected key; no seed/QR in AI prompts or logs.
+- TOTP is **strictly voluntary**, even for Owners and budget changes. Use interoperable RFC 6238 authenticators (QR/provisioning URI shown only to the verified user); activate only after the first valid user-entered code. Encrypt seeds at rest using a separately protected key; no seed/QR in AI prompts or logs.
 - Enforce bounded drift window, request throttles, timestep replay prevention, and single-use protected recovery codes; replay protection must be atomic across concurrent connections.
 - Factor removal/replacement requires separately verified high-assurance action; a currently active ordinary session or recently opened mailbox is not automatically sufficient.
 - A lost device triggers protected recovery rather than "turn off 2FA" by support; this is especially critical for a sole Owner and mail-disabled deployment.
@@ -88,13 +88,13 @@ tags: [p0, auth, password, magic-link, otp, totp, owner, sessions, security]
 - Rust issues opaque, random, first-party secure HttpOnly SameSite session cookies over HTTPS; CSRF and origin protections required. Store server-side digest, revoke per device or all devices, rotate on authentication and privilege/risk events. No bearer credentials in localStorage.
 - Real user interactions only refresh the approved seven-day inactivity window; backend jobs, token refresh, long-poll and remote workers do not. Absolute maximum session/step-up lifetime remains an open implementation policy.
 - Invitation acceptance requires a valid human login through an enabled method (and mandatory second factor), a verified stable account binding, an unexpired one-use 24-hour invite and an atomic SQLite role grant. Invited Owner elevation/transfer has independent recipient acceptance, recent strong initiating Owner approval and preserved last-Owner membership.
-- Financial approval or changes to login policy require server-side **recent strong step-up**; a login, queued notification, signed link, TOTP entry on another account or worker output is never budget authorization. The exact factor requirement and protected initial Owner bootstrap are **P0 approval questions**.
+- Financial approval or login-policy changes require server-side **fresh reauthentication and explicit human authorization**; a stale login, queued notification, signed link, TOTP entry on another account or worker output is never budget authorization. **TOTP enrollment is not required**; exact secure non-TOTP risk controls and protected initial Owner bootstrap are **P0 questions**.
 
 ## Approval-required choices (OQ-004 remains P0)
 
 | ID | Exact outstanding choice | Candidate recommended direction; **not approved** |
 | --- | --- | --- |
-| AUTH-P0-01 | **High-risk Owner assurance with optional TOTP** | Make app TOTP optional for ordinary sign-in but require a verified enrolled extra factor for sensitive Owner actions; if no adequate assurance exists, block high-risk changes and guide secure enrollment/recovery. Guard fresh factor enrollment against immediate takeover and define sole-Owner bootstrap. |
+| AUTH-P0-01 | **High-risk Owner assurance with optional TOTP** | **Superseded by Owner clarification 2026-10-24:** never require TOTP enrollment for Owners or sensitive actions. Propose a fresh, transaction-bound password/email reauthentication mechanism with risk checks, protective delay/deny on suspected compromise, explicit Owner approval, audit and notification. If TOTP was voluntarily enabled, honor the enrolled protection; do not label one-factor proof MFA. Exact controls are still Proposed. |
 | AUTH-P0-02 | **Deployment administrator vs project Owner** | Administrator controls service-wide allowed methods and SMTP health; each project Owner can enable only a permitted non-weaker subset. Both need separate scope and audit. |
 | AUTH-P0-03 | **Email delivery and SMTP outage** | Permit an administrator-configured SMTP/transactional provider; health probe, safe fallback message and no-mail support contact. Need sender failure semantics and anti-enumeration design. |
 | AUTH-P0-04 | **Challenge, TOTP and password parameters** | Versioned Argon2id tuning, email challenge/OTP lifetime and entropy, resend/throttle, TOTP drift/replay, key custody and recovery-code policy must be security-tested. No numeric constants in this document are new approvals. |
@@ -113,8 +113,8 @@ tags: [p0, auth, password, magic-link, otp, totp, owner, sessions, security]
 | AUTH-T05: factor enrollment under compromised mailbox | No unverified immediate strong Owner approval from new factor |
 | AUTH-T06: password reset with no SMTP | No fake delivery; non-enumerating admin-contact route; no automatic role/factor bypass |
 | AUTH-T07: last-Owner transfer/invite race | No orphaned project, double redemption or cross-project authority |
-| AUTH-T08: Owner budget approval with no verified strong step-up | Reject privileged action and no billable admission |
-| AUTH-T09: lower role tries enabling login method or disabling 2FA | Server-side rejection and redacted audit |
+| AUTH-T08: Owner budget approval with stale session or no fresh independently verified reauthentication | Reject privileged action and no billable admission; absence of voluntary TOTP enrollment alone must not bar a legitimate Owner using a safe approved non-TOTP route |
+| AUTH-T09: lower role tries enabling login method or disabling another user's 2FA; admin tries requiring TOTP | Reject unauthorized policy changes and mandatory TOTP enrollment; audit without disclosing secrets |
 | AUTH-T10: background worker polls for eight days without human activity | Cannot extend human seven-day idle window |
 | AUTH-T11: email reassignment/duplicate address/account linking | Stable internal account identity and explicit verified linking |
 | AUTH-T12: lost TOTP+mail outage for sole Owner | Safe, independently verified administrator path, no hardcoded bypass |
@@ -123,8 +123,8 @@ tags: [p0, auth, password, magic-link, otp, totp, owner, sessions, security]
 
 ## Explicit boundaries and references
 
-- **Approved**: feature set and existing hard safeguards from ADRs 0024–0029, 0033, current PR-025/026 and AC-113–127.
-- **Proposed**: flows, records, challenge mechanics, admin policy inheritance, factor assurances, bootstrap and exact recovery.
+- **Approved**: feature set and existing hard safeguards from ADRs 0024–0029, 0033, including Owner clarification 2026-10-24 that TOTP enrollment is always voluntary; current PR-025/026 and AC-113–130.
+- **Proposed**: flows, records, challenge mechanics, admin policy inheritance, non-TOTP high-risk step-up risk checks, factor assurances, bootstrap and exact recovery.
 - **Implemented/Verified**: **none**.
 - Do not invent provider credentials, send emails, create user accounts, call billable providers, weaken Owner budget gates or conflate project Owner with deployment administrator.
 - Related: [identity model](identity-authorization.md), [session proposal](session-token-rotation-and-theft-response.md), [open decisions](../project/open-questions.md), [acceptance tests](../product/acceptance-criteria.md), [ADR 0033](../decisions/0033-configurable-password-email-login-and-totp.md).
