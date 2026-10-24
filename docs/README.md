@@ -52,6 +52,7 @@ All Markdown documentation follows the [Obsidian-compatible documentation policy
 - [Worker control protocol](architecture/worker-protocol.md)
 - [Remote worker transport design](architecture/worker-transport-design.md)
 - [Multi-provider Rust worker adapter contract](architecture/multi-provider-adapter-contract.md)
+- [Proposed staged rollout of approved remote worker providers](architecture/initial-remote-worker-rollout-proposal.md)
 - [Proposed worker wire contract v0](architecture/worker-wire-contract-draft.md)
 - [Failure classification and recovery](architecture/failure-recovery.md)
 - [Resumable historical storage migration state machine — proposed](architecture/storage-migration-state-machine.md)
