@@ -8,6 +8,12 @@ tags: [claude, codex, cli, api, models, effort, security]
 
 # Coding agent CLI/API and entitlement enforcement
 
+## New Owner-approved multi-account CLI architecture (ADR 0038, 2026-10-24)
+
+[ADR 0038](../decisions/0038-multi-account-isolated-cli-and-api-access.md) approves **both** API-key mode and real Claude Code/Codex CLI account sessions, with a Paperclip-like account connection model. A person connects each account using its official, provider-supported interactive sign-in in a **remote isolated login environment**. Each account has an independent encrypted connection grant and a private CLI/runtime home; multiple different accounts can serve eligible independent remote workers concurrently, subject to provider terms and concurrent-session quotas. A provider grant never silently becomes a different account or paid API mode.
+
+This architectural support is **Approved**, while the exact hosted/unattended subscription entitlement for each provider and integration remains **OQ-008 P0**. Do not spoof native client identity, copy personal-machine credentials or host a Rolvya local agent. Protected login grants belong to the Secret Broker ([ADR 0037](../decisions/0037-central-secret-broker-task-scoped-access.md)); isolate OAuth/token refresh and fail closed when terms, consent, session or quota is uncertain. The historical subscription-only Claude CLI preference is preserved as one user goal, but **not as an exclusive system mode** after this newer decision.
+
 ## Source decisions, historical preference and legal boundary
 
 Historical Rolvya discussions explicitly named **Claude Code CLI** and **Codex CLI** as coding-agent execution interfaces, and assigned a **model plus effort level per preplanned task**. The stated product-mode preference was **no API key and only a monthly subscription → Claude CLI where provider rules permit; an API key configured → API-key access mode**. This is a **historical user requirement to preserve**, not evidence that all subscription products or Codex/Claude CLI versions allow noninteractive remote multi-worker use. If a future UI offers both modes on one account, the exact selection/override policy still needs owner approval.
