@@ -2,15 +2,15 @@
 title: Initial Worker Adapter Implementation Plan
 status: Proposed
 category: architecture
-last-reviewed: 2026-10-22
-tags: [workers, cloud-run, hetzner, remote-vps, scheduler, budget]
+last-reviewed: 2026-10-25
+tags: [workers, aws-fargate, cloud-run, remote-vps, scheduler, budget]
 ---
 
 # Initial worker adapter implementation plan
 
 ## Context
 
-Owner-approved first integration priorities: **Google Cloud Run Jobs**, **Hetzner Cloud**, and **enrolled user-owned remote VPS** (ADR 0018). This document is a proposed implementation specification; no cloud adapters or paid tests have been deployed.
+**Current Owner-approved order:** synthetic fake-worker tests first, then **Amazon ECS on AWS Fargate as the first real adapter**, followed by **Google Cloud Run Jobs** and **enrolled user-owned remote VPS** ([ADR 0041](../decisions/0041-aws-fargate-first-real-worker.md), revising ADRs 0018, 0039 and 0040). The original Google-first / Hetzner references in older decisions are historical, not current implementation requirements. This document is a proposed implementation specification; no cloud adapters or paid tests have been deployed.
 
 Shared invariant: provider-specific work must not leak into planner DAG structure, approved budgets or worker HTTPS task protocol.
 
@@ -29,19 +29,20 @@ Shared invariant: provider-specific work must not leak into planner DAG structur
 
 ## Provider-specific requirements
 
-### Google Cloud Run Jobs
+### Amazon ECS on AWS Fargate — first real integration
+- Launch one isolated on-demand ECS task per authorized attempt via `RunTask` using the **Fargate launch type**, not a persistent ECS Service or a second job scheduler.
+- Use an immutable image digest and explicitly scoped task definition, task role versus execution role, `awsvpc` networking, CPU/RAM, timeout and egress controls. Do not assume privileged Docker-in-Docker is available.
+- Persist a stable `clientToken`/operation key and reconcile ambiguous launch outcomes through ECS inspection; ECS idempotency is time-bounded and `DescribeTasks` can be eventually consistent. Never launch a second paid task solely because the first call timed out.
+- Track task ARN, task lifecycle, cancellation/`StopTask` evidence, cleanup, Fargate runtime exposure, image pull, log, network/NAT and storage costs. A stop request or SDK success response is not proof that billing exposure ended.
+- Require a demonstrably bounded exposure, SQLite admission, task-scoped credentials and explicit Owner authorization for every paid launch or benchmark. Do not enable service-managed extra launches outside Rolvya budget admission.
+
+### Google Cloud Run Jobs — second real integration
 - Launch immutable worker image by digest with scoped service identity.
 - Configure task count, per-task duration, parallelism and provider-native retry count explicitly; propose **provider-native retry count = 0** so Rolvya owns paid attempt admissions. Confirm actual service behavior via official API and integration tests before enablement.
 - Capture execution and task IDs, check completion/stop independently, and reconcile log/storage/egress charges.
 - Evaluate actual termination and billing limits instead of assuming a cloud API cancellation instantly ends exposure.
 
-### Hetzner Cloud
-- Provision preauthorized server type, image and datacenter from a configured account; attach minimal bootstrap user data and scoped network policy.
-- Use immutable labels/operation IDs to identify potentially orphaned VMs after lost responses.
-- Account for billed provision time, idle operation, volumes, snapshots, network transfers and deletion delay. Bound VM lifetime using external provider policy and a controller-independent expiration safeguard where possible.
-- Ensure untrusted code runs with sandbox/quotas on remote machine. Verify confirmed deletion and orphan-resource cleanup before releasing all compute reserves.
-
-### Enrolled user-owned remote VPS
+### Enrolled user-owned remote VPS — third adapter
 - Use a **pre-enrolled outbound HTTPS worker runtime** on a user-owned **remote** server. It cannot be assumed that a mere VPS address/SSH key satisfies trust, availability or sandbox requirements.
 - Define bootstrap/enrollment, isolated per-attempt workspaces, CPU/RAM/timeout quotas, process supervision and log/artifact policy.
 - Distinguish provider invoice from internal cost attribution: VPS may have already-paid fixed cost but cannot automatically be labeled zero cost.
@@ -61,6 +62,6 @@ Shared invariant: provider-specific work must not leak into planner DAG structur
 
 ## Unresolved decisions (do not mark approved)
 
-Cloud Run service account/IAM and region, Hetzner image/network/bootstrap and cleanup deadlines, secure remote VPS runtime packaging, Rust SDK choices, concrete hard timeout settings, per-provider cost bound proofs, default routing/fairness and live paid benchmark budget.
+AWS Fargate region, task definition/image digest, CPU/RAM, task/execution IAM permissions, egress/network configuration and reliable cost/stop bounds; later Cloud Run service identity and region, secure remote VPS runtime packaging, Rust SDK choices, concrete hard timeout settings, provider cost bound proofs, default routing/fairness and live paid benchmark budget.
 
-Related: [Initial adapters](../decisions/0018-initial-worker-adapters.md), [Multi-provider contract](multi-provider-adapter-contract.md), [Remote lifecycle](../operations/remote-worker-lifecycle-contract.md), [worker auth](worker-authentication-policy.md), [quiet runtime](../product/preflight-quiet-runtime-policy.md).
+Related: [Approved AWS-first rollout](../decisions/0041-aws-fargate-first-real-worker.md), [Initial adapters](../decisions/0018-initial-worker-adapters.md), [Multi-provider contract](multi-provider-adapter-contract.md), [Remote lifecycle](../operations/remote-worker-lifecycle-contract.md), [worker auth](worker-authentication-policy.md), [quiet runtime](../product/preflight-quiet-runtime-policy.md).
