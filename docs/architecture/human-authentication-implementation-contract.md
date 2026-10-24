@@ -90,6 +90,10 @@ tags: [p0, auth, password, magic-link, otp, totp, owner, sessions, security]
 - Invitation acceptance requires a valid human login through an enabled method (and their voluntarily enabled second factor, if any), a verified stable account binding, an unexpired one-use 24-hour invite and an atomic SQLite role grant. Invited Owner elevation/transfer has independent recipient acceptance, recent strong initiating Owner approval and preserved last-Owner membership.
 - Financial approval or login-policy changes require server-side **fresh reauthentication and explicit human authorization**; a stale login, queued notification, signed link, TOTP entry on another account or worker output is never budget authorization. **TOTP enrollment is not required**; exact secure non-TOTP risk controls and protected initial Owner bootstrap are **P0 questions**.
 
+## Proposed non-TOTP Owner reauthentication details
+
+See [Owner privileged reauthentication without mandatory TOTP](owner-non-totp-reauthentication-design.md) for a concrete **Proposed** password/email step-up flow, action-bound one-use approvals, SQLite atomic application, risk holds, honest single-factor assurance and fourteen future negative tests. **No new runtime value, requirement for TOTP, or technical default becomes Approved just by linking this document.**
+
 ## Approval-required choices (OQ-004 remains P0)
 
 | ID | Exact outstanding choice | Candidate recommended direction; **not approved** |
