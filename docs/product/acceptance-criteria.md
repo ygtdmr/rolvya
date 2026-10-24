@@ -301,3 +301,11 @@ See [testing strategy](../development/testing.md), [project status](../project/s
 
 **AC-145–149 are proposed future validation tests for the approved ADR 0038 architecture. No runtime or provider-permission tests have been performed.**
 
+
+## First-working provider rollout — future tests (ADR 0040)
+
+| AC-150 | Rust/SQLite fake providers exercise independent ready leaves and blocked dependencies under a low test budget | Validated frozen DAG, atomic budget holds, redacted audit, crash/replay-safe result fencing; no live cloud/model charges | ADR 0040, PR-028 |
+| AC-151 | A first real, authorized Cloud Run Jobs worker completes one task before AWS Fargate and remote VPS adapters exist | A correctly scoped/fenced, independently validated task can complete and reconcile authorized cloud costs; absence of other live adapters does not make the first working integration fail | ADR 0040, PR-028 |
+| AC-152 | Add ECS Fargate or an enrolled remote VPS after the first working version | Existing DAG/task IDs, independent credentials, Rust provider interface and SQLite budget reservation remain valid; no local-device agent or silent additional spending | ADRs 0011, 0039–0040, PR-028 |
+
+**Specified for future verification, not implemented or run.**
