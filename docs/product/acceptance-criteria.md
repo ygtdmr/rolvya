@@ -256,7 +256,7 @@ These are **specified future tests, not implemented or executed**. The **4-total
 | AC-126 | Administrator-assisted recovery when outbound mail is absent | Independently verify identity, constrain and audit recovery, protect 2FA, revoke affected sessions; no arbitrary password disclosure or Owner privilege bypass | ADRs 0026, 0033 |
 | AC-127 | Email-only primary login is configured while outbound mail is unavailable | Reject unsafe configuration and preserve an operational primary login method | ADR 0033 |
 
-**These acceptance scenarios are specifications only; no authentication implementation or test has been executed.**
+**These acceptance scenarios implement the future test contract for PR-025 and PR-026 (ADR 0033), not executed authentication tests.**
 
 ## Evidence rules
 

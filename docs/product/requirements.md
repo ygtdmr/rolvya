@@ -58,13 +58,20 @@ Rolvya is an open-source orchestration system for AI coding agents. This specifi
 
 | ID | Requirement | Verification expectation |
 | --- | --- | --- |
-| PR-022 | Human web sessions use secure unobtrusive renewal, issuer-capability-aware token rotation/replay protection, explicit server-side per-device revocation, and strong verified reauthentication for critical budget/access actions. Backend work never counts as human activity; mobile and voice remain uncommitted future ideas. | Negative tests for stolen/revoked sessions, legitimate concurrent renewals, issuer supported replay protection, independent workers and Owner step-up; [Approved ADR 0028](../decisions/0028-human-session-token-safety.md). |
+| PR-022 | Human web sessions use secure unobtrusive renewal, conditional IdP-capability-aware rotation/replay protection when federation is enabled, plus local session rotation/replay defense, explicit server-side per-device revocation, and strong verified reauthentication for critical budget/access actions. Backend work never counts as human activity; mobile and voice remain uncommitted future ideas. | Negative tests for stolen/revoked sessions, legitimate concurrent renewals, issuer supported replay protection, independent workers and Owner step-up; [Approved ADR 0028](../decisions/0028-human-session-token-safety.md). |
 
 ## Approved invitation and ownership security
 
 | ID | Requirement | Verification expectation |
 | --- | --- | --- |
 | PR-023 | **Owner-only** project invitations for Editor or Viewer, with expiry, one-use redemption and verified recipient identity through an enabled primary login method and any required TOTP; link possession alone cannot grant access. Multiple individually authenticated Owners are allowed per project. Owner grants/transfers require separate recent strong step-up, receiving Owner authentication/acceptance, and transactional prohibition of last-Owner removal. Membership actions are project-scoped and auditably enforced by Rust/SQLite. | Negative tests for Editor/Viewer invitations, expired/replayed/mismatched invites, concurrent redemption, cross-project privilege grants and unverified Owner elevation; [Approved ADR 0029](../decisions/0029-owner-controlled-project-invitations.md). |
+
+## Approved v0.1 human login and no-mail recovery
+
+| ID | Requirement | Verification expectation |
+| --- | --- | --- |
+| PR-025 | The deployment Owner must initially enable at least one primary method: **email/password** or **email-only Magic Link/OTP**; the Owner may later enable the other after appropriate strong verification. App-based **TOTP 2FA** is additional, never primary, and **SMS is not required**. Secure password verifiers, one-use email challenges, protected factor enrollment and verified role checks are mandatory. Earlier Google/GitHub/OIDC-only human login requirements are superseded for v0.1 by ADR 0033; remote GitHub App integration is separate. | Verify authorized setup/method changes, real credential binding, password/email challenge security and TOTP without SMS. [Approved ADR 0033](../decisions/0033-configurable-password-email-login-and-totp.md), AC-113–AC-124. |
+| PR-026 | With absent/nonfunctional outbound mail, password-reset UX must tell the user to **contact the instance administrator** without pretending a reset email was sent or revealing account existence. Admin help requires independently verified identity and controlled, audited recovery without bypassing TOTP/Owner safeguards. Email verification cannot be the only primary login method unless outbound mail actually works. | No-email fallback, controlled recovery and invalid email-only startup configuration are specified in AC-125–AC-127; not yet implemented. [ADR 0033](../decisions/0033-configurable-password-email-login-and-totp.md). |
 
 ## Approved project Activity Log
 

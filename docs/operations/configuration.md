@@ -21,6 +21,8 @@ Describe configuration domains that a future deployment must support. This is **
 | Worker pools | remote endpoint class, CPU/RAM limit, image/version, quota, region | User-authorized remote servers only; no desktop Local Agent |
 | Adapter access | provider, approved model, effort, CLI/API mode, identity ref | Provider licensing/entitlements must be verified |
 | Remote Git | provider, installation reference, permitted repositories/branches | Least privilege and isolation of task refs |
+| Human login | Owner-approved password or verified-email Magic Link/OTP methods, TOTP-only as an additional factor, owner-managed method enablement | At least one primary method must remain usable; never treat TOTP alone as primary; require strong authorization for changes (ADR 0033) |
+| Email delivery and recovery | SMTP/other outbound sender health, generic administrator contact route, delivery diagnostics | Email-only as sole primary mode requires a working sender; if reset email is unavailable, show contact-admin guidance, never claim an email was sent; recovery must remain independently verified |
 | Budget | per-project ceiling/currency, reservation strategy, pricing freshness | Only explicit authenticated approval changes ceiling |
 | Artifact storage | bucket/namespace, retention, hashes and upload policy | Project isolation and immutable manifest refs |
 | Observability | sampling, redaction, alert destinations, log retention | Auditable security/financial actions not sampled away |
@@ -36,6 +38,7 @@ A configuration change that raises billable resource allocation must re-evaluate
 ## Startup validation
 
 1. Confirm schema compatibility and authoritative DB health.
+   Validate that the Owner selected at least one enabled primary login method, and **reject email-only mode if outbound email is not operational**. Password-mode deployments without mail must provide an administrator contact route for recovery; do not present a nonexistent reset-email service.
 2. Verify secret references are resolvable only to authorized services.
 3. Check worker type is remote and provider mode allowed.
 4. Verify audit/event persistence, budget admission and remote Git permissions.
