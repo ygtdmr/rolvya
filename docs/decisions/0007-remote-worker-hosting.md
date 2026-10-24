@@ -10,11 +10,11 @@ tags: [adr, cloud, worker, aws, google-cloud, budget]
 
 ## Subsequent approved adapter priority clarification (ADR 0018)
 
-[ADR 0018](0018-initial-worker-adapters.md) **already selects** the first integration priorities: Google Cloud Run Jobs, Hetzner Cloud and user-enrolled remote VPS. Earlier exploratory comparisons in this ADR (including AWS Fargate) are **historical candidates, not the active initial three**. The [staged rollout proposal](../architecture/initial-remote-worker-rollout-proposal.md) is only **Proposed**; no default release count, benchmark budget, region or live provider integration is newly approved.
+[ADR 0018](0018-initial-worker-adapters.md), as **revised by the subsequently approved [ADR 0039](0039-aws-ecs-fargate-replaces-hetzner.md)**, selects Google Cloud Run Jobs, **Amazon ECS on AWS Fargate**, and user-enrolled remote VPS as the current initial three. The original Hetzner priority was superseded on 2026-10-24. Older candidate discussions in this ADR are historical, not current release certification. The [staged rollout proposal](../architecture/initial-remote-worker-rollout-proposal.md) is only **Proposed**; no default release count, benchmark budget, region or live provider integration is newly approved.
 
 ## Status and authority
 
-**Proposed — initial concrete provider(s), regions, sizing and cost benchmarking only.** **Approved [ADR 0011](0011-multi-provider-worker-infrastructure.md)** requires Rolvya to support extensible **multiple remote worker providers** through common Rust adapters; that architecture selection is NOT open. AWS ECS/Fargate, Google Cloud Run Jobs and user-provided remote VPS are candidate adapters, not approved first-release implementations. Personal-computer workers are excluded. No provider, region or concurrency cap is selected; past 20-worker and cost figures were illustrative, not benchmarks.
+**Proposed — initial concrete provider(s), regions, sizing and cost benchmarking only.** **Approved [ADR 0011](0011-multi-provider-worker-infrastructure.md)** requires Rolvya to support extensible **multiple remote worker providers** through common Rust adapters; that architecture selection is NOT open. AWS ECS/Fargate, Google Cloud Run Jobs and user-enrolled remote VPS are the **approved initial adapter development priorities under ADRs 0018/0039**, not confirmed production-ready implementations. Personal-computer workers are excluded. No provider, region or concurrency cap is selected; past 20-worker and cost figures were illustrative, not benchmarks.
 
 ## Requirements from previously approved decisions
 
