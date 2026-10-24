@@ -8,13 +8,17 @@ tags: [workers, cloud-run, fargate, cloud, benchmark, budget]
 
 # Remote worker provider evaluation and benchmark protocol
 
+## Current approved first working adapter — ADR 0041
+
+[ADR 0041](../decisions/0041-aws-fargate-first-real-worker.md) selects fake model/provider validation first, **Amazon ECS Fargate as first real provider**, Google Cloud Run Jobs second and user-enrolled remote VPS third. The original historical Google-first proposal is superseded. The provider region, IAM/network, workload limits, benchmark budget and production certification remain open, and no billable test is authorized by the new order.
+
 ## Staged rollout proposal — not a new approval
 
-[The staged rollout proposal](../architecture/initial-remote-worker-rollout-proposal.md) preserves the **already approved** Cloud Run Jobs, **Amazon ECS on AWS Fargate**, and user-enrolled VPS development priorities from ADR 0018 **as revised by ADR 0039**. The initial verified adapter, benchmark payment, release provider minimum, region, exact VM/image and spending envelopes must not be treated as executed or approved just because the proposal exists. Official Cloud Run retry behavior, ECS RunTask idempotency/eventual consistency, Fargate launch/cleanup billing and privilege restrictions need explicit tests.
+[The staged rollout proposal](../architecture/initial-remote-worker-rollout-proposal.md) preserves the **approved** AWS ECS Fargate, Cloud Run Jobs and user-enrolled VPS development priorities from ADR 0018 **as revised by ADRs 0039 and 0041**. The initial verified adapter, benchmark payment, release provider minimum, region, exact VM/image and spending envelopes must not be treated as executed or approved just because the proposal exists. Official Cloud Run retry behavior, ECS RunTask idempotency/eventual consistency, Fargate launch/cleanup billing and privilege restrictions need explicit tests.
 
 ## Purpose and decision boundary
 
-**ADR 0018 already approves the initial implementation priorities: Google Cloud Run Jobs, **Amazon ECS on AWS Fargate**, and enrolled user-owned remote VPS (ADR 0039 supersedes Hetzner priority 2).** This evaluation selects their concrete regions, images and safe cost/isolation settings; production-ready certification and live spend remain open under [Proposed ADR 0007](../decisions/0007-remote-worker-hosting.md). **Multi-provider support is already Approved** ([ADR 0011](../decisions/0011-multi-provider-worker-infrastructure.md)); benchmark priority does not permit a single-vendor scheduler. Rolvya's backend is **Rust** and its authoritative database is **SQLite**, but project compilers and third-party coding agent CLIs run in remote isolated workers. Do not run such work on the user's personal computer. Actual cloud workloads are **billable** and require a separately authorized test ceiling.
+**ADR 0018, as subsequently revised by ADRs 0039 and 0041, approves initial priorities: Amazon ECS on AWS Fargate, Google Cloud Run Jobs, enrolled user-owned remote VPS.** This evaluation selects their concrete regions, images and safe cost/isolation settings; production-ready certification and live spend remain open under [Proposed ADR 0007](../decisions/0007-remote-worker-hosting.md). **Multi-provider support is already Approved** ([ADR 0011](../decisions/0011-multi-provider-worker-infrastructure.md)); benchmark priority does not permit a single-vendor scheduler. Rolvya's backend is **Rust** and its authoritative database is **SQLite**, but project compilers and third-party coding agent CLIs run in remote isolated workers. Do not run such work on the user's personal computer. Actual cloud workloads are **billable** and require a separately authorized test ceiling.
 
 ## Common worker contract (provider-neutral Rust adapter)
 
