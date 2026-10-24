@@ -34,7 +34,8 @@ All Markdown documentation follows the [Obsidian-compatible documentation policy
 - [Product requirements](product/requirements.md)
 - [Acceptance criteria](product/acceptance-criteria.md)
 - [Owner panel and user journeys](product/user-flows.md)
-- [Proposed first-version web panel navigation](product/initial-web-panel-structure.md)
+- [Owner-approved five-section web panel navigation and proposed screen details](product/initial-web-panel-structure.md)
+- [ADR 0042 — Approved web panel navigation](decisions/0042-five-section-web-panel-navigation.md)
 - [Testing and verification strategy](development/testing.md)
 
 ## Architecture specifications now available
