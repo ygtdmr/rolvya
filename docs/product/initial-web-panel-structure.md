@@ -1,16 +1,16 @@
 ---
 title: First-Version Web Panel Structure
-status: Proposed
+status: Approved - five-section navigation only
 category: product
-last-reviewed: 2026-10-24
+last-reviewed: 2026-10-25
 tags: [web-ui, owner-panel, user-experience, mvp]
 ---
 
-# Rolvya first-version web panel — compact proposal
+# Rolvya first-version web panel — approved navigation and proposed details
 
-**Status: Proposed (not yet explicitly approved by the Owner).** This is the minimum screen/navigation structure for the previously approved basic web panel in [v0.1 scope](scope.md). It does not select a frontend framework, finished visual design, real-time transport, deployment technology or plan-activation consent policy.
+**Status: the five top-level navigation sections and their high-level purposes were Owner-approved on 2026-10-25 ([ADR 0042](../decisions/0042-five-section-web-panel-navigation.md)).** The detailed screen contents and example journey below remain **Proposed**. This approval does not select a frontend framework, finished visual design, real-time transport, deployment technology, plan-activation consent policy, or implementation.
 
-## Primary navigation (five sections)
+## Primary navigation (five sections approved; screen details proposed)
 
 1. **Projects:** List and create projects; show status, associated remote Git repository, blockers and a simple progress/cost summary. Each project's primary view displays the planned **hierarchical task tree AND true DAG dependencies**, which are distinct. Selecting a task opens goals, assigned model/effort/mode, permitted connection, input artifacts, acceptance checks and related attempts.
 2. **Execution:** For a selected project, show dependency-ready, running, waiting, paused, failed and verified tasks; per-attempt worker/provider identity, time, redacted logs, retry/fencing state and validation evidence. Make it obvious that a group parent is not an executable worker task. Show when the run is blocked by an unverified provider subscription permission, unavailable worker pool or budget.
@@ -47,10 +47,10 @@ Owner manages approved critical budget/permissions/connection scope with action-
 - Accessible keyboard/navigation design and responsive layout; do not interpret responsive web as a commitment to a native mobile app.
 - Reuse the approved navy/blue/gray Rolvya identity; no gold accent, no invented replacement logo.
 
-## Not decided by this draft
+## Still open after navigation approval
 
 Sidebar position/size, exact dashboard widgets, frontend framework and component library, real-time transport (SSE/WebSocket/polling), responsive breakpoints, precise graph library, animation, filter/search behavior, per-screen final copy, first plan activation UX and release accessibility test levels remain for a light design/implementation pass.
 
-Related: [approved v0.1 scope](scope.md), [existing user journeys](user-flows.md), [budget hard stop ADR](../decisions/0002-hard-budget-approval.md), [roles ADR](../decisions/0024-project-human-roles.md), [current provider order ADR 0041](../decisions/0041-aws-fargate-first-real-worker.md), [open OQ-013](../project/open-questions.md).
+Related: [approved v0.1 scope](scope.md), [existing user journeys](user-flows.md), [budget hard stop ADR](../decisions/0002-hard-budget-approval.md), [roles ADR](../decisions/0024-project-human-roles.md), [current provider order ADR 0041](../decisions/0041-aws-fargate-first-real-worker.md), [approved five-section navigation ADR 0042](../decisions/0042-five-section-web-panel-navigation.md), [remaining OQ-013](../project/open-questions.md).
 
 This is **not** a completed, implemented or visually reviewed UI.
