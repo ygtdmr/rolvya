@@ -36,7 +36,10 @@ All Markdown documentation follows the [Obsidian-compatible documentation policy
 - [Owner panel and user journeys](product/user-flows.md)
 - [Owner-approved five-section web panel navigation and proposed screen details](product/initial-web-panel-structure.md)
 - [ADR 0042 — Approved web panel navigation](decisions/0042-five-section-web-panel-navigation.md)
-- [Proposed web panel technical stack — React/Vite, DAG and Axum/SSE](architecture/web-panel-technical-stack-proposal.md)
+- [Approved frontend core stack — React/Vite, DAG and Axum/SSE](architecture/web-panel-technical-stack-proposal.md)
+- [Approved ADR 0043 — Single application JS and browser platform boundary](decisions/0043-single-bundle-browser-platform-and-ux-boundary.md)
+- [Browser platform asset checklist and production build verification](architecture/web-platform-artifact-and-capability-contract.md)
+- [UX and accessibility contract — without selected visual design](product/web-ux-and-accessibility-contract.md)
 - [Testing and verification strategy](development/testing.md)
 
 ## Architecture specifications now available
