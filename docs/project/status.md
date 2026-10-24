@@ -205,3 +205,7 @@ The [web panel technical stack proposal](../architecture/web-panel-technical-sta
 ## Frontend source layout and build verification plan (2026-10-25)
 
 A [Proposed F0–F4 implementation plan](../development/web-frontend-source-and-build-plan.md) now identifies a future `apps/web/` modular React/Vite source layout, explicit `?inline` CSS assembly with React Flow stylesheet, current Rolldown one-JS chunk control, separate `sw.js`, CSP nonce/hash verification and a final `dist/` artifact inspector. F0–F1 are the suggested first implementation slice; later fake data, Rust API integration and browser/PWA tests follow. **No `apps/web` directory, bundle, CI workflow, browser test result or production deployment was created or verified by this document.** UI fonts, icon provider, component visuals and final layout remain undecided; approved ADR 0043 requirements remain binding.
+
+## Next P0 decision pack — Secret Broker key custody (2026-10-25)
+
+A [Proposed](../architecture/secret-storage-key-custody-decision-proposal.md) decision pack compares a managed secret service with envelope-encrypted SQLite plus separate root key custody, preserving the already-approved central Rust Secret Broker (ADR 0037), multiple isolated CLI/API connections (ADR 0038), worker lease checks and hard budgets. **The actual storage provider, encryption key location and security acceptance are NOT Owner-approved or implemented.** No accounts were connected, secrets stored or billable services started.
