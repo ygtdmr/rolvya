@@ -18,6 +18,10 @@ The [decision readiness checklist](decision-readiness.md) separates approved arc
 
 **Updated approved choices (2026-10-21):** [ADR 0006](../decisions/0006-worker-communication.md) fixes worker-initiated HTTPS; [ADR 0008](../decisions/0008-github-authentication.md) fixes GitHub App; [ADR 0011](../decisions/0011-multi-provider-worker-infrastructure.md) requires extensible multi-provider Rust adapters. [ADR 0007](../decisions/0007-remote-worker-hosting.md) remains Proposed for **which specific providers/regions to implement first**, not the common architecture. See [multi-provider adapter contract](../architecture/multi-provider-adapter-contract.md). Exact identity, permissions and wire/configuration remain implementation choices.
 
+## Latest approved first working provider (2026-10-24)
+
+[ADR 0041](../decisions/0041-aws-fargate-first-real-worker.md) refines [ADR 0040](../decisions/0040-single-provider-first-working-version.md): start with synthetic fake workers, then **Amazon ECS on AWS Fargate** as the first real remote-worker adapter, add **Google Cloud Run Jobs** and user-enrolled remote VPS later. The provider-neutral Rust interfaces, approved MVP feature requirements, explicit financial approval and verified CLI/API account entitlements remain compulsory. **No live paid AWS testing or provider provisioning has been approved.**
+
 ## Mandatory foundations before implementation
 
 1. **Rust-only backend and SQLite database are approved** by [ADR 0004](../decisions/0004-control-plane-language.md) and [ADR 0005](../decisions/0005-authoritative-database.md). Worker-initiated HTTPS is already approved in [ADR 0006](../decisions/0006-worker-communication.md) and GitHub App authentication in [ADR 0008](../decisions/0008-github-authentication.md). Initial provider categories and priorities are approved in [ADRs 0017–0018](../decisions/README.md); concrete provider regions, budget limits and identity/wire implementation remain open in the [decision register](open-questions.md).
