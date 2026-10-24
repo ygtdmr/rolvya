@@ -64,7 +64,7 @@ Rolvya is an open-source orchestration system for AI coding agents. This specifi
 
 | ID | Requirement | Verification expectation |
 | --- | --- | --- |
-| PR-023 | **Owner-only** project invitations for Editor or Viewer, with expiry, one-use redemption and OIDC-authenticated recipient identity; link possession alone cannot grant access. Multiple individually authenticated Owners are allowed per project. Owner grants/transfers require separate recent strong step-up, receiving Owner authentication/acceptance, and transactional prohibition of last-Owner removal. Membership actions are project-scoped and auditably enforced by Rust/SQLite. | Negative tests for Editor/Viewer invitations, expired/replayed/mismatched invites, concurrent redemption, cross-project privilege grants and unverified Owner elevation; [Approved ADR 0029](../decisions/0029-owner-controlled-project-invitations.md). |
+| PR-023 | **Owner-only** project invitations for Editor or Viewer, with expiry, one-use redemption and verified recipient identity through an enabled primary login method and any required TOTP; link possession alone cannot grant access. Multiple individually authenticated Owners are allowed per project. Owner grants/transfers require separate recent strong step-up, receiving Owner authentication/acceptance, and transactional prohibition of last-Owner removal. Membership actions are project-scoped and auditably enforced by Rust/SQLite. | Negative tests for Editor/Viewer invitations, expired/replayed/mismatched invites, concurrent redemption, cross-project privilege grants and unverified Owner elevation; [Approved ADR 0029](../decisions/0029-owner-controlled-project-invitations.md). |
 
 ## Approved project Activity Log
 
