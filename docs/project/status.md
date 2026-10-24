@@ -1,6 +1,6 @@
 # Project status
 
-Current authoritative decision cross-check: 2026-10-24 (see current ADRs; earlier sections are chronological historical checkpoints).
+Current authoritative decision cross-check: 2026-10-25 (see current ADRs; earlier sections are chronological historical checkpoints).
 
 ## Phase
 **Specification / repository foundation.** No executable Rolvya orchestration implementation is verified by this document.
@@ -197,3 +197,7 @@ The Owner explicitly rejected requiring authenticator-app TOTP for budget increa
 ## Web panel implementation stack candidate — Proposed 2026-10-25
 
 The [web panel technical stack proposal](../architecture/web-panel-technical-stack-proposal.md) compares a static React + TypeScript/Vite frontend, React Flow for **read-only dependency DAG visualization** alongside a distinct accessible task hierarchy, and REST plus Server-Sent Events through the already approved Rust Axum + SQLite/SQLx backend. **The technology selection is NOT Owner-approved.** It remains OQ-013/P1; no web application, Node runtime service, backend endpoint, graph test, UI benchmark or deployment was created, and no cloud spend was authorized.
+
+## Owner-approved one-bundle browser frontend and UX boundary (2026-10-25)
+
+[ADR 0043](../decisions/0043-single-bundle-browser-platform-and-ux-boundary.md) approves React + TypeScript/Vite with React Flow for the **read-only activated dependency DAG**, separate accessible task hierarchy and Rust Axum REST/SSE. Production output requires **exactly one minified application JavaScript asset containing compiled CSS**, with a **separate `sw.js`** for Service Worker and external manifest/icons/locales assets as applicable; no embedded fonts or icons. The [browser output, PWA, localization and browser capability catalog](../architecture/web-platform-artifact-and-capability-contract.md) and [UX/accessibility contract](../product/web-ux-and-accessibility-contract.md) specify future verification. **No font family, icon provider or final UI aesthetic was selected; exact design remains open under OQ-013**. This later approval **supersedes the preceding 2026-10-25 Proposed stack checkpoint**. No application code, one-JS build, asset files, UI test, browser certification or AWS deployment has been created or verified; no new spending was authorized.
