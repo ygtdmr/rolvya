@@ -65,7 +65,7 @@ tags: [p0, auth, password, magic-link, otp, totp, owner, sessions, security]
 ### B — Password login and reset
 
 - Use salted memory-hard password verifiers (candidate Argon2id), bounded validation cost, leaked-password screening where practicable, response normalization and per-IP/per-identity throttling. No password material in logs.
-- After successful password proof, if account policy requires an enrolled TOTP factor, complete that factor before issuing a fully authenticated session; keep partial-auth state incapable of privileged actions.
+- After successful password proof, if the user has voluntarily enrolled and enabled a TOTP factor, complete that factor before issuing a fully authenticated session; keep partial-auth state incapable of privileged actions.
 - Password reset with configured operational mail uses a short-lived purpose-scoped, one-use challenge. After secure reset, require fresh login, invalidate affected sessions and outstanding challenges, notify through safe existing channels. Reset must never silently disable an enrolled second factor.
 - **No outbound mail:** respond without account enumeration and provide **contact the instance administrator**. No claim that mail was sent. The administrator does not learn or choose the user's password; verified recovery permits user-controlled password re-enrollment with post-recovery session invalidation and audit. The concrete proof/quorum/one-time recovery credential flow is **open**.
 
@@ -74,7 +74,7 @@ tags: [p0, auth, password, magic-link, otp, totp, owner, sessions, security]
 - Require a verified address controlled through a short-lived, cryptographically strong challenge tied to purpose, recipient, instance and pending session.
 - Magic Link confirmation in a different browser/device must not silently attach an unknown session; use safe handoff/challenge binding. Prevent open redirects, referrer/query-token leakage and link-scanner auto-consumption.
 - OTP: rate-limit per email/IP/instance, bound tries and resend, compare a protected keyed digest and atomically mark consumed. Plain unsalted hashes of short numeric OTPs are susceptible to cheap offline guessing.
-- Email route grants an ordinary session subject to any enrolled TOTP policy; **email-only proof is not MFA and cannot by itself satisfy critical Owner step-up**. Failure to deliver must not reveal whether a user exists.
+- Email route grants an ordinary session subject to any voluntarily enrolled TOTP. **Email possession alone is not MFA or automatically sufficient authorization for a critical Owner action.** A distinct fresh email challenge plus transaction-specific confirmation and independently assessed risk controls is a **proposed non-TOTP reauthentication path**, not a claim of MFA or a preapproved risk threshold. Failure to deliver must not reveal whether a user exists.
 
 ### D — Voluntary app-based TOTP setup and recovery
 
@@ -87,7 +87,7 @@ tags: [p0, auth, password, magic-link, otp, totp, owner, sessions, security]
 
 - Rust issues opaque, random, first-party secure HttpOnly SameSite session cookies over HTTPS; CSRF and origin protections required. Store server-side digest, revoke per device or all devices, rotate on authentication and privilege/risk events. No bearer credentials in localStorage.
 - Real user interactions only refresh the approved seven-day inactivity window; backend jobs, token refresh, long-poll and remote workers do not. Absolute maximum session/step-up lifetime remains an open implementation policy.
-- Invitation acceptance requires a valid human login through an enabled method (and mandatory second factor), a verified stable account binding, an unexpired one-use 24-hour invite and an atomic SQLite role grant. Invited Owner elevation/transfer has independent recipient acceptance, recent strong initiating Owner approval and preserved last-Owner membership.
+- Invitation acceptance requires a valid human login through an enabled method (and their voluntarily enabled second factor, if any), a verified stable account binding, an unexpired one-use 24-hour invite and an atomic SQLite role grant. Invited Owner elevation/transfer has independent recipient acceptance, recent strong initiating Owner approval and preserved last-Owner membership.
 - Financial approval or login-policy changes require server-side **fresh reauthentication and explicit human authorization**; a stale login, queued notification, signed link, TOTP entry on another account or worker output is never budget authorization. **TOTP enrollment is not required**; exact secure non-TOTP risk controls and protected initial Owner bootstrap are **P0 questions**.
 
 ## Approval-required choices (OQ-004 remains P0)

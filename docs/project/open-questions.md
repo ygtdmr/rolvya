@@ -108,7 +108,7 @@ The [transport / Git / worker hosting decision pack](transport-git-hosting-decis
 
 ## Project invitation and ownership policy — Approved
 
-[ADR 0029](../decisions/0029-owner-controlled-project-invitations.md): only Owner invites; normal Editor/Viewer invitations expire and are one-use and require independently verified login through an enabled method (and any mandatory TOTP); changing/assigning Owner authority follows an independent high-assurance procedure. **The 24-hour default invitation validity is Approved (ADR 0029).** Only technical parameters—recipient binding, invitations delivery/revocation UI, transfer timeout, exceptional recovery and precise last-Owner transaction implementation—remain open; **two-party authenticated approval, multiple Owners per project, independent identities, no early Owner removal and a transactional last-Owner guard are Approved**. Do not re-ask the product policy.
+[ADR 0029](../decisions/0029-owner-controlled-project-invitations.md): only Owner invites; normal Editor/Viewer invitations expire and are one-use and require independently verified login through an enabled method (and their voluntarily enabled TOTP, if any); changing/assigning Owner authority follows an independent high-assurance procedure. **The 24-hour default invitation validity is Approved (ADR 0029).** Only technical parameters—recipient binding, invitations delivery/revocation UI, transfer timeout, exceptional recovery and precise last-Owner transaction implementation—remain open; **two-party authenticated approval, multiple Owners per project, independent identities, no early Owner removal and a transactional last-Owner guard are Approved**. Do not re-ask the product policy.
 
 ## Multi-Owner budget approvals — Approved
 
