@@ -88,6 +88,7 @@ See the [historical conversation audit](../project/historical-decision-audit.md)
 - [ADR 0037 — Central Secret Broker and task-scoped access](0037-central-secret-broker-task-scoped-access.md) — **Approved 2026-10-24**; concrete credential and isolation implementations remain open.
 - [ADR 0038 — Isolated multi-account CLI sessions and API-key mode](0038-multi-account-isolated-cli-and-api-access.md) — **Approved 2026-10-24** architecture; provider-specific hosted subscription eligibility remains P0.
 - [ADR 0039 — Amazon ECS on AWS Fargate replaces Hetzner Cloud priority](0039-aws-ecs-fargate-replaces-hetzner.md) — **Approved 2026-10-24**; concrete region/task cost and live adapter validation remain open.
+- [ADR 0040 — One real provider for first working Rolvya version](0040-single-provider-first-working-version.md) — **Approved 2026-10-24**; fake-first, Cloud Run Jobs first, AWS Fargate and remote VPS later; release certification and expenses still gated.
 - [ADR 0035 — Scoped containment of suspicious Owner actions](0035-scoped-human-incident-containment.md) — **Approved 2026-10-24**; protect compromised human credentials while preserving separately authorized safe worker execution.
 
 These are **Approved designs, not claims of implemented or production-verified software**. Detailed region/cost/adapter validation remains separate.
