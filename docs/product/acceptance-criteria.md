@@ -244,7 +244,7 @@ These are **specified future tests, not implemented or executed**. The **4-total
 | AC-116 | Expired, replayed, concurrent, tampered or brute-forced email challenge is submitted | Deny authentication; atomic one-time consumption, token confidentiality and safe redirect hold | ADR 0033 |
 | AC-117 | Owner enables additional password or email verification method later | Require current Owner authority and recent strong reauthentication; audit change, preserve existing user access, and enforce secure method enrollment | ADR 0033 |
 | AC-118 | User links password and email-only sign-in identities | Deny unsafe auto-link based on matching email alone; require verified control and preserve durable account identity | ADR 0033 |
-| AC-119 | Owner attempts high-risk budget or ownership change with stale session, password-only or email-only proof | Deny until separately approved recent strong step-up; extra TOTP may be required by policy and is not phishing-resistant | ADRs 0025–0029, 0033 |
+| AC-119 | Owner requests high-risk budget or ownership change with a stale session and no fresh server-verified reauthentication | Reject until transaction-bound fresh verification, authorization and applicable risk controls; never require TOTP enrollment as a prerequisite or falsely label one-factor proof as MFA | ADRs 0025–0029, 0033 |
 
 | AC-120 | Account owner enrolls authenticator-app TOTP and verifies the first valid code | Activation only after successful proof; encrypted secret, recovery controls and rate limiting | ADR 0033 |
 | AC-121 | Replayed, expired or brute-forced TOTP code is submitted | Denied, with replay prevention and throttling; SMS never required | ADR 0033 |
@@ -255,6 +255,10 @@ These are **specified future tests, not implemented or executed**. The **4-total
 | AC-125 | Password reset requested without configured or working outbound email | Do not claim a reset message was sent; display privacy-preserving **contact the instance administrator** guidance | ADR 0033 |
 | AC-126 | Administrator-assisted recovery when outbound mail is absent | Independently verify identity, constrain and audit recovery, protect 2FA, revoke affected sessions; no arbitrary password disclosure or Owner privilege bypass | ADRs 0026, 0033 |
 | AC-127 | Email-only primary login is configured while outbound mail is unavailable | Reject unsafe configuration and preserve an operational primary login method | ADR 0033 |
+
+| AC-128 | An Owner who has not opted into TOTP requests a budget ceiling increase or ownership operation | No forced TOTP enrollment; require an approved recent non-TOTP verification route, explicit authorization, audit and risk safeguards | ADR 0033 |
+| AC-129 | A user has voluntarily enabled authenticator-app TOTP | The account's enrolled second factor is respected in its protected sign-in/reauthentication flow, but unenrolled users have no compulsory 2FA | ADR 0033 |
+| AC-130 | Admin/Owner policy attempts to make TOTP enrollment compulsory for an ordinary user or a high-risk Owner action | Reject mandatory enrollment; preserve user opt-in, fresh Owner reauthentication, risk safeguards and role/budget boundaries | ADR 0033 |
 
 **These acceptance scenarios implement the future test contract for PR-025 and PR-026 (ADR 0033), not executed authentication tests.**
 
