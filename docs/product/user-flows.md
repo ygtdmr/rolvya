@@ -90,6 +90,10 @@ Show textual status as well as color; use understandable labels for blocked/fail
 - The UI cannot grant an unapproved provider integration or direct access to a personal computer.
 - A task labeled verified links to real tests/results and a remote commit/artifact.
 
+## Proposed first-version panel structure (2026-10-24)
+
+The [compact five-section web panel proposal](initial-web-panel-structure.md) groups **Projects**, **Execution**, **Costs & Approvals**, **Connections** and **Results & Activity**. It is **Proposed**, not yet Owner-approved; all critical role/budget/connection checks remain server-side and the UI cannot invent a permission. Do not select the frontend stack, detailed visual design or universal plan-activation approval rule from this unapproved layout draft.
+
 ## Open decisions
 
 Identity and roles, plan approval UX, layout/visual system, real-time updates, accessibility targets, provider-specific in-flight cancellation controls, project sharing, mobile support and authorization for merges/releases.
