@@ -268,7 +268,12 @@ These are **specified future tests, not implemented or executed**. The **4-total
 
 **AC-131–135 now trace the Owner-approved ADR 0034 principle, but their physical implementation/tests, numeric timers, detailed threat thresholds and recovery algorithms remain Proposed. None has been run.**
 
-**These acceptance scenarios implement the future test contract for PR-025 and PR-026 (ADR 0033), not executed authentication tests.**
+| AC-136 | Critical Owner action authorization is used more than 5 minutes after fresh verified proof | Reject at/beyond expiration; a renewed browser session never extends action proof and a new challenge/approval is needed | ADR 0034 |
+| AC-137 | Magic Link or email OTP is redeemed 10 minutes or more after issuance | Reject at/beyond expiry for login or transaction-bound reauthentication; never renew TTL on resend or page refresh of same challenge | ADR 0034 |
+| AC-138 | A user submits incorrect email OTP values five times for one issued challenge, including concurrent attempts | Fifth failure exhausts challenge; later submission (even a correct code) is denied; enforce atomically and protect against restart/resend bypass | ADR 0034 |
+| AC-139 | A successful email challenge or exact-action authorization is replayed, concurrently or after server restart | Reject replay; one successful consume/one effect at most even when token has not reached expiry | ADR 0034 |
+
+**These acceptance scenarios implement future security requirements from ADRs 0033–0034; no authentication implementation or test has been executed.**
 
 ## Evidence rules
 

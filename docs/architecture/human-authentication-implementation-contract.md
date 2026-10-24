@@ -98,13 +98,17 @@ tags: [p0, auth, password, magic-link, otp, totp, owner, sessions, security]
 
 | ID | Exact outstanding choice | Candidate recommended direction; **not approved** |
 | --- | --- | --- |
-| AUTH-P0-01 | **Precise Owner risk policy (fundamental reauthentication now approved ADR 0034)** | Current-password/new-email challenge and exact one-use approval are settled, with TOTP always optional. Still select proof expiry, challenge lifetimes, anti-abuse/attempt caps, suspicious-event evidence, protected review/recovery and cross-session downgrade rules without mislabeling a single factor as MFA. |
+| AUTH-P0-01 | **Precise Owner risk policy (fundamental reauthentication and four timing/replay parameters approved ADR 0034)** | Current-password/new-email challenge, 5-minute one-action proof, 10-minute email challenge, 5 failed email OTP attempts/challenge and atomic one-use are settled; TOTP is voluntary. Still select suspicious-event evidence, account/IP/resend throttles, protected review/recovery and cross-session downgrade rules without claiming single-factor MFA. |
 | AUTH-P0-02 | **Deployment administrator vs project Owner** | Administrator controls service-wide allowed methods and SMTP health; each project Owner can enable only a permitted non-weaker subset. Both need separate scope and audit. |
 | AUTH-P0-03 | **Email delivery and SMTP outage** | Permit an administrator-configured SMTP/transactional provider; health probe, safe fallback message and no-mail support contact. Need sender failure semantics and anti-enumeration design. |
-| AUTH-P0-04 | **Challenge, TOTP and password parameters** | Versioned Argon2id tuning, email challenge/OTP lifetime and entropy, resend/throttle, TOTP drift/replay, key custody and recovery-code policy must be security-tested. No numeric constants in this document are new approvals. |
+| AUTH-P0-04 | **Remaining challenge, TOTP and password parameters** | Approved email link/OTP TTL = 10 minutes, per-challenge failed email OTP attempts = 5 and one-use challenges, and critical-action approval = 5 minutes after verification (ADR 0034). Still select Argon2id tuning, challenge entropy/length, resend and account/IP throttling, voluntary TOTP drift/replay/key custody, recovery-code policy and execute security tests. |
 | AUTH-P0-05 | **Recovery, first Owner and lost 2FA** | Defined independently verified admin-assisted process; guard against support impersonation, sole-Owner lockout, compromised mailbox and new factor takeover; determine evidence/quorum/cooling policy. |
 | AUTH-P0-06 | **Session and credential lifetime** | Web-only server sessions, seven-day actual-user idle rule already approved; choose maximum lifetime, step-up freshness period, revocation propagation and cross-tab renewal strategy. |
 | AUTH-P0-07 | **Final authorization/schema contract** | Transaction-safe membership, invite redemption, account linking, factor changes and policy updates in authoritative Rust/SQLite; exact migrations and APIs are still proposed. |
+
+## Approved numeric challenge and action bounds
+
+Per [ADR 0034](../decisions/0034-owner-action-bound-reauthentication.md), newly issued **email** Magic Links and email OTPs expire **10 minutes after issuance**; allow **up to 5 unsuccessful email OTP verifications for that challenge** (then invalidate); a successful fresh Owner proof yields **at most 5 minutes** to commit its **single exact privileged action**; challenge and action proof consumption is **one-use**. These do **not** define authenticator-app TOTP code validity or password-reset challenge expiration. All server-side checks must survive concurrency, replay and restart.
 
 ## Security test design — not executed
 

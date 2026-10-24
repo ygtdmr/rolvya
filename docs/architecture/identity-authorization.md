@@ -94,7 +94,7 @@ See [human authentication/recovery/Owner step-up implementation contract](human-
 
 ## Approved action-specific Owner approval (ADR 0034)
 
-[ADR 0034](../decisions/0034-owner-action-bound-reauthentication.md) approves **fresh current password** (password-enabled account) or **new transaction-bound email Magic Link/OTP** (email-only account), an explicit confirmation of the exact sensitive change, an **atomic one-use proof and permission check** in Rust/SQLite, and **denial/hold when compromise is credibly suspected**. No Owner must enroll TOTP. Durations, risk thresholds and precise account recovery remain unselected engineering details.
+[ADR 0034](../decisions/0034-owner-action-bound-reauthentication.md) approves **fresh current password** (password-enabled account) or **new transaction-bound email Magic Link/OTP** (email-only account), an explicit confirmation of the exact sensitive change, an **atomic one-use proof and permission check** in Rust/SQLite, and **denial/hold when compromise is credibly suspected**. No Owner must enroll TOTP. **Approved**: 5-minute exact-action proof lifetime, 10-minute email Magic Link/OTP TTL, five failed email OTP submissions per challenge, single-use token/action consumption. Other rate limits, risk thresholds and account recovery remain unselected engineering details.
 
 ## Owner clarification (approved 2026-10-24)
 

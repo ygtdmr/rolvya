@@ -84,7 +84,7 @@ See the [historical conversation audit](../project/historical-decision-audit.md)
 - [ADR 0031 — Atomic task admission and budget reservation](0031-atomic-task-budget-admission.md).
 - [ADR 0032 — Earlier passwordless-only login selection](0032-passwordless-human-sign-in.md) — **Superseded by ADR 0033**.
 - [ADR 0033 — Configurable password/email login and authenticator-app TOTP 2FA](0033-configurable-password-email-login-and-totp.md) — **Approved 2026-10-24**.
-- [ADR 0034 — Owner action-bound reauthentication without mandatory TOTP](0034-owner-action-bound-reauthentication.md) — **Approved 2026-10-24**; numeric parameters and recovery mechanics still open.
+- [ADR 0034 — Owner action-bound reauthentication without mandatory TOTP](0034-owner-action-bound-reauthentication.md) — **Approved 2026-10-24**; the four core time/attempt limits approved; other abuse/risk and recovery mechanics still open.
 
 These are **Approved designs, not claims of implemented or production-verified software**. Detailed region/cost/adapter validation remains separate.
 

@@ -8,7 +8,7 @@ tags: [p0, authentication, owner, security, transactions, email, password]
 
 # Owner privileged reauthentication without mandatory TOTP — proposed implementation
 
-> **Status: MIXED — fundamental action-specific reauthentication flow APPROVED in [ADR 0034](../decisions/0034-owner-action-bound-reauthentication.md); concrete implementation, physical schema, expiration windows, rate limits, risk thresholds and recovery procedures remain PROPOSED.** Voluntary TOTP and the hard-budget/Owner requirements are unchanged. No Rust authentication code or tests are claimed.
+> **Status: MIXED — fundamental action-specific reauthentication flow and 5-minute approval / 10-minute email challenge / 5-failed-email-OTP-attempt / one-use limits APPROVED in [ADR 0034](../decisions/0034-owner-action-bound-reauthentication.md); concrete implementation, physical schema, other rate limits, risk thresholds and recovery procedures remain PROPOSED.** Voluntary TOTP and the hard-budget/Owner requirements are unchanged. No Rust authentication code or tests are claimed.
 
 ## Governing decisions and constraints
 
@@ -71,7 +71,7 @@ privileged_effects(
 
 All names and types are **illustrative, not approved schema migrations**. Use replay-safe one-use digests for high-entropy email challenge tokens; treat short numeric OTPs as low entropy and protect their server-side verifiers against offline guessing. Bind step-up proof to **current session generation, credential binding version, immutable action payload, target entity version, role version and security/risk epoch**. A changed ceiling/role/payload or logout/recovery invalidates it. No API token, raw password, OTP, Magic Link, session ID, recovery secret or TOTP seed goes into an AI prompt, worker, generic audit event or outbound user notification.
 
-The privileged-proof lifetime must be short and bounded under ADR 0034; proposing up to **5 minutes** per action is a **candidate only**, **not approved**. Exact expiry, retry limits, challenge lengths and risk thresholds remain open. Exact expiry, rate limits, challenge lengths and risk thresholds remain P0 implementation questions.
+**Approved ADR 0034:** the fresh critical-action approval expires **5 minutes after proof creation**; issued email Magic Link/OTP challenges expire **10 minutes after issuance**; **5 unsuccessful email OTP attempts per challenge** are permitted (the fifth exhausts it); and email challenges and transaction authorizations are **single-use**. All expiry/attempt/consumption checks must be atomic and time-tested. Specific resend/account/IP abuse windows, code length/entropy, TOTP-app-code policy, risk thresholds and recovery delays are **still unselected**.
 
 ## Abuse and denial handling — fail safely without mandatory 2FA
 
@@ -104,9 +104,9 @@ The privileged-proof lifetime must be short and bounded under ADR 0034; proposin
 ## What still needs explicit Owner/security review
 
 1. Exact risk signals and mandatory evidence for routine versus unusually risky Owner approvals, including when to hold/alert rather than automatically execute. **The principle of refusing automatic approval under credible compromise is approved ADR 0034.**
-2. Candidate per-action proof expiry (e.g. five minutes), retry/rate limits, and account-recovery cooldown before privileges can be used.
+2. **Already approved:** 5-minute one-action proof life, 10-minute email link/OTP issuance TTL, up to 5 failed email OTP verifications per challenge and one-use consumption. **Still open:** per-account/IP and resend rate limits, password/TOTP-app-code limits, and account-recovery cooldown before privileges can be used.
 3. Trust boundary between deployment administrator and project Owner, particularly bootstrap and sole-Owner recovery; no hidden administrator override of hard financial gates.
 4. How to compare authentication strength between enrolled methods while preserving voluntary TOTP and preventing downgrade.
 5. Exact transaction schema and cookie/authorization/step-up HTTP interfaces, key custody and incident response thresholds.
 
-**Status:** Voluntary TOTP and the **fundamental new password/email proof + exact one-use transaction confirmation + suspicious-operation denial/hold** are **Approved in ADRs 0033–0034**. The above records, numeric lifetimes, risk algorithms, transport details and recovery implementation remain **Proposed** until approved/tested. OQ-004 remains P0. Reference: [human auth overview](human-authentication-implementation-contract.md), [identity design](identity-authorization.md), [session proposal](session-token-rotation-and-theft-response.md), [ADR 0033](../decisions/0033-configurable-password-email-login-and-totp.md), [acceptance criteria](../product/acceptance-criteria.md).
+**Status:** Voluntary TOTP and the **fundamental new password/email proof + exact one-use transaction confirmation + suspicious-operation denial/hold** are **Approved in ADRs 0033–0034**. The above record layout, other numeric limits, risk algorithms, transport details and recovery implementation remain **Proposed** until approved/tested; ADR 0034 already approves the four explicit challenge/approval parameters. OQ-004 remains P0. Reference: [human auth overview](human-authentication-implementation-contract.md), [identity design](identity-authorization.md), [session proposal](session-token-rotation-and-theft-response.md), [ADR 0033](../decisions/0033-configurable-password-email-login-and-totp.md), [acceptance criteria](../product/acceptance-criteria.md).

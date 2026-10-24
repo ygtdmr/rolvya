@@ -28,7 +28,7 @@ On first setup, the Owner **must enable at least one primary login method** (pas
 
 ## Subsequent approval: transaction-bound Owner reauthentication (ADR 0034)
 
-[ADR 0034](0034-owner-action-bound-reauthentication.md) **approves** fresh current-password proof or a new one-use Magic Link/OTP challenge for each sensitive Owner operation, binding explicit human confirmation to the exact project/action/payload and applying a one-use, server-authorized SQLite gate. Suspicious/compromised circumstances must not lead to automatic approval. **TOTP remains voluntary, including for Owner actions.** Exact expiry, throttling, fraud/risk thresholds and recovery/schema choices are still open.
+[ADR 0034](0034-owner-action-bound-reauthentication.md) **approves** fresh current-password proof or a new one-use Magic Link/OTP challenge for each sensitive Owner operation, binding explicit human confirmation to the exact project/action/payload and applying a one-use, server-authorized SQLite gate. **Approved subsequent parameters:** action approval expires 5 minutes after successful fresh proof, email Magic Link/OTP expires 10 minutes after issuance, email OTP allows at most 5 failed submissions per challenge, and the proof/approval may be consumed only once. Suspicious/compromised circumstances must not lead to automatic approval. **TOTP remains voluntary, including for Owner actions.** Exact expiry, throttling, fraud/risk thresholds and recovery/schema choices are still open.
 
 ## Owner clarification: TOTP remains voluntary for all human actions (2026-10-24)
 
