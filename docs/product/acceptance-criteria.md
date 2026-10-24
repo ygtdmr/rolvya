@@ -234,17 +234,23 @@ These are **future requirements, not implemented or executed tests**. Exact prov
 
 These are **specified future tests, not implemented or executed**. The **4-total-attempt storage retry default**, **5/10/20-second base delays**, **small bounded jitter**, and **priority of a longer provider-mandated wait** are Approved. Exact jitter magnitude/distribution, provider cool-down parsing, operation granularity, error mapping and scheduling implementation remain Proposed. See [storage retry design](../architecture/storage-migration-state-machine.md) and [ADR 0030](../decisions/0030-project-activity-audit-log.md).
 
-## Passwordless human sign-in — specified future tests
+## Human login and authenticator-app 2FA — specified future tests (ADR 0033 supersedes ADR 0032)
 
 | Test ID | Scenario | Expected result | Requirement |
 | --- | --- | --- | --- |
-| AC-113 | User authenticates using trusted Google identity | Validated provider identity is bound to stable issuer/subject and project role rules; spoofed or unverified claims are denied | ADR 0032 |
-| AC-114 | User authenticates using GitHub identity | Securely verified GitHub identity; an OAuth access token alone is not mistakenly treated as OIDC proof; no automatic project role escalation | ADR 0032 |
+| AC-113 | User configures permitted password sign-in and registers/authenticates | Secure salted memory-hard password verifier; rate limits, safe reset and tenant role checks; no plaintext storage | ADR 0033 |
+| AC-114 | Initial setup chooses zero primary login methods or TOTP-only | Refuse configuration: at least one of password or email verification must be enabled | ADR 0033 |
 | AC-115 | User enters email for a one-time link or code | Successful verified, single-use unexpired challenge grants only permitted ordinary sign-in; rate limits and enumeration defenses apply | ADR 0032 |
 | AC-116 | Expired, replayed, concurrent, tampered or brute-forced email challenge is submitted | Deny authentication; atomic one-time consumption, token confidentiality and safe redirect hold | ADR 0032 |
-| AC-117 | A user or API attempts password registration/login/reset or an implicit password fallback | Deny; no password credential store, UI field or password reset flow exists in Rolvya | ADR 0032 |
-| AC-118 | User tries to merge Google, GitHub and email identities using a matching displayed email only | Deny unsafe auto-link; require verified control and durable issuer/subject bindings for both sides | ADR 0032 |
-| AC-119 | Email-only authenticated Owner requests a budget-ceiling increase, transfer or high-risk recovery without separately verified strong step-up | Deny until approved strong assurance is satisfied; email verification never bypasses Owner safeguards | ADRs 0025–0029, 0032 |
+| AC-117 | Owner enables additional password or email verification method later | Require current Owner authority and recent strong reauthentication; audit change, preserve existing user access, and enforce secure method enrollment | ADR 0033 |
+| AC-118 | User links password and email-only sign-in identities | Deny unsafe auto-link based on matching email alone; require verified control and preserve durable account identity | ADR 0033 |
+| AC-119 | Owner attempts high-risk budget or ownership change with stale session, password-only or email-only proof | Deny until separately approved recent strong step-up; extra TOTP may be required by policy and is not phishing-resistant | ADRs 0025–0029, 0033 |
+
+| AC-120 | Account owner enrolls authenticator-app TOTP and verifies the first valid code | Activation only after successful proof; encrypted secret, recovery controls and rate limiting | ADR 0033 |
+| AC-121 | Replayed, expired or brute-forced TOTP code is submitted | Denied, with replay prevention and throttling; SMS never required | ADR 0033 |
+| AC-122 | Non-Owner or AI agent attempts changing available login methods | Rejected server-side and recorded in audit log | ADR 0033 |
+| AC-123 | Owner disables the last usable primary login method or strands account holders | Refused pending supported verified migration/recovery; no TOTP-only login configuration | ADR 0033 |
+| AC-124 | TOTP device is lost and recovery is requested | Strict, auditable protected recovery with revocation, no hidden second-factor bypass | ADR 0033 |
 
 **These acceptance scenarios are specifications only; no authentication implementation or test has been executed.**
 
