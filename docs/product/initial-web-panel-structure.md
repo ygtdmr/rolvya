@@ -1,6 +1,6 @@
 ---
 title: First-Version Web Panel Structure
-status: Approved - five-section navigation only
+status: Approved navigation and core stack; visual design pending
 category: product
 last-reviewed: 2026-10-25
 tags: [web-ui, owner-panel, user-experience, mvp]
@@ -8,7 +8,7 @@ tags: [web-ui, owner-panel, user-experience, mvp]
 
 # Rolvya first-version web panel — approved navigation and proposed details
 
-**Status: the five top-level navigation sections and their high-level purposes were Owner-approved on 2026-10-25 ([ADR 0042](../decisions/0042-five-section-web-panel-navigation.md)).** The detailed screen contents and example journey below remain **Proposed**. This approval does not select a frontend framework, finished visual design, real-time transport, deployment technology, plan-activation consent policy, or implementation.
+**Owner-approved:** five top-level navigation sections ([ADR 0042](../decisions/0042-five-section-web-panel-navigation.md)) plus React/TypeScript, Vite, React Flow, REST/SSE through Rust Axum, single minified app JS containing CSS and comprehensive relevant browser support ([ADR 0043](../decisions/0043-single-bundle-browser-platform-and-ux-boundary.md)). Fine-grained screen behavior is implementation guidance, not all individually approved. **Font, icon provider, imagery, colors/typographic application, component looks and detailed visual UI design are intentionally deferred**, as are deployment details and first plan activation consent.
 
 ## Primary navigation (five sections approved; screen details proposed)
 
@@ -47,14 +47,14 @@ Owner manages approved critical budget/permissions/connection scope with action-
 - Accessible keyboard/navigation design and responsive layout; do not interpret responsive web as a commitment to a native mobile app.
 - Reuse the approved navy/blue/gray Rolvya identity; no gold accent, no invented replacement logo.
 
-## Technology option for review — not approved
+## Approved core technology and browser delivery contract
 
-A lightweight [React/TypeScript + Vite, React Flow and Rust Axum REST/SSE architecture](../architecture/web-panel-technical-stack-proposal.md) is documented as **Proposed**. This does not approve libraries, lock files, UI scaffolding, endpoint paths, detailed screen design or deployment.
+[React/TypeScript + Vite, React Flow and Rust Axum REST/SSE](../architecture/web-panel-technical-stack-proposal.md) are Owner-approved at the architecture level ([ADR 0043](../decisions/0043-single-bundle-browser-platform-and-ux-boundary.md)). Production application JS must be a **single minified file containing compiled CSS**, while **`sw.js`** and manifest/icons are separate assets. Never inline font/icon binaries or glyphs. Refer to the [browser artifact checklist](../architecture/web-platform-artifact-and-capability-contract.md) and [browser UX/accessibility requirements](web-ux-and-accessibility-contract.md). No build/implementation is claimed.
 
 ## Still open after navigation approval
 
-Sidebar position/size, exact dashboard widgets, frontend framework and component library, real-time transport (SSE/WebSocket/polling), responsive breakpoints, precise graph library, animation, filter/search behavior, per-screen final copy, first plan activation UX and release accessibility test levels remain for a light design/implementation pass.
+Sidebar position/size, exact dashboard widgets, component library, REST/SSE schema and reconnect policy, responsive breakpoints, graph layout, interaction details, animation, filter/search behavior, per-screen final copy, selected font/icon provider, UI aesthetics and first plan activation UX remain for design/implementation review. **WCAG 2.2 AA is the accessibility target**, with exact verified test evidence pending. Do not reopen approved React/Vite/React Flow/REST+SSE or single-app-JS output constraints by calling them undecided.
 
-Related: [approved v0.1 scope](scope.md), [existing user journeys](user-flows.md), [budget hard stop ADR](../decisions/0002-hard-budget-approval.md), [roles ADR](../decisions/0024-project-human-roles.md), [current provider order ADR 0041](../decisions/0041-aws-fargate-first-real-worker.md), [approved five-section navigation ADR 0042](../decisions/0042-five-section-web-panel-navigation.md), [remaining OQ-013](../project/open-questions.md).
+Related: [approved v0.1 scope](scope.md), [existing user journeys](user-flows.md), [budget hard stop ADR](../decisions/0002-hard-budget-approval.md), [roles ADR](../decisions/0024-project-human-roles.md), [current provider order ADR 0041](../decisions/0041-aws-fargate-first-real-worker.md), [approved five-section navigation ADR 0042](../decisions/0042-five-section-web-panel-navigation.md), [ADR 0043](../decisions/0043-single-bundle-browser-platform-and-ux-boundary.md), [remaining OQ-013](../project/open-questions.md).
 
 This is **not** a completed, implemented or visually reviewed UI.
