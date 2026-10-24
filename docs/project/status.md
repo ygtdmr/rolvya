@@ -189,3 +189,7 @@ The Owner explicitly rejected requiring authenticator-app TOTP for budget increa
 ## Latest Owner change — AWS Fargate first real provider (2026-10-24)
 
 [ADR 0041](../decisions/0041-aws-fargate-first-real-worker.md) supersedes the earlier Google-first development order referenced in historical status entries: **fake providers first; Amazon ECS on AWS Fargate first real integration; Google Cloud Run Jobs second; user-enrolled remote VPS third**. The [ADR 0040](../decisions/0040-single-provider-first-working-version.md) one-real-provider initial working version principle remains approved. This is a development/adapter priority and does not approve AWS spending, deployment, public production certification, provider-specific CLI rights, region, task sizing or other implementation thresholds. The 3 cloud/remote adapters remain development goals. No new provider jobs or code have been run.
+
+## Owner-approved first-version panel navigation (2026-10-25)
+
+[ADR 0042](../decisions/0042-five-section-web-panel-navigation.md) approves exactly five high-level web panel navigation sections: **Projects**, **Execution**, **Costs & Approvals**, **Connections**, and **Results & Activity**. The [panel specification](../product/initial-web-panel-structure.md) marks the navigation approved while keeping detailed screen UX, frontend framework, live updates and initial plan-activation consent as Proposed/Open **OQ-013/P1**. No web panel code, UI test, deployed service or additional AWS spending was created or verified by this documentation change.
