@@ -68,7 +68,7 @@ See the [historical conversation audit](../project/historical-decision-audit.md)
 - [ADR 0015 — Encrypted remote backup and restoration policy](0015-backup-recovery.md).
 - [ADR 0016 — S3-compatible storage adapter first](0016-s3-first-backup-adapter.md).
 - [ADR 0017 — Three remote worker host categories](0017-worker-host-categories.md).
-- [ADR 0018 — Cloud Run Jobs, Hetzner Cloud and user remote VPS adapter priorities](0018-initial-worker-adapters.md).
+- [ADR 0018 — Initial Cloud Run Jobs, **AWS ECS on Fargate**, and remote VPS priorities](0018-initial-worker-adapters.md) — priority 2 revised by approved [ADR 0039](0039-aws-ecs-fargate-replaces-hetzner.md).
 - [ADR 0019 — Centralized retries](0019-centralized-worker-retries.md).
 - [ADR 0020 — Provider-aware isolation](0020-provider-aware-worker-isolation.md).
 - [ADR 0021 — Economical / Balanced / Performance scheduler modes](0021-scheduler-selection-modes.md).
@@ -87,6 +87,7 @@ See the [historical conversation audit](../project/historical-decision-audit.md)
 - [ADR 0034 — Owner action-bound reauthentication without mandatory TOTP](0034-owner-action-bound-reauthentication.md) — **Approved 2026-10-24**; the four core time/attempt limits approved; other abuse/risk and recovery mechanics still open.
 - [ADR 0037 — Central Secret Broker and task-scoped access](0037-central-secret-broker-task-scoped-access.md) — **Approved 2026-10-24**; concrete credential and isolation implementations remain open.
 - [ADR 0038 — Isolated multi-account CLI sessions and API-key mode](0038-multi-account-isolated-cli-and-api-access.md) — **Approved 2026-10-24** architecture; provider-specific hosted subscription eligibility remains P0.
+- [ADR 0039 — Amazon ECS on AWS Fargate replaces Hetzner Cloud priority](0039-aws-ecs-fargate-replaces-hetzner.md) — **Approved 2026-10-24**; concrete region/task cost and live adapter validation remain open.
 - [ADR 0035 — Scoped containment of suspicious Owner actions](0035-scoped-human-incident-containment.md) — **Approved 2026-10-24**; protect compromised human credentials while preserving separately authorized safe worker execution.
 
 These are **Approved designs, not claims of implemented or production-verified software**. Detailed region/cost/adapter validation remains separate.
