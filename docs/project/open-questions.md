@@ -2,7 +2,7 @@
 title: Open Decisions and Architecture Questions
 status: Open
 category: project
-last-reviewed: 2026-10-22
+last-reviewed: 2026-10-24
 tags: [decisions, roadmap, unresolved, adr]
 ---
 
@@ -20,16 +20,16 @@ Each question should ultimately have an owner decision, dated rationale, alterna
 
 | ID | Priority | Question | Candidate directions / decision criteria | Related specification |
 | --- | --- | --- | --- | --- |
-| OQ-004 | P0 | Implement approved human passwordless entry points and complete assurance, sessions and membership safeguards | **ADR 0033 supersedes ADR 0032: password login or verified-email Magic Link/OTP are approved primary options; authenticator-app TOTP is optional 2FA, not standalone; no SMS. Owner must initially enable at least one primary method and may later enable others.** Remaining: secure provider/broker protocol, trusted subject binding, email challenge delivery/throttling, account linking, strong Owner step-up, sessions and membership/invite schema | [ADR 0032](../decisions/0032-passwordless-human-sign-in.md), [identity](../architecture/identity-authorization.md) |
+| OQ-004 | P0 | Implement approved password / verified-email / TOTP human sign-in and complete assurance, sessions and membership safeguards | **ADR 0033 supersedes ADR 0032: password login or verified-email Magic Link/OTP are approved primary options; authenticator-app TOTP is optional 2FA, not standalone; no SMS. Owner must initially enable at least one primary method and may later enable others.** Remaining: secure provider/broker protocol, trusted subject binding, email challenge delivery/throttling, account linking, strong Owner step-up, sessions and membership/invite schema | [ADR 0033](../decisions/0033-configurable-password-email-login-and-totp.md), [identity](../architecture/identity-authorization.md) |
 | OQ-005 | P0 | Secrets storage and remote worker identity? | Secret-manager references, ephemeral worker identity, revocation, sandbox boundary | [Secrets](../operations/secrets.md) |
 | OQ-008 | P0 | Provider-valid subscription CLI vs API usage on unattended third-party remote workers? | Check official current terms, owner entitlement, secure CLI/OAuth delegation, no silent paid fallback | [CLI/API entitlement contract](../architecture/model-access-entitlement-contract.md), [dated official evidence](../reference/provider-cli-api-policy-evidence.md) |
 | OQ-010 | P1 | Which first-provider **regions, images, sandbox settings and cost guarantees** are viable? | First adapter priorities **Approved ADR 0018**: Cloud Run Jobs, Hetzner Cloud and user remote VPS; validate each one's actual cost bounds, isolation and billing | [ADR 0018](../decisions/0018-initial-worker-adapters.md), [ADR 0007](../decisions/0007-remote-worker-hosting.md) |
-| OQ-011 | P1 | Worker lease TTL, heartbeat/retry limits/timeouts and model/resource escalation? | Historical 1/3/10 minute & three-attempt graphic is nonbinding; test idempotency, provider costs, fair retry policy | [Retry and escalation](../architecture/retry-escalation-policy.md) |
+| OQ-011 | P1 | Remaining worker retry delay/escalation, provider timeout and resource/model reassignment parameters? | **Already approved:** 15-minute worker token, 30-second heartbeat, 90-second lease, and 3 total AI worker attempts by default (ADR 0019). Old 1/3/10-minute backoff diagram nonbinding; remaining: retry delays, failure classification, provider costs/stop timing and safe escalation | [Retry and escalation](../architecture/retry-escalation-policy.md) |
 | OQ-012 | P1 | Planner and worker context packaging, token quotas and handoffs? | Minimize tokens in **both** phases, retain required constraints, version hashes and prior verified artifacts | [Token efficiency](../architecture/token-context-efficiency.md) |
 | OQ-013 | P1 | UI stack, roles and plan approval interactions? | Budget approval security, task graph readability and accessibility | [User flows](../product/user-flows.md) |
-| OQ-014 | P1 | Backup RPO/RTO, encryption and retention? | Risk to approvals/ledger/artifacts, restore exercises, storage cost | [Backups](../operations/backup-recovery.md) |
+| OQ-014 | P1 | Backup RPO/RTO, encryption/key custody and restore-test cadence? | **Already approved ADR 0015:** 15-minute backups, 24-hour daily recovery points, retention of frequent points for 7 days and daily points for 30 days. Remaining: measured RPO/RTO, encryption keys, restore tests, provider region and cost | [Backups](../operations/backup-recovery.md) |
 | OQ-015 | P1 | CI merge gates, review roles and release process? | Test scope, human security signoff, branch protection, MIT notice compliance | [Review](../development/review-process.md) |
-| OQ-016 | P1 | Alert delivery, monitoring stack and audit retention? | Low overhead, integrity, tenant privacy, noise controls | [Observability](../architecture/observability.md) |
+| OQ-016 | P1 | Alert delivery, monitoring, audit integrity anchoring and archive retrieval? | **Already approved ADR 0030:** 90-day panel-accessible activity, 1-year routine and minimum 3-year critical finance/security retention, independent trusted checkpoints. Remaining: alert delivery, crypto/key custody, retrieval, noise and privacy controls | [Observability](../architecture/observability.md) |
 | OQ-018 | P2 | Non-GitHub self-hosted remote Git adapters? | Provider compatibility and authorization, never local computer sync | [Git integration](../architecture/integration-github.md) |
 
 | OQ-019 | P2 | Which exact accepted logo source file/SVG, final no-gold HEX values and brand-use policy are authoritative? | Obtain original approved asset and provenance; avoid redrawing, superseded brass and trademark assumptions | [Brand history](../product/brand-history-license-governance.md) |
@@ -57,7 +57,7 @@ Each question should ultimately have an owner decision, dated rationale, alterna
 ## Approved technology choices — no longer open
 
 - **OQ-001 closed 2026-10-21:** Rust is the **only** Rolvya backend language ([ADR 0004 — Approved](../decisions/0004-control-plane-language.md)). Rust frameworks/crates and performance benchmarks remain open implementation details.
-- **OQ-002 closed 2026-10-21:** SQLite is the **only** authoritative database engine ([ADR 0005 — Approved](../decisions/0005-authoritative-database.md)). **ADR 0014 already approves initial WAL, maximum four pool connections and a five-second SQLite busy timeout; ADR 0013 approves SQLx.** Atomic lease/budget transactions, exact schema, `synchronous`/checkpoint policy, backup schedules and RPO/RTO remain unimplemented or unresolved.
+- **OQ-002 closed 2026-10-21:** SQLite is the **only** authoritative database engine ([ADR 0005 — Approved](../decisions/0005-authoritative-database.md)). **ADR 0014 already approves initial WAL, maximum four pool connections and a five-second SQLite busy timeout; ADR 0013 approves SQLx.** Atomic admission transaction pattern is **approved ADR 0031**, while its Rust/SQLite implementation, exact schema, `synchronous`/checkpoint tuning, restore tests and RPO/RTO remain open. Backup cadence/retention are **approved ADR 0015**.
 
 ## Candidate decision packages (not approved)
 
@@ -75,7 +75,7 @@ The [transport / Git / worker hosting decision pack](transport-git-hosting-decis
 ## Detailed evaluation specifications
 
 - [Budget authorization and provider invoice reconciliation](../architecture/budget-reservation-reconciliation.md) implements the **Approved** bounded-or-stop running-work policy conceptually; actual provider limits and accounting details remain open.
-- [Worker transport design](../architecture/worker-transport-design.md) proposes message shapes and failure tests. It does **not** approve HTTPS as the final transport.
+- [Worker transport design](../architecture/worker-transport-design.md) proposes message shapes and failure tests. **HTTPS transport is already approved ADR 0006**; only implementation/wire details are Proposed.
 - [Identity and authorization](../architecture/identity-authorization.md) describes proposed trust roles and explicit human approvals.
 - [GitHub App integration design](../architecture/github-app-integration-design.md) distinguishes repository token permissions from protected-branch write enforcement.
 - [Remote worker provider benchmark](../operations/worker-provider-evaluation.md) specifies cost and reliability comparisons with provider-side automatic retry checks.
@@ -102,13 +102,13 @@ The [transport / Git / worker hosting decision pack](transport-git-hosting-decis
 
 ## Authentication and session design — approved principles vs implementation proposals
 
-- [ADR 0025](../decisions/0025-oidc-passkey-authentication.md) approved OIDC with passkey-capable providers; [ADR 0026](../decisions/0026-account-recovery.md) approved security-preserving recovery; [ADR 0027](../decisions/0027-risk-based-session-management.md) approved secure, user-friendly session renewal, risk-based step-up and device-based revocation. **No automatic mandatory logout every 30 days**; 7-day real-human-inactivity web baseline is approved.
+- [ADR 0033](../decisions/0033-configurable-password-email-login-and-totp.md) approves current password/email/TOTP methods; ADR 0025 governs optional federated OIDC/passkey protections; [ADR 0026](../decisions/0026-account-recovery.md) approved security-preserving recovery; [ADR 0027](../decisions/0027-risk-based-session-management.md) approved secure, user-friendly session renewal, risk-based step-up and device-based revocation. **No automatic mandatory logout every 30 days**; 7-day real-human-inactivity web baseline is approved.
 - [ADR 0028](../decisions/0028-human-session-token-safety.md) **Approved** the basic secure renewal, issuer-capability-aware rotation/replay safeguards and per-device server-side revocation. The [human session implementation contract](../architecture/session-token-rotation-and-theft-response.md) remains **Proposed**: exact cookie/rotation algorithms, provider-specific replay, assurance verification, step-up lifetime and encrypted storage must be tested/decided.
 - Mobile app and Jarvis-style voice are **hypothetical ideas only**, not approved roadmap commitments, and need no implementation.
 
 ## Project invitation and ownership policy — Approved
 
-[ADR 0029](../decisions/0029-owner-controlled-project-invitations.md): only Owner invites; normal Editor/Viewer invitations expire and are one-use and require verified OIDC login; changing/assigning Owner authority follows an independent high-assurance procedure. **The 24-hour default invitation validity is Approved (ADR 0029).** Only technical parameters—recipient binding, invitations delivery/revocation UI, transfer timeout, exceptional recovery and precise last-Owner transaction implementation—remain open; **two-party authenticated approval, multiple Owners per project, independent identities, no early Owner removal and a transactional last-Owner guard are Approved**. Do not re-ask the product policy.
+[ADR 0029](../decisions/0029-owner-controlled-project-invitations.md): only Owner invites; normal Editor/Viewer invitations expire and are one-use and require independently verified login through an enabled method (and any mandatory TOTP); changing/assigning Owner authority follows an independent high-assurance procedure. **The 24-hour default invitation validity is Approved (ADR 0029).** Only technical parameters—recipient binding, invitations delivery/revocation UI, transfer timeout, exceptional recovery and precise last-Owner transaction implementation—remain open; **two-party authenticated approval, multiple Owners per project, independent identities, no early Owner removal and a transactional last-Owner guard are Approved**. Do not re-ask the product policy.
 
 ## Multi-Owner budget approvals — Approved
 
