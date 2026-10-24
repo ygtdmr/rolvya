@@ -34,6 +34,17 @@ Rolvya's historical user request included **Claude Code CLI and Codex CLI**, sub
 
 **Rolvya implication:** preserve user-selected billing/auth mode, validate consent/scope, separate remote worker credentials from model context, treat unsupported/expired token as blocker, and do not assume sign-in on one device authorizes all remote worker hosts. The user's historical subscription-only **Claude CLI** preference does not automatically select Codex CLI.
 
+## Paperclip reference and official multi-account remote login evidence — 2026-10-24
+
+- [Paperclip OpenAI connector](https://github.com/paperclipai/paperclip-docs/blob/main/docs/connectors/openai.md): CLI subscription or API key, separate per-login `CODEX_HOME`, optional host or interactive sandbox sign-in, connection assignment to eligible agents.
+- [Paperclip AI Connections](https://github.com/paperclipai/paperclip/blob/master/doc/connections/AI-CONNECTIONS.md): separate protected connection grants/private runtime homes, permission checks and careful token refresh; warns against importing the host operator's existing rotating-token file.
+- [OpenAI Codex CLI authentication](https://learn.chatgpt.com/docs/auth): official browser sign-in and device code for remote/headless login; credentials are sensitive. API keys remain recommended for automation.
+- [OpenAI Sign in with ChatGPT OSS capability](https://developers.openai.com/siwc/token-sharing-open-source): explicit consent/registration and account profiles; **paid or remotely hosted apps require separate access/eligibility**. Rolvya must not infer it has provider approval merely because the SDK exists.
+- [Anthropic Claude subscription and third-party policy](https://support.claude.com/en/articles/13189465-log-in-to-your-claude-account): API/cloud access is preferred for third-party tools, while subscription access is meant for genuine native usage. No native-client impersonation or subscription-limit evasion.
+- [Anthropic CLI environment priority](https://support.claude.com/en/articles/12304248-manage-api-key-environment-variables-in-claude-code): inherited API-key environment variables can override a subscription login and generate unexpected pay-as-you-go charges.
+
+**Approved Rolvya design:** multiple independently authenticated CLI accounts in isolated remote execution environments, plus API-key connections ([ADR 0038](../decisions/0038-multi-account-isolated-cli-and-api-access.md)). **Still P0:** actual rights to run each subscription via third-party unattended remote orchestration, account/workspace consent, quota, safe token renewal and hosted installation conditions. A real CLI login is not by itself a license for prohibited use.
+
 ## Verification checklist before writing live adapters
 
 | Requirement | Evidence required |
