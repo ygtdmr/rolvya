@@ -330,3 +330,13 @@ See [testing strategy](../development/testing.md), [project status](../project/s
 | AC-164 | User reviews completed browser UX build/design package | UX tests trace to approved behavior; no **unapproved** font, icon provider, visual identity replacement, stylistic choice or falsely claimed cross-browser support | PR-032 |
 
 **These are specified future checks, not executed builds, installed PWAs, WCAG conformance certification or production releases.** Record browser and operating-system versions and unsupported API exceptions with evidence.
+
+## Initial encrypted SQLite secret store — future verification (ADR 0044)
+
+| Test ID | Scenario | Pass condition | Requirement |
+| --- | --- | --- | --- |
+| AC-165 | Broker saves and rotates test credentials and copies SQLite database plus WAL/backup files | Credential plaintext and root/key-encryption material do not appear in SQLite/WAL/backups; protected record fails to decrypt without separately provisioned key | PR-033 |
+| AC-166 | Worker tries another project's/account's secret, stale lease, invalid connection or malformed ciphertext | Broker denies access without releasing plaintext; authenticated metadata/key-version tampering fails closed; no implicit CLI/API/account fallback | PR-033 |
+| AC-167 | Root key unavailable after crash; key rotation and point-in-time backup restore are attempted | No unsafe fallback or silently generated replacement root key; recovery uses separately safeguarded correct key/version, old ciphertext rotation works, no unsupported managed secret service needed | PR-033 |
+
+**Not executed.** A decision to use encrypted SQLite does not close OQ-005/P0 key custody, provider entitlements (OQ-008), or certify full-database at-rest encryption.
