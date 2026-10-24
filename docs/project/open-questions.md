@@ -45,7 +45,7 @@ Each question should ultimately have an owner decision, dated rationale, alterna
 
 ## Recently approved remote integration architecture — no longer open
 
-- **OQ-006 closed 2026-10-21:** [ADR 0006 — Approved](../decisions/0006-worker-communication.md). Worker control uses remote-worker-initiated HTTPS pull/claim/heartbeat/result with SQLite durable outbox; exact Rust library, authentication, payload and timing remain implementation choices.
+- **OQ-006 closed 2026-10-21:** [ADR 0006 — Approved](../decisions/0006-worker-communication.md). Worker control uses remote-worker-initiated HTTPS pull/claim/heartbeat/result with SQLite durable outbox; exact Rust library/auth implementation, payload and long-poll timing remain choices; **15-minute worker token, 30-second heartbeat and 90-second lease are already approved**.
 - **OQ-007 (GitHub auth selection) closed 2026-10-21:** [ADR 0008 — Approved](../decisions/0008-github-authentication.md). GitHub integration uses GitHub App installations with a trusted Rust Git publisher. Exact endpoint grants, merge authority and owner permissions remain open security details covered by OQ-004/005/015.
 - **Multi-provider architecture Approved:** [ADR 0011](../decisions/0011-multi-provider-worker-infrastructure.md) requires extensible Rust adapters supporting different remote providers, not a single cloud implementation. **OQ-010 remains open for regional/deployment settings, provider setup, billing evidence and benchmarking; the first three adapter priorities were approved in ADR 0018.**
 

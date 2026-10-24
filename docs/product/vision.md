@@ -47,7 +47,7 @@ Every point above is **design intent**, not a claim of shipped functionality.
 | Rust-only backend and SQLite authoritative database | Approved | Efficient small remote control-plane architecture |
 | Small remote control VPS with many scalable remote workers | Architectural direction | Measure rather than assert 2–4GB scale or number of workers |
 | Open-source and self-hostable | Approved open-source identity, proposed deployment experience | MIT-licensed source, reproducible builds and straightforward operations |
-| Provider-agnostic adapters | Proposed architecture | Avoid unnecessary lock-in, validate costs and terms |
+| Provider-agnostic adapters | **Approved architecture (ADR 0011), not implemented** | Avoid unnecessary lock-in, validate costs and terms |
 | Readable user-facing graph and financial telemetry | Proposed product experience | Clear blockers and reliable project status |
 
 ## Primary users (proposed)

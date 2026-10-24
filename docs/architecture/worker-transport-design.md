@@ -104,6 +104,6 @@ Use fake worker containers or remote servers and a Rust controller with SQLite. 
 
 ## Open decisions
 
-Auth method and enrollment, exact HTTPS envelope format, API version scheme, TLS and token rotation, poll/long-poll timing, max message size, lease TTL, retry backoff and typed error codes. **HTTPS itself is settled.**
+Provider attestation/enrollment and auth implementation, exact HTTPS envelope/API version, TLS and rotation mechanics, claim poll/long-poll timing, message limits, **provider-specific timeouts** and typed errors remain open. **HTTPS and initial 15-minute token, 30-second heartbeat and 90-second lease defaults are already approved** ([worker authentication](worker-authentication-policy.md)).
 
 Related: [worker protocol](worker-protocol.md), [ADR 0006](../decisions/0006-worker-communication.md), [budget reservation](budget-reservation-reconciliation.md), [Rust + SQLite backend](rust-sqlite-backend.md), [identity](identity-authorization.md).

@@ -133,6 +133,6 @@ Proposed event set: `EXPOSURE_BOUND_VERIFIED`, `EXPOSURE_UNKNOWN`, `BUDGET_ADMIS
 
 ## Open implementation decisions
 
-**HTTPS transport selection is settled.** Still open: Rust network stack; auth/token/key/bootstrap strategy; precise wire schema/version, payload sizes, lease TTL, heartbeat/backoff, capacity/queue fairness and long-poll semantics.
+**HTTPS transport and initial worker timing are settled:** 15-minute access token, 30-second heartbeat, 90-second lease ([approved worker authentication policy](worker-authentication-policy.md)). Still open: concrete Rust network/auth/bootstrap implementation, exact versioned wire schema and payload limits, adaptive claim-poll/backoff, capacity fairness and long-poll semantics.
 
 Related: [worker transport design](worker-transport-design.md), [logical worker protocol](worker-protocol.md), [Rust + SQLite backend](rust-sqlite-backend.md), [identity](identity-authorization.md), [budget policy](inflight-cost-policy.md), [test matrix](../development/rust-sqlite-test-matrix.md).

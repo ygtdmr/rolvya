@@ -23,7 +23,7 @@ Previously approved Rust-only backend, SQLite authoritative DB, fixed up-front D
 
 **Decision settled:** HTTPS with worker-initiated pull/claim plus authenticated heartbeat/progress/result. This is **not** subject to a new transport vote. The [wire draft](../architecture/worker-wire-contract-draft.md) and [transport design](../architecture/worker-transport-design.md) now refine it.
 
-**Still to decide and verify:** Rust HTTP/TLS stack, worker enrollment and short-lived identity, exact versioned wire schema/routes, payload size, lease/heartbeat/long-poll intervals, backoff, load/rate limits, end-to-end cancellation and controller 2–4 GB memory/CPU evidence. No broker or gRPC-first replacement can silently supersede ADR 0006.
+**Still to decide and verify:** Rust HTTP/TLS wiring, worker identity/enrollment mechanics, exact versioned wire schema/routes, payload size, **long-poll interval and retry backoff**, load/rate limits, end-to-end cancellation and 2–4 GB controller performance evidence. **Initial worker token 15 minutes, heartbeat 30 seconds and lease 90 seconds are already approved.** No broker or gRPC-first replacement can silently supersede ADR 0006.
 
 ## G2 — GitHub App implementation (approved architecture)
 
