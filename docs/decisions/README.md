@@ -90,7 +90,8 @@ See the [historical conversation audit](../project/historical-decision-audit.md)
 - [ADR 0039 — Amazon ECS on AWS Fargate replaces Hetzner Cloud priority](0039-aws-ecs-fargate-replaces-hetzner.md) — **Approved 2026-10-24**; concrete region/task cost and live adapter validation remain open.
 - [ADR 0040 — One real provider for first working Rolvya version](0040-single-provider-first-working-version.md) — **Approved 2026-10-24** for fake-first + single-real-adapter, but its original Google-first selection was superseded by ADR 0041.
 - [ADR 0041 — **AWS ECS Fargate first real integration**](0041-aws-fargate-first-real-worker.md) — **Approved 2026-10-24**; fake workers → AWS Fargate → Google Cloud Run Jobs → user-enrolled remote VPS. No cloud spend authorized.
-- [ADR 0042 — First-version five-section web panel navigation](0042-five-section-web-panel-navigation.md) — **Approved 2026-10-25** for the five top-level navigation sections only; frontend stack, detailed UX and plan activation consent remain OQ-013.
+- [ADR 0042 — First-version five-section web panel navigation](0042-five-section-web-panel-navigation.md) — **Approved 2026-10-25** for the five top-level navigation sections.
+- [ADR 0043 — Single minified app JS, embedded CSS, external fonts/icons and browser/UX completeness](0043-single-bundle-browser-platform-and-ux-boundary.md) — **Approved 2026-10-25** for core React/Vite/React Flow/REST+SSE stack and output/browser constraints. UI aesthetics, concrete provider/locale versions and first activation consent remain OQ-013.
 - [ADR 0035 — Scoped containment of suspicious Owner actions](0035-scoped-human-incident-containment.md) — **Approved 2026-10-24**; protect compromised human credentials while preserving separately authorized safe worker execution.
 
 These are **Approved designs, not claims of implemented or production-verified software**. Detailed region/cost/adapter validation remains separate.
