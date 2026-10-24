@@ -8,7 +8,7 @@ tags: [remote-worker, providers, rollout, budget, validation]
 
 # Initial remote worker rollout — staged proposal
 
-> **Status: Proposed.** This is a short rollout recommendation, **not a newly Owner-approved release order, provider deployment, price guarantee or authorization to spend**. [ADR 0018](../decisions/0018-initial-worker-adapters.md) has **already approved** these first-three adapter development priorities: Google Cloud Run Jobs, Amazon ECS on AWS Fargate, user-enrolled remote VPS. [ADR 0011](../decisions/0011-multi-provider-worker-infrastructure.md) already requires an extensible multi-provider Rust architecture.
+> **Status: MIXED.** The **staged development order is now Owner-approved [ADR 0040](../decisions/0040-single-provider-first-working-version.md): fake workers first, one real Google Cloud Run Jobs adapter for the first working version, then Amazon ECS on AWS Fargate and user remote VPS.** Specific provider configurations, expenses, benchmarks and public release certification remain **Proposed / unverified**, not automatically authorized. [ADR 0018](../decisions/0018-initial-worker-adapters.md) has **already approved** these first-three adapter development priorities: Google Cloud Run Jobs, Amazon ECS on AWS Fargate, user-enrolled remote VPS. [ADR 0011](../decisions/0011-multi-provider-worker-infrastructure.md) already requires an extensible multi-provider Rust architecture.
 
 ## Proposed progression
 
@@ -16,7 +16,7 @@ tags: [remote-worker, providers, rollout, budget, validation]
 2. **First real remote adapter: Google Cloud Run Jobs.** Validate a single bounded, isolated batch worker and then independent eligible leaves. Before any real execution, an authenticated Owner approves a specific test spending envelope; configure external retries to prevent unreserved provider-level executions. Do not assume the default Cloud Run task timeout or retries match Rolvya's scheduler rules.
 3. **Second adapter: Amazon ECS on AWS Fargate.** Validate isolated on-demand `RunTask` worker boot, IAM/task-level identity, short-lived runtime cleanup, startup/cancellation billing and idempotency `clientToken` plus `DescribeTasks` reconciliation. Unlike VM-backed pools this does not need permanently provisioned compute, but image pull, networking and short-task billing may matter. Fargate cannot run privileged Docker-in-Docker; test actual CLI/code-build compatibility.
 4. **Third adapter: user-enrolled remote VPS.** Verify remotely supplied host identity, worker isolation and accountable capacity/billing; **never** add a Local Agent, personal-computer worker or local repository synchronization.
-5. **Only after validated evidence**, decide whether public v0.1 needs one fully verified provider with the other two incrementally supported, or multiple simultaneously production-ready. **This exact public-release provider minimum is not yet approved.**
+5. **Approved for first working version (ADR 0040):** A successful initial real Cloud Run Jobs integration is enough to demonstrate the first working remote-provider version; **the second and third approved adapters can follow incrementally**. A fake-only test is not a publicly releasable v0.1. Full public release scope and safety certification remain subject to all MVP gates, provider testing and a separately justified release decision.
 
 ## Shared rules — already approved, unchanged
 
@@ -46,6 +46,6 @@ tags: [remote-worker, providers, rollout, budget, validation]
 - [Approved AWS substitution](../decisions/0039-aws-ecs-fargate-replaces-hetzner.md): why ECS/Fargate, rather than an AWS-owned duplicate scheduler.
 - [Existing worker-provider evaluation](../operations/worker-provider-evaluation.md): required test matrix and reserved expenditure safeguards.
 
-## Next Owner decision, limited in scope
+## Owner resolution (2026-10-24)
 
-**Proposed:** Implement/validate the three approved adapter categories **in ADR 0018 priority order**, but allow the first working prototype to use **one verified real adapter (Cloud Run Jobs)** while ECS on Fargate and user VPS are added incrementally. The public stable release's mandatory provider count remains a separate explicit decision. No cloud account creation or paid tests now.
+**Approved [ADR 0040](../decisions/0040-single-provider-first-working-version.md):** Implement the first working Rolvya with **one real Cloud Run Jobs adapter** after fake-worker correctness checks; AWS ECS Fargate and user-enrolled remote VPS are added in later increments. This decision is not an AWS/GCP spending authorization or proof of readiness for public production release. Exact provider settings, costs, and formal release gates remain open.
