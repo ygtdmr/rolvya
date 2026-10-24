@@ -145,6 +145,8 @@ The paths above are a **planned inventory**, not links to files that already exi
 
 ## Human authentication and session safety
 
+- [P0 human authentication, recovery and Owner step-up implementation proposal](architecture/human-authentication-implementation-contract.md) — **Proposed** contract with owner-approval gates; no runtime implementation.
+
 - [ADR 0033 — Current login methods: password/email + authenticator-app TOTP](decisions/0033-configurable-password-email-login-and-totp.md) — Approved, superseding initial-login rules in ADR 0032 and earlier OIDC-only wording.
 - [ADR 0025 — Conditional federation and passkey safeguards](decisions/0025-oidc-passkey-authentication.md) — Approved where OIDC is separately enabled; not required for v0.1.
 - [ADR 0026 — Secure account recovery, including current password-reset rules](decisions/0026-account-recovery.md) — Approved as reconciled with ADR 0033.

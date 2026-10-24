@@ -88,6 +88,10 @@ All protected operations require auditable traces with no raw credential content
 
 [ADR 0030](../decisions/0030-project-activity-audit-log.md) requires project-scoped, protected activity history. Owner/Editor may read authorized audit data, Viewer may only access an approved read-only subset. No ordinary role may edit/delete history. Sensitive identities, detailed security evidence and credentials require finer least-privilege checks and redaction. Human actions and agent/worker effects must have distinguishable, truthful actor attribution; a log entry alone does not authorize spending or a privileged change.
 
+## P0 implementation elaboration (proposal only)
+
+See [human authentication/recovery/Owner step-up implementation contract](human-authentication-implementation-contract.md) for proposed Rust/SQLite entities, first setup, password/email login, optional TOTP, no-email administrator support, session handling, risk/step-up protection and thirteen-plus negative tests. **No new Owner product policy is approved by that draft.** Especially unresolved: which additional factor permits a high-risk Owner action when ordinary login 2FA is optional; what independent evidence permits bootstrap/recovery; and who administers service-wide options vs project preferences.
+
 ## Decisions needed
 
 Identity/session **implementation and method-specific assurance mapping** (current methods approved ADR 0033, conditional OIDC safeguards ADR 0025, web session policy ADR 0027); tenant model; enrollment and worker attestation; **role membership persistence, invitation delivery and transfer workflow specifics plus finer Editor scopes** (human roles Approved ADR 0024; invitation/Owner transfer protections Approved ADR 0029); protected Git branch merge approval; approval UI/2FA requirements; audit retention; secret manager and project isolation enforcement.
