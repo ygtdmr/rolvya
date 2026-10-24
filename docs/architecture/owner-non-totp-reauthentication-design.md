@@ -8,7 +8,7 @@ tags: [p0, authentication, owner, security, transactions, email, password]
 
 # Owner privileged reauthentication without mandatory TOTP — proposed implementation
 
-> **Status: PROPOSED ENGINEERING CONTRACT, NOT OWNER-APPROVED IMPLEMENTATION DETAILS.** This design preserves the Owner's approved policy: TOTP is optional for **everyone**, including Owners performing high-risk actions. Existing hard-budget and human-approval requirements remain approved. No Rust code, IdP, mail sender, deployment or tests are claimed.
+> **Status: MIXED — fundamental action-specific reauthentication flow APPROVED in [ADR 0034](../decisions/0034-owner-action-bound-reauthentication.md); concrete implementation, physical schema, expiration windows, rate limits, risk thresholds and recovery procedures remain PROPOSED.** Voluntary TOTP and the hard-budget/Owner requirements are unchanged. No Rust authentication code or tests are claimed.
 
 ## Governing decisions and constraints
 
@@ -24,7 +24,7 @@ A fresh password alone or a fresh email challenge alone **is still single-factor
 
 [OWASP Authentication](https://cheatsheetseries.owasp.org/cheatsheets/Authentication_Cheat_Sheet.html) advises reauthentication for sensitive changes; [OWASP Transaction Authorization](https://cheatsheetseries.owasp.org/cheatsheets/Transaction_Authorization_Cheat_Sheet.html) advises presenting significant transaction data, per-operation authorization and checking authorization at execution; [OWASP Forgot Password](https://cheatsheetseries.owasp.org/cheatsheets/Forgot_Password_Cheat_Sheet.html) advises uniform responses and expiring single-use recovery tokens. These are engineering references, not proof the design is implemented or fully standards-compliant.
 
-## Proposed action-specific human authorization flow
+## Approved fundamental flow (ADR 0034) with proposed engineering realization
 
 1. **Prepare, do not execute.** Rust verifies a valid server-side session, current project/role, account not frozen and unchanged preflight policy. Create a short-lived `pending_privileged_action` record with an opaque ID, immutable canonical payload hash, `actor_user_id`, session identity/generation, project/deployment scope, action name, target version, state, expiry and risk snapshot.
 2. **Show exactly what will change.** For a budget increase, show old/new **total ceiling**, currency and project; for ownership transfer show recipient immutable account identity and role consequences; for credential/provider changes show explicit permission differences. A changed payload or version invalidates the pending authorization. No approval via an alert dismissal, background worker or just opening an email link.
@@ -71,7 +71,7 @@ privileged_effects(
 
 All names and types are **illustrative, not approved schema migrations**. Use replay-safe one-use digests for high-entropy email challenge tokens; treat short numeric OTPs as low entropy and protect their server-side verifiers against offline guessing. Bind step-up proof to **current session generation, credential binding version, immutable action payload, target entity version, role version and security/risk epoch**. A changed ceiling/role/payload or logout/recovery invalidates it. No API token, raw password, OTP, Magic Link, session ID, recovery secret or TOTP seed goes into an AI prompt, worker, generic audit event or outbound user notification.
 
-The provisional privileged-proof lifetime is **short and bounded**; proposing up to **5 minutes** per action is a **candidate only**, not an approved default. Exact expiry, rate limits, challenge lengths and risk thresholds remain P0 implementation questions.
+The privileged-proof lifetime must be short and bounded under ADR 0034; proposing up to **5 minutes** per action is a **candidate only**, **not approved**. Exact expiry, retry limits, challenge lengths and risk thresholds remain open. Exact expiry, rate limits, challenge lengths and risk thresholds remain P0 implementation questions.
 
 ## Abuse and denial handling — fail safely without mandatory 2FA
 
@@ -103,10 +103,10 @@ The provisional privileged-proof lifetime is **short and bounded**; proposing up
 
 ## What still needs explicit Owner/security review
 
-1. Which exact non-TOTP risk controls are mandatory for routine versus unusually risky Owner approvals (including when to hold/alert rather than automatically execute).
+1. Exact risk signals and mandatory evidence for routine versus unusually risky Owner approvals, including when to hold/alert rather than automatically execute. **The principle of refusing automatic approval under credible compromise is approved ADR 0034.**
 2. Candidate per-action proof expiry (e.g. five minutes), retry/rate limits, and account-recovery cooldown before privileges can be used.
 3. Trust boundary between deployment administrator and project Owner, particularly bootstrap and sole-Owner recovery; no hidden administrator override of hard financial gates.
 4. How to compare authentication strength between enrolled methods while preserving voluntary TOTP and preventing downgrade.
 5. Exact transaction schema and cookie/authorization/step-up HTTP interfaces, key custody and incident response thresholds.
 
-**Status:** The existing **no-compulsory-TOTP Owner decision is Approved**. All specific new algorithms above are **Proposed** until explicit decision and tests. OQ-004 remains P0. Reference: [human auth overview](human-authentication-implementation-contract.md), [identity design](identity-authorization.md), [session proposal](session-token-rotation-and-theft-response.md), [ADR 0033](../decisions/0033-configurable-password-email-login-and-totp.md), [acceptance criteria](../product/acceptance-criteria.md).
+**Status:** Voluntary TOTP and the **fundamental new password/email proof + exact one-use transaction confirmation + suspicious-operation denial/hold** are **Approved in ADRs 0033–0034**. The above records, numeric lifetimes, risk algorithms, transport details and recovery implementation remain **Proposed** until approved/tested. OQ-004 remains P0. Reference: [human auth overview](human-authentication-implementation-contract.md), [identity design](identity-authorization.md), [session proposal](session-token-rotation-and-theft-response.md), [ADR 0033](../decisions/0033-configurable-password-email-login-and-totp.md), [acceptance criteria](../product/acceptance-criteria.md).

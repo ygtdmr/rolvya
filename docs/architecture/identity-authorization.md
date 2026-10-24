@@ -92,6 +92,10 @@ All protected operations require auditable traces with no raw credential content
 
 See [human authentication/recovery/Owner step-up implementation contract](human-authentication-implementation-contract.md) for proposed Rust/SQLite entities, first setup, password/email login, optional TOTP, no-email administrator support, session handling, risk/step-up protection and thirteen-plus negative tests. **No new Owner product policy is approved by that draft.** Especially unresolved: which fresh non-TOTP reauthentication with risk controls permits a high-risk Owner action without forcing enrollment; what independent evidence permits bootstrap/recovery; and who administers service-wide options vs project preferences.
 
+## Approved action-specific Owner approval (ADR 0034)
+
+[ADR 0034](../decisions/0034-owner-action-bound-reauthentication.md) approves **fresh current password** (password-enabled account) or **new transaction-bound email Magic Link/OTP** (email-only account), an explicit confirmation of the exact sensitive change, an **atomic one-use proof and permission check** in Rust/SQLite, and **denial/hold when compromise is credibly suspected**. No Owner must enroll TOTP. Durations, risk thresholds and precise account recovery remain unselected engineering details.
+
 ## Owner clarification (approved 2026-10-24)
 
 **TOTP is entirely opt-in**, including for project Owners, budget increases, ownership changes and security operations ([ADR 0033](../decisions/0033-configurable-password-email-login-and-totp.md)). A recent user-initiated reauthentication and explicit Owner authorization still protect privileged actions, but risk-safe non-TOTP verification must be available for users who chose not to enroll. Never portray a single password or email challenge as MFA. Details of non-TOTP step-up, fraud/risk refusal and account recovery remain P0 engineering work.

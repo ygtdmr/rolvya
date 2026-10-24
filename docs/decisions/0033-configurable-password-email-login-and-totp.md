@@ -26,6 +26,10 @@ On first setup, the Owner **must enable at least one primary login method** (pas
 - **High-risk Owner reauthentication still applies, without mandatory TOTP:** managing Owners, expanding spending limits, secrets or Git/provider privileges requires explicit approval and recent, transaction-bound verified reauthentication under an appropriate risk policy. **An Owner without enrolled TOTP is not required to enroll it for these actions.** If the Owner voluntarily enrolled TOTP, protect and apply their active factor. Password-only/email-only proof is not phishing-resistant or MFA; retain session checks, rate limits, audit/alerts and risk-based refusal for suspected compromise. Safe non-TOTP step-up mechanics remain P0 implementation details.
 - Role authorization (Owner/Editor/Viewer), project isolation, sessions, reset and recovery, TLS, audit and machine-identity separation remain mandatory. Email verification is required when establishing/recovering an address; 2FA never uses SMS in the initial scope.
 
+## Subsequent approval: transaction-bound Owner reauthentication (ADR 0034)
+
+[ADR 0034](0034-owner-action-bound-reauthentication.md) **approves** fresh current-password proof or a new one-use Magic Link/OTP challenge for each sensitive Owner operation, binding explicit human confirmation to the exact project/action/payload and applying a one-use, server-authorized SQLite gate. Suspicious/compromised circumstances must not lead to automatic approval. **TOTP remains voluntary, including for Owner actions.** Exact expiry, throttling, fraud/risk thresholds and recovery/schema choices are still open.
+
 ## Owner clarification: TOTP remains voluntary for all human actions (2026-10-24)
 
 - Users may voluntarily enroll authenticator-app TOTP or leave it disabled. **It is not compulsory for routine login, budget increases, Owner transfers, security administration or any other high-risk Owner operation.** No administrator/Owner setting may silently make enrollment obligatory.

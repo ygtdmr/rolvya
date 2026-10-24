@@ -260,13 +260,13 @@ These are **specified future tests, not implemented or executed**. The **4-total
 | AC-129 | A user has voluntarily enabled authenticator-app TOTP | The account's enrolled second factor is respected in its protected sign-in/reauthentication flow, but unenrolled users have no compulsory 2FA | ADR 0033 |
 | AC-130 | Admin/Owner policy attempts to make TOTP enrollment compulsory for an ordinary user or a high-risk Owner action | Reject mandatory enrollment; preserve user opt-in, fresh Owner reauthentication, risk safeguards and role/budget boundaries | ADR 0033 |
 
-| AC-131 | Owner without enrolled TOTP submits a legitimate budget increase with fresh password proof | Do not require TOTP enrollment; reverify immutable action amount/project, current Owner role and risk checks; commit once with audit | ADR 0033; proposed Owner reauth design |
-| AC-132 | Email-only Owner submits a critical approval with new, session/action-bound Magic Link/OTP | New proof must be one-use and transaction-bound, not reusable general permission or mislabeled MFA; fail safely when mail is unavailable | ADR 0033; proposed Owner reauth design |
-| AC-133 | Pending privileged action is changed, replayed, or session/membership changes before final commit | Invalidate stale proof, deny altered effect, require fresh approval; protect atomic version/idempotency checks | ADRs 0027, 0029; proposed Owner reauth design |
-| AC-134 | Administrator or revoked Owner tries to approve another project's budget without membership | Reject despite valid login or deployment administration; do not confer Owner powers | ADRs 0024, 0029; proposed Owner reauth design |
-| AC-135 | User with voluntarily enrolled TOTP attempts an unsafe credential downgrade to bypass it during privileged approval | Preserve enrolled factor's protections and controlled recovery, without imposing enrollment on TOTP-free users | ADR 0033; proposed Owner reauth design |
+| AC-131 | Owner without enrolled TOTP submits a legitimate budget increase with fresh password proof | Do not require TOTP enrollment; reverify immutable action amount/project, current Owner role and risk checks; commit once with audit | Approved ADR 0034; implementation Proposed |
+| AC-132 | Email-only Owner submits a critical approval with new, session/action-bound Magic Link/OTP | New proof must be one-use and transaction-bound, not reusable general permission or mislabeled MFA; fail safely when mail is unavailable | Approved ADR 0034; implementation Proposed |
+| AC-133 | Pending privileged action is changed, replayed, or session/membership changes before final commit | Invalidate stale proof, deny altered effect, require fresh approval; protect atomic version/idempotency checks | Approved ADR 0034; implementation Proposed |
+| AC-134 | Administrator or revoked Owner tries to approve another project's budget without membership | Reject despite valid login or deployment administration; do not confer Owner powers | ADRs 0024, 0029, 0034; implementation Proposed |
+| AC-135 | User with voluntarily enrolled TOTP attempts an unsafe credential downgrade to bypass it during privileged approval | Preserve enrolled factor's protections and controlled recovery, without imposing enrollment on TOTP-free users | ADRs 0033, 0034; implementation Proposed |
 
-**AC-131–135 specify PROPOSED implementation acceptance cases linked to existing approved human security boundaries; no specific new timers, algorithms or risk thresholds are Owner-approved merely because they appear here. None has been run.**
+**AC-131–135 now trace the Owner-approved ADR 0034 principle, but their physical implementation/tests, numeric timers, detailed threat thresholds and recovery algorithms remain Proposed. None has been run.**
 
 **These acceptance scenarios implement the future test contract for PR-025 and PR-026 (ADR 0033), not executed authentication tests.**
 
