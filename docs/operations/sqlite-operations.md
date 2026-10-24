@@ -16,7 +16,7 @@ tags: [sqlite, backup, wal, recovery, operations]
 
 Keep the database on a **remote controlled persistent volume** accessible to the Rust control process. Restrict OS permissions; do not put the DB in public/static web directories, committed Git files or worker images. Never have remote worker instances open the live SQLite file, especially over network filesystems.
 
-For a SQLite connection pool, enforce busy handling and foreign keys on **every connection**. If WAL is selected, treat the main database plus `-wal` and `-shm` journal-side state as an operational unit. Avoid copying a running database file with a naive filesystem copy; use SQLite's supported online-backup or snapshot mechanisms with verified consistency.
+For a SQLite connection pool, enforce busy handling and foreign keys on **every connection**. **WAL is already approved under ADR 0014**; treat the main database plus `-wal` and `-shm` state as an operational unit. Avoid copying a running database file with a naive filesystem copy; use SQLite's supported online-backup or snapshot mechanisms with verified consistency.
 
 ## Candidate production settings (must be benchmarked)
 
@@ -43,7 +43,7 @@ For a SQLite connection pool, enforce busy handling and foreign keys on **every 
 6. Fence stale leases and revoke compromised worker credentials before resuming.
 7. Re-enable billable task admission **only** if the current approved ceiling and reservations remain consistent; a budget-paused project stays paused until explicit human approval.
 
-RPO/RTO, retention period, backup frequency and backup storage pricing remain unapproved.
+**ADR 0015 already approves 15-minute automated backups, daily recovery points and retention of 7-day frequent / 30-day daily points.** RPO/RTO, restore-test cadence, remote provider pricing and cryptographic key management remain to be finalized.
 
 ## Migration requirements
 
@@ -67,6 +67,6 @@ Measure transaction conflicts, busy timeouts, WAL/checkpoint size, SQLite integr
 
 ## Open decisions
 
-WAL activation, busy_timeout, pool size, checkpoint interval, journal durability, migration framework, backup medium/cadence, encryption/key manager, RPO/RTO and disaster-recovery host placement.
+**Approved:** WAL enabled, five-second busy timeout, max four SQLx pool connections (ADR 0014) and 15-minute/daily backup cadence with 7-/30-day retention (ADR 0015). **Open:** checkpoint interval, `synchronous` durability, migration framework, backup destination/encryption/key custody, restore test cadence, RPO/RTO and recovery host placement.
 
 Related: [backend contract](../architecture/rust-sqlite-backend.md), [data model](../architecture/data-model.md), [backup policy](backup-recovery.md), [incident runbooks](runbooks.md), [deployment](deployment.md).

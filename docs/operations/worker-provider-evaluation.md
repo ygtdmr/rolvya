@@ -10,7 +10,7 @@ tags: [workers, cloud-run, fargate, cloud, benchmark, budget]
 
 ## Purpose and decision boundary
 
-Choose the **first concrete remote execution provider adapters** only after comparing measurable security, workload compatibility, total cost and failure behavior; no initial provider is currently approved ([Proposed ADR 0007](../decisions/0007-remote-worker-hosting.md)). **Multi-provider support is already Approved** ([ADR 0011](../decisions/0011-multi-provider-worker-infrastructure.md)); benchmark priority does not permit a single-vendor scheduler. Rolvya's backend is **Rust** and its authoritative database is **SQLite**, but project compilers and third-party coding agent CLIs run in remote isolated workers. Do not run such work on the user's personal computer. Actual cloud workloads are **billable** and require a separately authorized test ceiling.
+**ADR 0018 already approves the initial implementation priorities: Google Cloud Run Jobs, Hetzner Cloud and enrolled user-owned remote VPS.** This evaluation selects their concrete regions, images and safe cost/isolation settings; production-ready certification and live spend remain open under [Proposed ADR 0007](../decisions/0007-remote-worker-hosting.md). **Multi-provider support is already Approved** ([ADR 0011](../decisions/0011-multi-provider-worker-infrastructure.md)); benchmark priority does not permit a single-vendor scheduler. Rolvya's backend is **Rust** and its authoritative database is **SQLite**, but project compilers and third-party coding agent CLIs run in remote isolated workers. Do not run such work on the user's personal computer. Actual cloud workloads are **billable** and require a separately authorized test ceiling.
 
 ## Common worker contract (provider-neutral Rust adapter)
 

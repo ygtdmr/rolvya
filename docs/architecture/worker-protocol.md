@@ -87,6 +87,6 @@ A more detailed, **Proposed** transport contract including example routes and me
 
 ## Open decisions
 
-HTTPS endpoint/envelope schema, TLS identity, idle backoff/long-poll behavior, heartbeat cadence, timeout lengths, payload-size limits, artifact upload/auth mechanism, retry backoff and event retention. **Transport selection is closed.**
+HTTPS endpoint/envelope schema, TLS identity, idle backoff/long-poll behavior, **approved 30-second heartbeat, 90-second lease and 15-minute worker token** (worker authentication policy); otherwise unknown provider timeouts, payload limits, artifact upload/auth, retry backoff and event retention. **Transport selection is closed.**
 
 Related: [scheduler](scheduler.md), [workers](workers.md), [API inventory](api-contracts.md), [remote Git](integration-github.md), [security](security.md), [worker lifecycle](../operations/worker-lifecycle.md).

@@ -124,6 +124,6 @@ One planned implementation task owns narrow crate/files and an explicit base rem
 
 ## Open decisions
 
-Workspace granularity, Rust version and edition, async runtime, SQLite Rust driver, HTTP transport crate, model provider SDKs, protobuf/JSON schema, CLI process supervisor, tracing stack, authentication and release targets. These selections require evidence and must not be silently treated as approved.
+Workspace granularity, Rust toolchain/edition, remaining dependency versions, model provider SDKs, protobuf/JSON schema, CLI supervisor, tracing, identity details and release targets remain unselected. **Axum (ADR 0012), SQLx (ADR 0013), approved SQLite WAL/pool/busy defaults (ADR 0014) and worker HTTPS (ADR 0006) are settled**; exact HTTPS wire crate/integration implementation remains to be tested.
 
 Related: [orchestrator](orchestrator.md), [backend contract](rust-sqlite-backend.md), [SQLite schema draft](sqlite-schema-draft.md), [agents](agents.md), [implementation slices](../project/implementation-slices.md).

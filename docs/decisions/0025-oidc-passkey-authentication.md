@@ -1,10 +1,10 @@
 ---
-title: "ADR 0025: OIDC-first human authentication with phishing-resistant passkeys"
+title: "ADR 0025: Conditional federated OIDC and passkey security"
 status: Approved
 date: 2026-10-22
 ---
 
-# ADR 0025: OIDC-first human authentication with phishing-resistant passkeys
+# ADR 0025: Conditional federated OIDC and passkey security
 
 ## Context
 Rolvya needs secure human sign-in for the approved Owner, Editor and Viewer roles (ADR 0024), with secure authorization and account recovery. The subsequent [ADR 0033](0033-configurable-password-email-login-and-totp.md) explicitly permits password authentication; the former passwordless-only constraint is superseded. The project owner explicitly approved the OIDC + passkey-capable + strong session security approach on 2026-10-22 and emphasized maximizing authentication security.

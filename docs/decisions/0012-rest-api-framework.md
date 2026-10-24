@@ -17,4 +17,4 @@ Benchmark the real API under 2–4 GB controller memory with 100, 500, and 1000 
 
 ## Unresolved
 
-SQLite library (SQLx versus rusqlite), runtime tuning, TLS deployment and middleware specifics remain to be decided. This ADR does not approve them.
+**SQLx was subsequently approved in ADR 0013.** Runtime tuning, TLS deployment and middleware specifics remain implementation decisions. Axum and SQLx selections are closed.

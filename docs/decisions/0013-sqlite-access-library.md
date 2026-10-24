@@ -17,4 +17,4 @@ SQLx integrates with the async Rust control plane and provides pooled connection
 - Test under 2–4 GB controller hardware, including 100, 500 and 1,000 simulated workers. Measure p95/p99 latency, CPU/RAM, transaction contention, errors and budget invariants.
 
 ## Remaining engineering choices
-WAL and synchronous settings, busy timeout, connection pool size, checkpoint policy, migration strategy and backup/recovery must be decided and validated separately. No performance benchmark or production deployment is claimed here.
+**Subsequent ADR 0014 approved WAL, at most four control-plane pool connections and a five-second busy timeout.** Exact `synchronous` and checkpoint policy, migration strategy and restore implementation/validation remain to be finalized. No performance benchmark or production deployment is claimed here.

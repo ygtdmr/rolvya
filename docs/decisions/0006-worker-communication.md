@@ -32,7 +32,7 @@ Worker-initiated HTTPS can operate using outbound connections without requiring 
 ## Transport boundaries
 
 - **Approved:** worker-initiated HTTPS control channel and Rust/SQLite state authority.
-- **Not selected:** exact Rust HTTP/TLS crates, auth/enrollment mechanism, OpenAPI/JSON or other codec, URL paths, worker heartbeat/claim timing, long-poll settings and per-provider bootstrap.
+- **Not selected:** exact Rust HTTP/TLS crates, enrollment/attestation implementation, OpenAPI/JSON or other codec, URL paths, claim/long-poll settings and provider bootstrap. **Subsequent worker authentication policy approved a 15-minute access token, 30-second heartbeat and 90-second lease**; the concrete protocol implementation remains open.
 - A separate provider launch/inspect/cancel adapter may call a provider API via its native HTTPS/SDK/remote-host transport; that does **not** replace the worker's approved HTTPS controller channel.
 - A future gRPC or broker **replacement for the worker control channel** would require a superseding owner-approved ADR. A supplementary internal queue may be evaluated without bypassing SQLite authority or this HTTPS channel.
 
