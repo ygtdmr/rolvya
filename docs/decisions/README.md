@@ -92,6 +92,7 @@ See the [historical conversation audit](../project/historical-decision-audit.md)
 - [ADR 0041 — **AWS ECS Fargate first real integration**](0041-aws-fargate-first-real-worker.md) — **Approved 2026-10-24**; fake workers → AWS Fargate → Google Cloud Run Jobs → user-enrolled remote VPS. No cloud spend authorized.
 - [ADR 0042 — First-version five-section web panel navigation](0042-five-section-web-panel-navigation.md) — **Approved 2026-10-25** for the five top-level navigation sections.
 - [ADR 0043 — Single minified app JS, embedded CSS, external fonts/icons and browser/UX completeness](0043-single-bundle-browser-platform-and-ux-boundary.md) — **Approved 2026-10-25** for core React/Vite/React Flow/REST+SSE stack and output/browser constraints. UI aesthetics, concrete provider/locale versions and first activation consent remain OQ-013.
+- [ADR 0044 — Encrypted SQLite for initial Rust Secret Broker credential storage](0044-encrypted-sqlite-secret-storage.md) — **Approved 2026-10-25**; master key held outside SQLite/backup; precise key custody and crypto implementation stay OQ-005/P0.
 - [ADR 0035 — Scoped containment of suspicious Owner actions](0035-scoped-human-incident-containment.md) — **Approved 2026-10-24**; protect compromised human credentials while preserving separately authorized safe worker execution.
 
 These are **Approved designs, not claims of implemented or production-verified software**. Detailed region/cost/adapter validation remains separate.
