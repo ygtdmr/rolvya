@@ -49,3 +49,7 @@ Related: [security](../architecture/security.md), [Git integration](../architect
 ## Approved central credential architecture (ADR 0037, 2026-10-24)
 
 [ADR 0037](../decisions/0037-central-secret-broker-task-scoped-access.md) approves centralized protected credential storage, a trusted Secret Broker validating active project/attempt/lease/budget authority, broker-side provider calls when feasible, and minimum-scope credential access for isolated remote executors only when technically necessary. Directly injected upstream keys can be extracted from compromised workers; audit/rotation and fail-closed isolation remain necessary. Provider subscription rights are **not** guaranteed by this architectural choice and remain OQ-008. No broker is implemented or tested.
+
+## Owner-approved multi-account CLI grants (ADR 0038, 2026-10-24)
+
+[ADR 0038](../decisions/0038-multi-account-isolated-cli-and-api-access.md) approves real provider CLI login for **multiple different accounts** in isolated remote sign-in homes, account-scoped protected connections and per-task private execution homes. Separate accounts can run eligible tasks concurrently, with no inherited host authentication, automatic account/API fallback or unapproved token-copy shortcuts. The [Secret Broker](../decisions/0037-central-secret-broker-task-scoped-access.md) validates per-account permission and protected credential use. CLI subscription use remains subject to provider-specific rights under OQ-008; architecture is not deployed.
