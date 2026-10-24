@@ -1,9 +1,9 @@
 # ADR 0032 — Passwordless human sign-in and email verification
 
-Status: **Approved**  
+Status: **Superseded 2026-10-24**  
 Date: 2026-10-23
 
-## Owner decision
+**Superseded:** [ADR 0033](0033-configurable-password-email-login-and-totp.md) replaces the human login policy below. This record preserves the earlier decision for traceability. Password and email-verification login are now approved, with optional authenticator-app TOTP 2FA and Owner-controlled enabling; Google/GitHub are no longer required initial human login methods. Do not implement the superseded password prohibition.\n\n## Historical owner decision
 
 The Rolvya v0.1 human login offers **Google sign-in, GitHub sign-in, and verified-email passwordless sign-in**. **No Rolvya password registration, password field, password login, or password-based fallback/recovery** is permitted. Users may authenticate through a one-time email verification link or one-time email code. Trusted OIDC providers, passkey-capable authentication and strong reauthentication requirements from ADRs 0025–0029 remain binding. This is an approval of supported human methods, **not** permission to skip security checks.
 
