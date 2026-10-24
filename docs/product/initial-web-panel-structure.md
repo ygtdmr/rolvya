@@ -15,7 +15,7 @@ tags: [web-ui, owner-panel, user-experience, mvp]
 1. **Projects:** List and create projects; show status, associated remote Git repository, blockers and a simple progress/cost summary. Each project's primary view displays the planned **hierarchical task tree AND true DAG dependencies**, which are distinct. Selecting a task opens goals, assigned model/effort/mode, permitted connection, input artifacts, acceptance checks and related attempts.
 2. **Execution:** For a selected project, show dependency-ready, running, waiting, paused, failed and verified tasks; per-attempt worker/provider identity, time, redacted logs, retry/fencing state and validation evidence. Make it obvious that a group parent is not an executable worker task. Show when the run is blocked by an unverified provider subscription permission, unavailable worker pool or budget.
 3. **Costs & Approvals:** Project-approved spending ceiling, actual/estimated/reserved/uncertain spend, four categories (**AI API, remote compute, storage, data transfer**) and optimistic/expected/pessimistic forecasts. Display paused new billable work with an explicit **fresh Owner-authenticated** budget increase flow; closing an alert is not authorization. Show pending high-risk role/provider decisions with precise scope and existing approvals.
-4. **Connections:** Authorized remote GitHub App repositories; **multiple independently authenticated Claude/Codex CLI accounts** (connection identity, permission, reconnect/revoke state), independent API keys through the trusted Secret Broker; remote pools (first working version: Google Cloud Run Jobs; later AWS Fargate and enrolled remote VPS). A disabled/unverified provider mode is never presented as usable. No Local Agent, personal-computer Git or credential-file upload.
+4. **Connections:** Authorized remote GitHub App repositories; **multiple independently authenticated Claude/Codex CLI accounts** (connection identity, permission, reconnect/revoke state), independent API keys through the trusted Secret Broker; remote pools (first working version: AWS ECS Fargate; later Google Cloud Run Jobs and enrolled remote VPS). A disabled/unverified provider mode is never presented as usable. No Local Agent, personal-computer Git or credential-file upload.
 5. **Results & Activity:** Verified task outputs, tests, reviewable remote Git refs, error explanations and project Activity Log. Use role-based access and redaction. Do not mark a failed or unvalidated worker output as completed just because a process exited successfully.
 
 ## Core user journey
@@ -43,7 +43,7 @@ Owner manages approved critical budget/permissions/connection scope with action-
 
 - Readable status before fancy animation; distinguish **planned DAG node**, **worker attempt** and **verified result**.
 - Show blocker causes, pending human action and uncertain cloud invoices explicitly.
-- The same project dashboard can show real Cloud Run work while AWS Fargate and remote VPS adapters remain under development, consistent with [ADR 0040](../decisions/0040-single-provider-first-working-version.md).
+- The same project dashboard can show real AWS Fargate work while Google Cloud Run Jobs and remote VPS adapters remain under development, consistent with [ADR 0041](../decisions/0041-aws-fargate-first-real-worker.md).
 - Accessible keyboard/navigation design and responsive layout; do not interpret responsive web as a commitment to a native mobile app.
 - Reuse the approved navy/blue/gray Rolvya identity; no gold accent, no invented replacement logo.
 
@@ -51,6 +51,6 @@ Owner manages approved critical budget/permissions/connection scope with action-
 
 Sidebar position/size, exact dashboard widgets, frontend framework and component library, real-time transport (SSE/WebSocket/polling), responsive breakpoints, precise graph library, animation, filter/search behavior, per-screen final copy, first plan activation UX and release accessibility test levels remain for a light design/implementation pass.
 
-Related: [approved v0.1 scope](scope.md), [existing user journeys](user-flows.md), [budget hard stop ADR](../decisions/0002-hard-budget-approval.md), [roles ADR](../decisions/0024-project-human-roles.md), [provider rollout ADR 0040](../decisions/0040-single-provider-first-working-version.md), [open OQ-013](../project/open-questions.md).
+Related: [approved v0.1 scope](scope.md), [existing user journeys](user-flows.md), [budget hard stop ADR](../decisions/0002-hard-budget-approval.md), [roles ADR](../decisions/0024-project-human-roles.md), [current provider order ADR 0041](../decisions/0041-aws-fargate-first-real-worker.md), [open OQ-013](../project/open-questions.md).
 
 This is **not** a completed, implemented or visually reviewed UI.
