@@ -88,7 +88,7 @@ These are **specified, not executed**; the exact login/session provider and role
 | AC-041 | Active authorized web user renews a server-managed session | Low-risk interaction proceeds without unnecessary login, while server controls expiration and revocation | ADR 0027, [proposed token contract](../architecture/session-token-rotation-and-theft-response.md) |
 | AC-042 | No human interaction for 7 days, but background workers/automatic polling continue | Background requests never extend web-user idle lifetime; session expires under policy while independently authorized workers remain governed by their own credentials | ADR 0027 |
 | AC-043 | Stolen old session handle is replayed after rotation or device revocation | Stale/revoked handle denied, no restored privileges or extra budget | ADR 0027, proposed token contract |
-| AC-044 | OIDC provider refresh token reuse is detected under a rotation-capable IdP | Affected grant/session family blocked and incident recorded; IdP capabilities are verified; no false claim of guaranteed theft detection | ADR 0025, proposed token contract |
+| AC-044 | An optionally enabled federated OIDC provider reports refresh-token reuse when supported | Affected grant/session family blocked and incident recorded; this is conditional IdP coverage, not a dependency of initial password/email sign-in | ADR 0025, proposed token contract |
 | AC-045 | Concurrent tab session renewals or lost response | Atomic state cannot resurrect stale token generation; legitimate session handling is defined and testable | Proposed token contract |
 | AC-046 | Owner requests budget increase through normal renewed session without recent verified strong step-up | Critical action denied pending strong reauthentication; UI continuity alone cannot approve spending | ADRs 0002, 0025, 0027 |
 | AC-047 | User revokes an individual device session or all web sessions | Server-side revocation effective for selected sessions, audited, without indiscriminately cancelling unrelated preapproved worker attempts | ADR 0027 |
@@ -101,10 +101,10 @@ These are *specified future tests, not executed*. The proposed implementation me
 | Test ID | Scenario | Expected result | Requirement |
 | --- | --- | --- | --- |
 | AC-049 | Editor or Viewer requests Editor or Viewer invite | Rejected: **only Owner** may invite; role checks server-side | PR-021, PR-023 |
-| AC-050 | Owner invites Editor to project A, token is opened without sign-in | Token alone cannot confer access; valid verified OIDC identity and matching recipient constraints required | PR-023 |
+| AC-050 | Owner invites Editor to project A, token is opened without sign-in | Token alone cannot confer access; verified identity through an enabled primary login (including required TOTP), durable account binding and matching recipient constraints | PR-023 |
 | AC-051 | One-use invitation is redeemed concurrently twice in SQLite | At most one atomic successful redemption and membership grant | PR-012, PR-023 |
 | AC-052 | Invitation is redeemed at/after 24 hours from issuance, revoked/tampered, or addressed to another authenticated account | No membership grant and no cross-project data leakage | PR-013, PR-023 |
-| AC-053 | Owner attempts transfer without recent verified strong step-up or target OIDC authentication/explicit acceptance; also simulate failed final commit | Denied/incomplete until both approve; original Owner remains authorized until atomic successful handover; no ownerless project | PR-021, PR-023 |
+| AC-053 | Owner attempts transfer without recent verified strong step-up or target independent authenticated human identity/explicit acceptance; also simulate failed final commit | Denied/incomplete until both approve; original Owner remains authorized until atomic successful handover; no ownerless project | PR-021, PR-023 |
 | AC-054 | New Editor after successful invite attempts to raise budget, expand Git/provider scope or activate unapproved DAG | Denied: membership never overrides prior Owner approvals or frozen execution plan | PR-008, PR-019, PR-023 |
 
 All scenarios are **specified only**. No end-to-end implementation or validation has been performed.
@@ -113,7 +113,7 @@ All scenarios are **specified only**. No end-to-end implementation or validation
 
 | Test ID | Scenario | Expected result | Requirements |
 | --- | --- | --- | --- |
-| AC-055 | Add a second Owner with authenticated current Owner step-up and prospective Owner OIDC login/explicit acceptance | Both independently verified identities hold scoped Owner membership; no inherited session or role confusion | PR-021, PR-023 |
+| AC-055 | Add a second Owner with authenticated current Owner step-up and prospective Owner independent permitted login/explicit acceptance | Both independently verified identities hold scoped Owner membership; no inherited session or role confusion | PR-021, PR-023 |
 | AC-056 | Two concurrent removals/demotions could leave project with zero active Owners | SQLite authorization transaction rejects the operation that would remove the final Owner; retain at least one verified Owner | PR-021, PR-023 |
 | AC-057 | Co-Owners perform separate budget management actions | Each must authenticate as themselves and explicitly approve permitted changes; no implicit authority for AI agents, no hidden override of hard budget | PR-008, PR-023 |
 
@@ -240,8 +240,8 @@ These are **specified future tests, not implemented or executed**. The **4-total
 | --- | --- | --- | --- |
 | AC-113 | User configures permitted password sign-in and registers/authenticates | Secure salted memory-hard password verifier; rate limits, safe reset and tenant role checks; no plaintext storage | ADR 0033 |
 | AC-114 | Initial setup chooses zero primary login methods or TOTP-only | Refuse configuration: at least one of password or email verification must be enabled | ADR 0033 |
-| AC-115 | User enters email for a one-time link or code | Successful verified, single-use unexpired challenge grants only permitted ordinary sign-in; rate limits and enumeration defenses apply | ADR 0032 |
-| AC-116 | Expired, replayed, concurrent, tampered or brute-forced email challenge is submitted | Deny authentication; atomic one-time consumption, token confidentiality and safe redirect hold | ADR 0032 |
+| AC-115 | User enters email for a one-time link or code | Successful verified, single-use unexpired challenge grants only permitted ordinary sign-in; rate limits and enumeration defenses apply | ADR 0033 |
+| AC-116 | Expired, replayed, concurrent, tampered or brute-forced email challenge is submitted | Deny authentication; atomic one-time consumption, token confidentiality and safe redirect hold | ADR 0033 |
 | AC-117 | Owner enables additional password or email verification method later | Require current Owner authority and recent strong reauthentication; audit change, preserve existing user access, and enforce secure method enrollment | ADR 0033 |
 | AC-118 | User links password and email-only sign-in identities | Deny unsafe auto-link based on matching email alone; require verified control and preserve durable account identity | ADR 0033 |
 | AC-119 | Owner attempts high-risk budget or ownership change with stale session, password-only or email-only proof | Deny until separately approved recent strong step-up; extra TOTP may be required by policy and is not phishing-resistant | ADRs 0025–0029, 0033 |
@@ -251,6 +251,10 @@ These are **specified future tests, not implemented or executed**. The **4-total
 | AC-122 | Non-Owner or AI agent attempts changing available login methods | Rejected server-side and recorded in audit log | ADR 0033 |
 | AC-123 | Owner disables the last usable primary login method or strands account holders | Refused pending supported verified migration/recovery; no TOTP-only login configuration | ADR 0033 |
 | AC-124 | TOTP device is lost and recovery is requested | Strict, auditable protected recovery with revocation, no hidden second-factor bypass | ADR 0033 |
+
+| AC-125 | Password reset requested without configured or working outbound email | Do not claim a reset message was sent; display privacy-preserving **contact the instance administrator** guidance | ADR 0033 |
+| AC-126 | Administrator-assisted recovery when outbound mail is absent | Independently verify identity, constrain and audit recovery, protect 2FA, revoke affected sessions; no arbitrary password disclosure or Owner privilege bypass | ADRs 0026, 0033 |
+| AC-127 | Email-only primary login is configured while outbound mail is unavailable | Reject unsafe configuration and preserve an operational primary login method | ADR 0033 |
 
 **These acceptance scenarios are specifications only; no authentication implementation or test has been executed.**
 
