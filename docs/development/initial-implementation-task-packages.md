@@ -172,7 +172,7 @@ R02 (validation), R03 (schema) and R07 (fake contracts) may progress independent
 
 ## Blocked decisions and escalation
 
-Sole backend Rust, SQLite, **group-only parents** and **bounded-or-stop in-flight worker policy** are settled. Edition/toolchain/crates/SQLite configuration, optional-child details and provider-specific stop enforcement remain open. Unresolved provider transport, Git authentication, first cloud host and live-spend approval **do not authorize live integration**. If an implemented package requires a consequential unapproved choice, the worker stops and reports the blocker rather than selecting by convenience.
+Sole backend Rust, SQLite, **group-only parents** and **bounded-or-stop in-flight worker policy** are settled. Edition/toolchain/dependency versions, SQLite schema/durability tuning, optional-child details and provider-specific stop enforcement remain open. **Worker HTTPS and GitHub App authentication are approved**, while exact wire/app permission implementation, first provider region/billing and live-spend approval **do not authorize live integration**. If an implemented package requires a consequential unapproved choice, the worker stops and reports the blocker rather than selecting by convenience.
 
 ## Traceability and references
 

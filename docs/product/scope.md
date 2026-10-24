@@ -38,7 +38,7 @@ No live cloud, API key, subscription session or production GitHub App needs to b
 | Verification | Tests/artifact provenance, failure classification, same-task retries | Result schema, validator policy |
 | Budget | Approved ceiling, holds/actuals, four categories and 3 scenarios, pause/approval | In-flight policy, cost source confidence |
 | Owner panel | Project DAG, blockers, worker state, artifacts, charges and alerts | Frontend framework, identity, accessibility |
-| Operations | Reproducible remote deployment, backups, audit and recovery | SQLite WAL/backup decision, secrets and release policy |
+| Operations | Reproducible remote deployment, backups, audit and recovery | SQLite WAL and backup defaults already approved; secrets, restore objectives and release policy still open |
 
 **All nine capabilities above are in the approved v0.1 feature boundary.** Specifically mandatory: goal/project configuration, complete up-front frozen DAG including hierarchy and per-task model/effort, dependency-aware concurrent real remote workers, secure permitted model execution, remote GitHub App reviewable outputs, independent result verification, hard budget accounting and explicit Owner approval, and a basic web panel. Minimal recovery, secure human/worker identity, audit and backup safeguards are release-critical supporting requirements. The approved multi-provider architecture does not imply every provider must be fully implemented at initial launch; actual provider release subset is a separately governed rollout decision. No date, working implementation or live provider authorization is asserted.
 

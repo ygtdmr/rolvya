@@ -73,4 +73,4 @@ An agent must not claim completion unless its deliverables, reproducible tests, 
 
 ## Open decisions
 
-Rust edition/toolchain, framework/crates, SQLite driver/WAL/migrations, style/linter tooling, code-owner/branch protection policy, approved commit convention, coverage thresholds, performance SLOs and automated CI enforcement remain unselected. **Backend Rust and SQLite database engines are settled.**
+Rust edition/toolchain, remaining dependency versions, SQLite schema/migrations and `synchronous`/checkpoint policy, style/linter tooling, code-owner/branch protection policy, commit-convention approval, coverage thresholds, performance SLOs and automated CI remain unselected. **Axum, SQLx and initial WAL/pool/busy settings are already Approved (ADRs 0012–0014).** **Backend Rust and SQLite database engines are settled.**

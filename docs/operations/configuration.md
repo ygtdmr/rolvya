@@ -10,7 +10,7 @@ tags: [configuration, deployment, security, cost]
 
 ## Purpose
 
-Describe configuration domains that a future deployment must support. This is **not** a concrete `.env` template, product API, or approved runtime defaults: backend **Rust** and authoritative database **SQLite** are approved, while the Rust framework/driver, SQLite journal mode, secret manager, provider adapter, authentication and transport remain open.
+Describe configuration domains that a future deployment must support. This is **not** a concrete `.env` template, product API, or approved runtime defaults: **Rust, SQLite, Axum, SQLx, WAL, max four DB connections, five-second busy timeout, worker HTTPS and GitHub App are approved**; dependency versions, secret manager, provider credentials, password/email/TOTP implementation and precise wire contracts remain open.
 
 ## Configuration classes
 
@@ -24,7 +24,7 @@ Describe configuration domains that a future deployment must support. This is **
 | Budget | per-project ceiling/currency, reservation strategy, pricing freshness | Only explicit authenticated approval changes ceiling |
 | Artifact storage | bucket/namespace, retention, hashes and upload policy | Project isolation and immutable manifest refs |
 | Observability | sampling, redaction, alert destinations, log retention | Auditable security/financial actions not sampled away |
-| Reliability | lease duration, retry policy, timeouts, backpressure | Defaults require tests and ADRs before shipping |
+| Reliability | approved worker token 15 min, heartbeat 30 sec, lease 90 sec, default three total worker attempts; unselected provider timeouts, retry backoff and backpressure | Approved baseline must be measured/tested; do not reopen the numerical choices as absent |
 | Backup/recovery | snapshot strategy, encryption, restore testing and RPO/RTO | Verified recovery before relying on deployment |
 
 ## Precedence and validation proposal

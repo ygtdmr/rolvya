@@ -10,7 +10,7 @@ tags: [rust, sqlite, backend, transactions, migrations]
 
 ## Decisions versus proposals
 
-**Approved:** Rolvya-owned backend services use **Rust only** ([ADR 0004](../decisions/0004-control-plane-language.md)); Rolvya's sole authoritative database engine is **SQLite** ([ADR 0005](../decisions/0005-authoritative-database.md)). This document develops a **proposed implementable architecture** consistent with those decisions. Rust crate choices, framework, WAL and transaction configuration, physical schema, authorization design and worker transport remain subject to engineering validation and, when consequential, separate approval. No backend has yet been compiled or deployed.
+**Approved:** Rolvya-owned backend services use **Rust only** ([ADR 0004](../decisions/0004-control-plane-language.md)); Rolvya's sole authoritative database engine is **SQLite** ([ADR 0005](../decisions/0005-authoritative-database.md)). This document develops a **proposed implementable architecture** consistent with those decisions. **Axum (ADR 0012), SQLx (ADR 0013), initial WAL/pool/busy settings (ADR 0014), HTTPS transport (ADR 0006) and atomic `BEGIN IMMEDIATE` admission (ADR 0031) are approved.** Versions, physical schema, `synchronous`/checkpoint policy, authorization and exact wire implementation still require validation. No backend has yet been compiled or deployed.
 
 The original product invariants remain mandatory: immutable fully preplanned DAG; workers execute assigned tasks without generating tasks; independent prerequisites may proceed concurrently; new billable work is blocked on insufficient approved budget until explicit owner authorization; no automatic percentage overrun; completed results persist; no personal-computer Local Agent or Git sync.
 
@@ -55,7 +55,7 @@ Names are proposals for separation, not mandatory crate or directory names. Rust
 
 - The SQLite database file exists on controlled **remote** persistent storage, accessed by the authoritative Rust control process.
 - **Do not share the live SQLite file over a network filesystem with remote worker processes.** Workers interact only with authorized controller APIs/messages.
-- A database file and its WAL/checkpoint metadata, if WAL is enabled, are part of the same recovery discipline.
+- A database file and its WAL/checkpoint metadata, with approved WAL enabled, are part of the same recovery discipline.
 - Artifact bodies/build outputs may live in remote object storage, while SQLite keeps IDs, hashes, refs, ownership, retention and status.
 - A single server process may contain multiple Rust modules; availability and topology require future infrastructure decisions.
 
@@ -91,9 +91,9 @@ COMMIT;
 
 Do not execute the sketch verbatim; it is deliberately incomplete. `BEGIN IMMEDIATE` is the **Owner-approved admission mechanism** in [ADR 0031](../decisions/0031-atomic-task-budget-admission.md). The precise physical SQL schema remains Proposed. Critically, validate the budget condition **inside** the write transaction rather than calculating it beforehand. Dispatch to cloud providers happens **after** commit via a durable outbox reader; the outbox and provider idempotency key permit crash recovery.
 
-## Concurrency and WAL design (not yet approved configuration)
+## Concurrency and WAL design (initial configuration approved; tuning remains open)
 
-SQLite supports many simultaneous readers but serializes writers. Evaluate WAL mode with a locally attached filesystem, bounded connection pool, short write transactions, measured busy timeout and explicit checkpoint management. WAL does not permit arbitrary shared network filesystem writer access; a worker cannot bypass the Rust API by opening the DB file. Unbounded heartbeat writes and audit append volume can dominate write contention—batch or throttle **without** losing critical audit or lease fencing semantics.
+SQLite supports many simultaneous readers but serializes writers. **Start with approved WAL, a maximum four-connection SQLx pool and five-second busy timeout (ADR 0014)** on a locally attached filesystem. Use short transactions and explicitly manage/checkpoint WAL; benchmark lock contention and tuning before changing approved defaults. WAL does not permit arbitrary shared network filesystem writer access; a worker cannot bypass the Rust API by opening the DB file. Unbounded heartbeat writes and audit append volume can dominate write contention—batch or throttle **without** losing critical audit or lease fencing semantics.
 
 Durability choice (`synchronous`, journal mode, fsync behavior) must be benchmarked against recovery requirements rather than copied from generic sample configurations. Test DB file permission hardening, low-disk-space behavior, WAL growth and checkpoint failure.
 
@@ -140,7 +140,7 @@ Long-running user code, CLI agents and Git build commands execute only in isolat
 
 ## Open technical choices, NOT language/database choices
 
-Rust edition/toolchain, crate dependencies and async runtime; SQLite journal/synchronous settings, schema DDL, index specifics and migration tool; remote-worker HTTP/queue protocol; GitHub App approval; cloud provider; backup RPO/RTO; authorization model and in-flight billing policy.
+Rust edition/toolchain and remaining dependency versions; SQLite `synchronous`/checkpoint parameters, schema DDL, indexes and migration details; the **approved HTTPS** worker wire schema and the **approved GitHub App** permission implementation; concrete cloud regions/cost bounds; backup RPO/RTO; method-specific authorization; provider invoice/stop-on-risk mechanics. The backend, SQLx, Axum, WAL defaults and atomic admission pattern are already approved.
 
 ## References
 

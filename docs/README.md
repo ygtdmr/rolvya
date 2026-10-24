@@ -145,8 +145,9 @@ The paths above are a **planned inventory**, not links to files that already exi
 
 ## Human authentication and session safety
 
-- [ADR 0025 — OIDC + passkey-capable identity providers](decisions/0025-oidc-passkey-authentication.md) — Approved.
-- [ADR 0026 — Secure account recovery](decisions/0026-account-recovery.md) — Approved.
+- [ADR 0033 — Current login methods: password/email + authenticator-app TOTP](decisions/0033-configurable-password-email-login-and-totp.md) — Approved, superseding initial-login rules in ADR 0032 and earlier OIDC-only wording.
+- [ADR 0025 — Conditional federation and passkey safeguards](decisions/0025-oidc-passkey-authentication.md) — Approved where OIDC is separately enabled; not required for v0.1.
+- [ADR 0026 — Secure account recovery, including current password-reset rules](decisions/0026-account-recovery.md) — Approved as reconciled with ADR 0033.
 - [ADR 0027 — Low-friction risk-based web sessions](decisions/0027-risk-based-session-management.md) — Approved; possible mobile/voice clients **not** committed.
 - [ADR 0028 — Human session credential rotation, replay defense and revocation](decisions/0028-human-session-token-safety.md) — Approved security requirements; implementation not built.
 - [Proposed session rotation and theft-response implementation](architecture/session-token-rotation-and-theft-response.md) — Proposed, not implemented.

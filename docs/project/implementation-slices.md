@@ -86,6 +86,6 @@ Do not advance from fake providers to paid live cloud/model testing without expl
 
 ## Known gaps
 
-Formal timeline, remaining owner choices, Remaining framework dependency versions, SQLite schema and unapproved durability/checkpoint tuning, tenant model, performance SLOs, exact API schema, provider-specific retries/timeouts, official CLI automation permissions and provider credentials remain unresolved. **Axum, SQLx and the initial WAL/pool/busy-timeout settings are already Approved** (ADRs 0012–0014); do not reopen these. **Rust and SQLite choices are fixed.** Track them in [open questions](open-questions.md).
+Formal timeline, remaining owner choices, framework dependency versions, SQLite schema and unapproved durability/checkpoint tuning, tenant model, performance SLOs, exact API schema, provider-specific retries/timeouts, official CLI automation permissions and provider credentials remain unresolved. **Axum, SQLx and the initial WAL/pool/busy-timeout settings are already Approved** (ADRs 0012–0014); do not reopen these. **Rust and SQLite choices are fixed.** Track them in [open questions](open-questions.md).
 
 Related: [documentation index](../README.md), [project status](status.md), [open questions](open-questions.md), [architecture overview](../architecture/overview.md), [testing](../development/testing.md).

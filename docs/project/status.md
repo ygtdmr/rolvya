@@ -1,6 +1,6 @@
 # Project status
 
-Last verified documentation checkpoint: 2026-10-21
+Current authoritative decision cross-check: 2026-10-24 (see current ADRs; earlier sections are chronological historical checkpoints).
 
 ## Phase
 **Specification / repository foundation.** No executable Rolvya orchestration implementation is verified by this document.
@@ -155,3 +155,9 @@ The Owner approved [ADR 0031](../decisions/0031-atomic-task-budget-admission.md)
 ## Owner-revised human login and TOTP policy (2026-10-24)
 
 [ADR 0033](../decisions/0033-configurable-password-email-login-and-totp.md) **supersedes the passwordless-only ADR 0032 selection**. Primary human sign-in choices are **email/password** and **email-verified Magic Link/OTP**; **app-based TOTP 2FA** is optional and SMS is not needed. At initial setup the Owner selects at least one primary method, and later may enable additional methods with strong reauthentication. Google/GitHub social sign-in is not part of the required v0.1 methods; remote repository GitHub App integration remains approved. Secure password hashing, email delivery, TOTP key storage and recovery, Owner method administration and acceptance tests remain **unimplemented**. Earlier dated passwordless notes are preserved as historical checkpoints, not active policy.
+
+## Current documentation consistency checkpoint (2026-10-24)
+
+The active sign-in source is [ADR 0033](../decisions/0033-configurable-password-email-login-and-totp.md): Owner-enabled password login or verified-email Magic Link/OTP, optional authenticator-app TOTP and no SMS. Earlier OIDC-only/passwordless-only mandates are superseded; [ADRs 0025–0027 and 0029](../decisions/README.md) preserve their security requirements while honoring stable internal account identity, member invites and ownership changes under these sign-in choices. Without configured/working email delivery, password-reset UX instructs the user to contact the instance administrator; account recovery still requires secure verified handling. [AC-125–127](../product/acceptance-criteria.md) add future regression checks.
+
+**Already approved, not pending votes:** Rust/SQLite/Axum/SQLx, initial SQLite WAL / max four pool connections / five-second busy timeout; atomic `BEGIN IMMEDIATE` task/budget admission; worker HTTPS, 15-minute worker token, 30-second heartbeat, 90-second lease and default three total AI-worker attempts; backup every 15 minutes and daily points with seven-day frequent / thirty-day daily retention; first development adapter priorities Cloud Run Jobs, Hetzner Cloud and enrolled remote VPS; and Activity Log 90-day active view, one-year routine / minimum three-year critical retention. Exact schemas, provider risks, remaining security implementations, RPO/RTO and algorithms stay open. **This cleanup changes documentation only: no Rust code, CI runs, deployed login/worker, recovery procedure or budget integration has been verified.**

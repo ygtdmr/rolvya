@@ -30,7 +30,7 @@ This register separates **approved user decisions** from **earlier design concep
 - An earlier diagram referenced a local VPS and an illustrative 20-worker limit. These are **not confirmed production limits**, and a VPS-hosted orchestrator does **not** authorize a personal-computer Local Agent.
 
 ## Outstanding decisions / research
-- Detailed product flows, Rust framework/crates and UI stack, SQLite physical schema/WAL configuration, persistence transaction tuning and data isolation. Rust and SQLite themselves are **approved**, not open choices.
+- Detailed product flows, remaining Rust crate versions and UI stack, SQLite physical schema, `synchronous`/checkpoint tuning, persistence implementation and data isolation. **Rust, SQLite, Axum, SQLx, initial WAL/pool/busy defaults and `BEGIN IMMEDIATE` admission are already approved** (ADRs 0004/0005/0012–0014/0031).
 - Graph/task implementation contracts, scheduler fairness, **multi-provider adapter implementation**, failure/retry/idempotency behavior.
 - Initial remote provider lineup/region and exact per-provider identity, permissions and cost caps (multi-provider architecture is Approved).
 - Concrete authentication/authorization, secrets, threat model, API schemas, budget enforcement and approval UX.
@@ -75,7 +75,7 @@ See the [historical conversation audit](../project/historical-decision-audit.md)
 - [ADR 0022 — Dynamic concurrency and optional user cap](0022-dynamic-worker-concurrency.md).
 - [ADR 0023 — Cross-project fairness, preflight priority and queue aging](0023-cross-project-scheduling-fairness.md).
 - [ADR 0024 — Owner, Editor and Viewer project roles](0024-project-human-roles.md).
-- [ADR 0025 — OIDC-first sign-in, passkey support and strong sessions](0025-oidc-passkey-authentication.md).
+- [ADR 0025 — Conditional OIDC/passkey security extension](0025-oidc-passkey-authentication.md) — federation not mandatory in initial v0.1 (ADR 0033).
 - [ADR 0026 — Secure account recovery and Owner protection](0026-account-recovery.md).
 - [ADR 0027 — Risk-based session management](0027-risk-based-session-management.md).
 - [ADR 0028 — Secure human session renewal, credential rotation and per-device revocation](0028-human-session-token-safety.md).

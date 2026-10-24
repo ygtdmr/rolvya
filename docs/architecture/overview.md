@@ -45,7 +45,7 @@ Arrows represent intended logical control/data flows, not finalized network conn
 - **DAG validator:** rejects cycles, missing references, contradictory parent/dependency semantics and unbounded or invalid task assignments.
 - **Scheduler:** maintains ready/waiting/running/terminal states; admits independent tasks when dependencies, resource limits and budget permit; ensures controlled concurrency.
 - **Worker control and adapters:** provision/use remote compute, deliver scoped instructions, execute CLI agents or API-based models under approved credential and resource policies, and collect results.
-- **Persistence:** an authoritative **SQLite** database stores project, task graph, execution state, instructions/context, attempts, approvals and the cost ledger. The **Rust** backend exclusively controls SQLite access; schema, WAL and migration configuration remain proposed.
+- **Persistence:** an authoritative **SQLite** database stores project, task graph, execution state, instructions/context, attempts, approvals and the cost ledger. The **Rust** backend exclusively controls SQLite access; schema/migrations, durability and checkpoint tuning remain proposed; **WAL mode, maximum four SQLx pool connections and five-second SQLite busy timeout are approved** (ADR 0014).
 - **Validation and integration:** verify work, manage compatible remote Git changes and aggregate outputs. Merge-conflict and test-gate rules require dedicated contracts.
 - **Observability and recovery:** durable events, logs, lifecycle/heartbeats, retries and reconciliation; exact fault policy remains open.
 

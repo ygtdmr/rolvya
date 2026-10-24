@@ -10,7 +10,7 @@ tags: [sqlite, rust, schema, migrations, transactions]
 
 ## Status and authority
 
-**Approved infrastructure choices:** Rolvya backend **Rust only** ([ADR 0004](../decisions/0004-control-plane-language.md)); authoritative database **SQLite only** ([ADR 0005](../decisions/0005-authoritative-database.md)). **This SQL schema is Proposed**, not a migration that has been executed, reviewed or shipped. The table names, identifiers, state enums, journal configuration, migration crate and lock/retry behavior below can be revised without reopening the database-engine decision.
+**Approved infrastructure choices:** Rolvya backend **Rust only** ([ADR 0004](../decisions/0004-control-plane-language.md)); authoritative database **SQLite only** ([ADR 0005](../decisions/0005-authoritative-database.md)). **This SQL schema is Proposed**, not a migration that has been executed, reviewed or shipped. The table names, identifiers, state enums, `synchronous`/checkpoint configuration, schema/migration details and safe lock/retry implementation are not yet finalized; **WAL, SQLx, four maximum pool connections, five-second busy timeout and `BEGIN IMMEDIATE` budget admission are already approved** (ADRs 0013, 0014, 0031).
 
 ## Goals and constraints
 
@@ -192,7 +192,7 @@ If a transaction aborts, **no partial lease or cloud dispatch** is permitted. Th
 
 ## Pending decisions
 
-DDL completeness, table naming, identity/time format, SQLite journal/WAL/synchronous mode, retry/backoff, index selection, crate and migration tooling, backup RPO/RTO, final authorization model and the exact in-flight billing limit policy. **Backend language Rust and database engine SQLite are not pending.**
+DDL completeness, table naming, identity/time format, SQLite `synchronous`/checkpoint tuning (WAL mode already approved), safe retry/backoff, index selection, crate and migration tooling, backup RPO/RTO, final authorization model and the exact in-flight billing limit policy. **Backend language Rust and database engine SQLite are not pending.**
 
 ## References
 
