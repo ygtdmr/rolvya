@@ -8,6 +8,10 @@ tags: [workers, cloud-run, fargate, cloud, benchmark, budget]
 
 # Remote worker provider evaluation and benchmark protocol
 
+## Staged rollout proposal — not a new approval
+
+[The staged rollout proposal](../architecture/initial-remote-worker-rollout-proposal.md) preserves the **already approved** Cloud Run Jobs, Hetzner Cloud and user-enrolled VPS development priorities from ADR 0018. The initial verified adapter, benchmark payment, release provider minimum, region, exact VM/image and spending envelopes must not be treated as executed or approved just because the proposal exists. Official Cloud Run retry behavior and Hetzner pay-while-existing billing need explicit tests.
+
 ## Purpose and decision boundary
 
 **ADR 0018 already approves the initial implementation priorities: Google Cloud Run Jobs, Hetzner Cloud and enrolled user-owned remote VPS.** This evaluation selects their concrete regions, images and safe cost/isolation settings; production-ready certification and live spend remain open under [Proposed ADR 0007](../decisions/0007-remote-worker-hosting.md). **Multi-provider support is already Approved** ([ADR 0011](../decisions/0011-multi-provider-worker-infrastructure.md)); benchmark priority does not permit a single-vendor scheduler. Rolvya's backend is **Rust** and its authoritative database is **SQLite**, but project compilers and third-party coding agent CLIs run in remote isolated workers. Do not run such work on the user's personal computer. Actual cloud workloads are **billable** and require a separately authorized test ceiling.
