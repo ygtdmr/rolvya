@@ -1,20 +1,20 @@
 ---
-title: Rolvya Web Panel Technical Stack Proposal
-status: Proposed
+title: Rolvya Web Panel Technical Stack Contract
+status: Approved core technologies; details proposed
 category: architecture
 last-reviewed: 2026-10-25
 tags: [web-ui, frontend, react, vite, dag, sse, axum]
 ---
 
-# Rolvya web panel technical stack — proposal
+# Rolvya web panel technical stack — approved core and open details
 
 ## Decision status
 
-**Proposed; NOT Owner-approved.** The five top-level panel sections are **Approved** in [ADR 0042](../decisions/0042-five-section-web-panel-navigation.md). This document suggests technologies and behavior to implement that navigation, but the Owner has **not yet chosen this stack**. There is no web panel code or running deployment.
+**Owner-approved on 2026-10-25:** React + TypeScript, Vite, React Flow for read-only DAG visualization, Rust Axum JSON REST + SSE, and the single minified application JS containing CSS ([ADR 0043](../decisions/0043-single-bundle-browser-platform-and-ux-boundary.md)). The five sections are separately approved in [ADR 0042](../decisions/0042-five-section-web-panel-navigation.md). **All exact configuration, service worker, MIME/cache, UX interaction, security and visual design details remain implementation work**, guided by the [browser asset contract](web-platform-artifact-and-capability-contract.md) and [UX contract](../product/web-ux-and-accessibility-contract.md). No runnable app or deployment is verified.
 
-## Recommended minimal stack
+## Approved core stack; implementation choices still pending
 
-| Layer | Proposed first-version choice | Reason and boundary |
+| Layer | Approved core first-version choice | Reason and boundary |
 | --- | --- | --- |
 | Browser application | React + TypeScript | Typed, component-based UI suited to an interactive task DAG. Browser application only, not a Node.js Rolvya backend. |
 | Build tool | Vite | Produces deployable static browser assets; Node.js is a **build-time** dependency, not a required runtime server. |
@@ -23,7 +23,7 @@ tags: [web-ui, frontend, react, vite, dag, sse, axum]
 | Backend and authority | Existing approved Rust Axum API, SQLx / SQLite | Only Rust authorizes plans, task transitions, budgets, subscriptions, identity, results and actions. No JS server, direct DB browser access or alternative database. |
 | Initial data access | Typed HTTP JSON REST requests | Paginated/scope-limited reads and guarded mutation commands; contracts and paths remain to be specified and versioned. |
 | Live update transport | Authenticated Server-Sent Events (SSE), with REST snapshot/reconnect | One-way state/event notifications without a new WebSocket service; client refetches authoritative state where needed. No polling of SQLite by the browser. |
-| Styling | Lightweight CSS with design tokens | Use Rolvya's approved navy/blue/gray palette; don't invent a replacement logo. Avoid a heavy UI framework by default. |
+| Styling/output | Compiled CSS embedded in **one external minified JS app bundle**, no independent CSS | Final styles/fonts/icons and icon provider are deferred; all icon/font assets must stay external, per ADR 0043. No visual design decision is made here. |
 
 **Alternatives considered:** Svelte/Vue might offer smaller initial client bundles, but React integrates directly with React Flow's established component model. Next.js SSR adds a server-side JavaScript deployment surface Rolvya does not need for an authenticated internal dashboard. WebSockets are possible later if measured full-duplex needs justify them. Alternatives have **not** been benchmarked against Rolvya workloads.
 
@@ -57,9 +57,9 @@ This is an illustration, **not** deployed topology. A single-origin deployment m
 - The UI cannot launch cloud jobs directly or raise budget ceilings. Only an approved Rust domain command with atomic SQLite admission may authorize a paid dispatch.
 - Fail closed on unverified model subscriptions, secret-broker errors, uncertain provider billing and compromised sessions. Avoid logging plaintext secrets or private model contexts.
 
-## Practical verification before adoption and implementation
+## Practical verification before implementation
 
-1. Obtain explicit Owner approval of the proposed technology/transport choice before creating an Approved ADR or treating it as a binding requirement.
+1. Follow the Owner-approved ADR 0043; verify the actual production output contract with exactly one app JS (including CSS), a separate `sw.js`, and external-only font/icon assets. Frontend routing and package versions still require implementation review.
 2. Prototype **fake state only**, rendering a hierarchy and a dependency DAG with two independent leaves and one dependent leaf; show that execution overlays never change edges or plan hashes.
 3. Test 401/403, session renewal, CSRF on privileged mutations, reconnect and event replay, ordering gaps, stale version rejection, failure and budget-paused states.
 4. Run TypeScript typechecking separately from Vite compilation; add UI component tests and browser accessibility/keyboard navigation checks.
@@ -68,7 +68,7 @@ This is an illustration, **not** deployed topology. A single-origin deployment m
 
 ## Explicitly not selected by this proposal
 
-Frontend routing library, component library, state/query-cache package, graph auto-layout algorithm, CSS framework, exact endpoint schemas and URLs, SSE event envelope/cursor, ingress, deployment domain, accessibility test thresholds, high-volume DAG performance targets, and whether *every* first plan activation requires separate Owner confirmation. These remain Open pending review; do not silently decide them through scaffold defaults.
+Frontend routing library, component library, state/query-cache package, graph auto-layout algorithm, CSS framework, exact endpoint schemas and URLs, SSE event envelope/cursor, ingress, deployment domain, accessibility test thresholds, high-volume DAG performance targets, and whether *every* first plan activation requires separate Owner confirmation. These remain Open pending review; do not silently decide them through scaffold defaults. The approved React/Vite/React Flow/REST+SSE/core output architecture is **not** among these open choices.
 
 ## Official implementation references (reviewed 2026-10-25)
 
@@ -78,4 +78,4 @@ Frontend routing library, component library, state/query-cache package, graph au
 - [React Flow TypeScript integration](https://reactflow.dev/learn/advanced-use/typescript).
 - [Axum SSE](https://docs.rs/axum/latest/axum/response/sse/).
 
-Related: [web panel information architecture](../product/initial-web-panel-structure.md), [approved navigation ADR 0042](../decisions/0042-five-section-web-panel-navigation.md), [open OQ-013](../project/open-questions.md), [API inventory](api-contracts.md), [Rust workspace](rust-workspace.md), [approved security](../architecture/identity-authorization.md).
+Related: [web panel information architecture](../product/initial-web-panel-structure.md), [approved navigation ADR 0042](../decisions/0042-five-section-web-panel-navigation.md), [approved production output ADR 0043](../decisions/0043-single-bundle-browser-platform-and-ux-boundary.md), [browser artifact contract](web-platform-artifact-and-capability-contract.md), [UX/accessibility](../product/web-ux-and-accessibility-contract.md), [remaining OQ-013](../project/open-questions.md), [API inventory](api-contracts.md), [Rust workspace](rust-workspace.md), [approved security](../architecture/identity-authorization.md).
