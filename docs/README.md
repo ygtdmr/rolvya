@@ -72,6 +72,7 @@ All Markdown documentation follows the [Obsidian-compatible documentation policy
 - [Proposed Rust workspace boundaries](architecture/rust-workspace.md)
 - [SQLite schema and atomic admission draft](architecture/sqlite-schema-draft.md)
 - [Model entitlement and CLI/API access](architecture/model-access-entitlement-contract.md)
+- [Approved multi-account isolated CLI and API access](decisions/0038-multi-account-isolated-cli-and-api-access.md)
 - [Agent context and memory](architecture/context-memory.md)
 - [Planner and worker token efficiency](architecture/token-context-efficiency.md)
 - [API and event contracts](architecture/api-contracts.md)
