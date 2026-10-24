@@ -87,6 +87,10 @@ Document schema versions, forward/backward compatibility, backup and restore str
 - No local personal-computer integration appears in persisted remote repository/worker contracts.
 - Stored cost categories distinguish AI API, compute, storage and transfer and retain three forecast scenarios in planning data.
 
+## Approved first secret-storage backend — ADR 0044
+
+The SQLite database remains the sole authoritative DB. [ADR 0044](../decisions/0044-encrypted-sqlite-secret-storage.md) approves **authenticated encrypted credential records** written only through the trusted Rust Secret Broker (ADR 0037), with decryption root/key-encryption material **outside** the DB and ordinary backups. Logical connection metadata may be indexed but plaintext keys, CLI session contents, recovery secrets and root key must not appear in task rows, logs, events or SQLite temp/WAL records. Exact encrypted-record schema, key custody, crypto choice and migration details remain OQ-005/P0. **Do not describe the entire SQLite file as encrypted solely because secret rows are encrypted.**
+
 ## Pending ADRs
 
 Choose SQLite schema strategy, WAL/journal durability and busy/locking policies; ownership/multitenancy; atomic budget locking; artifact storage; event retention and backup RPO/RTO; graph storage representation. **Database engine selection is closed: SQLite.**
