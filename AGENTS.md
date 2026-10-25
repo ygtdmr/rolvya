@@ -60,3 +60,19 @@ Every substantive agent handoff must state:
 - Agent-wide working protocol: this file
 
 If documentation and code disagree, inspect the discrepancy and report it. Do not claim that either is correct without verification.
+
+## graphify
+
+Use Graphify as an active codebase intelligence tool. Its generated knowledge graph belongs in `graphify-out/`.
+
+When the user types `/graphify`, use the installed graphify skill or instructions before doing anything else.
+
+Rules:
+- If `graphify-out/graph.json` does not exist, invoke the project skill with `$graphify .` from the repository root to build it. This is Codex skill invocation syntax, not a shell environment variable or a `graphify .` CLI command.
+- Before investigating codebase architecture, dependencies, or implementation relationships, run `graphify query "<question>"` before source searches or reads, and put this rule in every subagent prompt that explores code. Use `graphify path "<A>" "<B>"` for relationships and `graphify explain "<concept>"` for focused concepts whenever relevant. These return a scoped subgraph, usually much smaller than GRAPH_REPORT.md or raw grep output.
+- Use graph results alongside actual source inspection and relevant tests, never as a replacement. Inspect source to verify graph claims and fill coverage gaps; generated relationships do not supersede approved decisions or establish that a documented feature is implemented.
+- Dirty graphify-out/ files are expected after hooks or incremental updates; dirty graph files are not a reason to skip graphify. Only skip graphify if the task is about stale or incorrect graph output, or the user explicitly says not to use it.
+- If graphify-out/wiki/index.md exists, use it for broad navigation instead of raw source browsing.
+- Read graphify-out/GRAPH_REPORT.md only for broad architecture review or when query/path/explain do not surface enough context.
+- After modifying code, run `graphify update .` to keep the graph current (AST-only, no API cost).
+- Keep `graphify-out/` ignored by Git; do not commit generated graphs, reports, caches, or visualizations.

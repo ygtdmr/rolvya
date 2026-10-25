@@ -10,6 +10,10 @@ Current authoritative decision cross-check: 2026-10-25 (see current ADRs; earlie
 - Root `README.md` — introductory project description and explicitly pre-implementation status.
 - `AGENTS.md` and initial `docs/` foundation — repository guidance and planning documents, not implementation.
 
+## Graphify development tooling (2026-10-25)
+
+Graphify CLI `0.9.95` was available in Codex Cloud, and `graphify codex install --project` installed the project-scoped skill and hook configuration under `.codex/`. The hook is an intentional no-op; [AGENTS.md](../../AGENTS.md#graphify) establishes graph-first investigation, source/test verification and graph refresh after source edits. Generated `graphify-out/` artifacts are ignored by Git. This is development tooling only; no Rolvya application features were implemented.
+
 ## Established project decisions
 - Project name Rolvya; open-source AI coding-agent orchestration.
 - GitHub repository `ygtdmr/rolvya` (public, `main`); current source license MIT.
