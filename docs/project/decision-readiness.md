@@ -30,7 +30,7 @@ Track which architectural decisions are approved and which are still proposals. 
 | Gate | Candidate approach | Evidence before approval |
 | --- | --- | --- |
 | HTTPS protocol configuration | **Approved ADR 0006** | Finalize worker identity, Rust stack, URL/schema, lease and load tests; choice of HTTPS is closed |
-| First provider rollout | **Approved multi-provider ADR 0011**, [Proposed provider selection ADR 0007](../decisions/0007-remote-worker-hosting.md) | Compare specific authorized vendors/regions; measured startup, cost, quotas and security |
+| First provider rollout | **AWS Fargate first is approved ADR 0041**, after fake workers; ADR 0007 is historical provider comparison | Compare specific authorized vendors/regions; measured startup, cost, quotas and security |
 | GitHub App configuration | **Approved ADR 0008** | Finalize App permissions, key storage, webhook validation, branch protections and human merge authorization |
 | In-flight budget implementation details | **Approved policy ADR 0010**; [budget design](../architecture/budget-reservation-reconciliation.md) | Validate provider-specific caps, cancellation timing, unknown bills, artifact preservation; policy choice itself is closed |
 | Human and worker authorization | [Identity design](../architecture/identity-authorization.md) | Test owner approval, actor roles, project separation and audit |
