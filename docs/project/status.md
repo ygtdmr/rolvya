@@ -221,3 +221,7 @@ A [Proposed](../architecture/secret-storage-key-custody-decision-proposal.md) de
 ## Key creation, rotation and emergency recovery — Proposed 2026-10-25
 
 The [first-time setup, staged rotation and encrypted off-host recovery-kit design](../architecture/secret-key-bootstrap-rotation-recovery-proposal.md) is documented for Owner review. The existing approval remains **encrypted SQLite secrets (ADR 0044)** and **automatic ordinary startup from the controller-host protected key file (ADR 0045)**. One-time CSPRNG generation with guarded initialization, version-aware re-encryption and an independently safeguarded, encrypted off-host disaster recovery kit are **recommended options, NOT yet Owner-approved**. Key-file implementation and exact crypto/recovery custody remain **OQ-005/P0**. No source files, backup, cryptographic material, live provider connection, paid resource or restore test was created.
+
+## Emergency encrypted key recovery approved (2026-10-25)
+
+[ADR 0046](../decisions/0046-off-host-encrypted-master-key-recovery.md) approves an encrypted off-controller-host recovery kit, stored separately from the SQLite backup, protected by a separately retained recovery secret. Ordinary startup stays automatic under ADR 0045. Exact provider, encryption parameters, initial setup, rotation and verified restore remain OQ-005/P0. This is documentation only: no recovery kit, encryption code or test was created.
