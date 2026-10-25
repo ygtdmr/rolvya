@@ -1,6 +1,6 @@
 ---
 title: First-Version Web Panel Structure
-status: Approved navigation and core stack; visual design pending
+status: Approved navigation, stack and delegated unified design; implementation pending
 category: product
 last-reviewed: 2026-10-25
 tags: [web-ui, owner-panel, user-experience, mvp]
@@ -8,7 +8,7 @@ tags: [web-ui, owner-panel, user-experience, mvp]
 
 # Rolvya first-version web panel — approved navigation and proposed details
 
-**Owner-approved:** five top-level navigation sections ([ADR 0042](../decisions/0042-five-section-web-panel-navigation.md)) plus React/TypeScript, Vite, React Flow, REST/SSE through Rust Axum, single minified app JS containing CSS and comprehensive relevant browser support ([ADR 0043](../decisions/0043-single-bundle-browser-platform-and-ux-boundary.md)). Fine-grained screen behavior is implementation guidance, not all individually approved. **Font, icon provider, imagery, colors/typographic application, component looks and detailed visual UI design are intentionally deferred**, as are deployment details and first plan activation consent.
+**Owner-approved:** five top-level navigation sections ([ADR 0042](../decisions/0042-five-section-web-panel-navigation.md)) plus React/TypeScript, Vite, React Flow, REST/SSE through Rust Axum, single minified app JS containing CSS and comprehensive relevant browser support ([ADR 0043](../decisions/0043-single-bundle-browser-platform-and-ux-boundary.md)). Fine-grained screen behavior is implementation guidance, not all individually approved. **Subsequent ADR 0048 delegates the visual design** to the design agent and the [Connected Control contract](connected-control-design-system.md) selects the common design language, UI Elements, Inter/Plex typography, external Lucide glyphs, modern CSS and integrated motion across all five sections. This replaces the previous aesthetic deferral without authorizing frontend code/deployment, altering the approved logo, or relaxing browser/security constraints.
 
 ## Primary navigation (five sections approved; screen details proposed)
 
