@@ -117,6 +117,14 @@ These are future checks, not evidence of implemented encryption or completed key
 
 These are approved requirements but remain unimplemented.
 
+## Approved initial Secret Broker cipher and guarded initialization (ADR 0047)
+
+| ID | Requirement | Verification expectation |
+| --- | --- | --- |
+| PR-036 | Protect SQLite credential values with **XChaCha20-Poly1305 AEAD** using a secure **OS CSPRNG-generated 256-bit KEK** and fresh **256-bit independently wrapped DEK per protected secret record**, authenticated stable project/connection/purpose metadata and versioned key identifiers. Create the KEK **once**, only during a specifically authorized first-time initialization on an empty/uninitialized installation; automatic ordinary startups must never regenerate it. Retain ADR 0046 off-host encrypted emergency key recovery with separate custody. | Validate no reused nonces per key, reject cross-account swapped ciphertext/DEKs and malformed tags, concurrent/crash-interrupted installer fail-closed, no secrets/keys in SQLite/WAL/backups/logs, and recoverable KEK version migration. Exact crate versions and DB/file encoding remain OQ-005/P0. [ADR 0047](../decisions/0047-secret-broker-xchacha20-key-hierarchy.md); AC-174–AC-177. |
+
+**Approved design, no cipher or installation code implemented.**
+
 ## Non-functional constraints (targets; thresholds not yet approved)
 
 - Fast scheduling and state reads on constrained control hardware; minimize unnecessary polling and database scans.
