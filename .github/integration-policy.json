@@ -9,6 +9,15 @@
   "actionsAppId": 15368,
   "integrationActorId": 41898282,
   "account": {"id": 72071644, "login": "ygtdmr", "type": "User"},
+  "rulesetAttestations": [
+    {
+      "rulesetId": 25836182,
+      "updatedAt": "2026-10-25T20:31:28.338Z",
+      "configurationSha256": "4ef54d787ff9563545091eeb085a695502f4275597a63040b6eb44f17606badf",
+      "verifiedBy": 72071644,
+      "bypassActors": []
+    }
+  ],
   "sourceRules": [],
   "smokePath": "docs/development/guides/routine-integration-smoke.md",
   "routinePaths": [

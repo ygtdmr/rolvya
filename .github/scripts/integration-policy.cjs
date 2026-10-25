@@ -1,6 +1,7 @@
 'use strict';
 const fs = require('node:fs');
 const path = require('node:path');
+const {createHash} = require('node:crypto');
 
 function safePath(value) {
   return typeof value === 'string' && /^[A-Za-z0-9_.\/-]+$/.test(value) &&
@@ -35,6 +36,49 @@ function routinePath(pathname, configuration) {
   return configuration.routinePaths.includes(pathname) || Boolean(sourceRule(pathname, configuration));
 }
 
+// Preserve array order, but canonicalize object keys. Only caller-specific and
+// navigation fields are omitted; unknown configuration fields fail on mismatch.
+// GitHub numeric ruleset IDs are immutable. node_id/created_at are read-only
+// metadata, not part of the Owner-exported configuration. Preserve timestamp
+// precision while accepting equivalent RFC3339 timezone representations.
+function canonical(value) {
+  if (Array.isArray(value)) return '[' + value.map(canonical).join(',') + ']';
+  if (value && typeof value === 'object') return '{' + Object.keys(value).sort()
+    .map(key => JSON.stringify(key) + ':' + canonical(value[key])).join(',') + '}';
+  return JSON.stringify(value);
+}
+
+function rulesetDigest(ruleset) {
+  const {bypass_actors, current_user_can_bypass, _links, node_id, created_at, ...configuration} = ruleset;
+  configuration.updated_at = normalizeRevision(configuration.updated_at);
+  return createHash('sha256').update(canonical(configuration)).digest('hex');
+}
+
+function validRevision(value) {
+  return typeof value === 'string' && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,3})?(?:Z|[+-]\d{2}:\d{2})$/.test(value) &&
+    Number.isFinite(Date.parse(value));
+}
+
+function normalizeRevision(value) {
+  if (!validRevision(value)) throw new Error('Missing or invalid ruleset revision timestamp');
+  return new Date(value).toISOString();
+}
+
+function validateAttestations(configuration) {
+  const attestations = configuration.rulesetAttestations;
+  if (!Array.isArray(attestations)) throw new Error('Missing Owner ruleset revision attestations');
+  const ids = new Set();
+  for (const entry of attestations) {
+    if (!entry || !Number.isSafeInteger(entry.rulesetId) || entry.rulesetId <= 0 || ids.has(entry.rulesetId) ||
+        !validRevision(entry.updatedAt) ||
+        !/^[0-9a-f]{64}$/.test(entry.configurationSha256 || '') || entry.verifiedBy !== configuration.account.id ||
+        !Array.isArray(entry.bypassActors) || entry.bypassActors.length !== 0) {
+      throw new Error('Invalid Owner ruleset attestation: exact identity/revision/digest and zero bypass actors required');
+    }
+    ids.add(entry.rulesetId);
+  }
+}
+
 function validatePolicy(configuration, root) {
   const account = configuration.account;
   if (!account || !Array.isArray(configuration.sourceRules) || !Array.isArray(configuration.routinePaths)) {
@@ -46,6 +90,7 @@ function validatePolicy(configuration, root) {
       account.id === configuration.integrationActorId || account.proofPr !== undefined) {
     throw new Error('Expected the pinned repository Owner User account; legacy independent-author roles/proofs are unsupported');
   }
+  validateAttestations(configuration);
   for (const pathname of configuration.routinePaths) {
     if (!safePath(pathname) || protectedPath(pathname) || !pathname.endsWith('.md')) throw new Error('Unsafe routine documentation path');
   }
@@ -105,7 +150,7 @@ function singleAccountReview(rule) {
     rule.parameters.required_review_thread_resolution === true;
 }
 
-module.exports = {safePath, protectedPath, sourceRule, routinePath, validatePolicy, codeowners, singleAccountReview};
+module.exports = {safePath, protectedPath, sourceRule, routinePath, validatePolicy, codeowners, singleAccountReview, canonical, rulesetDigest, validRevision, normalizeRevision};
 
 if (require.main === module) {
   const root = path.resolve(process.argv[2] || path.join(__dirname, '../..'));
