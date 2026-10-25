@@ -10,11 +10,11 @@ tags: [implementation, decisions, security, release, blocker]
 
 ## Decision authority and scope
 
-On 2026-10-25 the Owner requested that the assistant **resolve all remaining routine topics step by step without repeated micro-approvals or documentation churn**. This document chooses **initial engineering defaults** for the 13 OQ items; it is **not** a retroactive claim that individual selections are separately Owner-approved ADRs or that code/tests/provider permissions exist. Binding earlier approved ADRs, security and hard-budget gates prevail over all details below.
+On 2026-10-25 the Owner requested that the assistant **resolve all remaining routine topics step by step without repeated micro-approvals or documentation churn**. This document records **implementation defaults** for thirteen historical OQ categories whose architecture choices are already closed or intentionally deferred; it is **not** a retroactive claim that individual selections are separately Owner-approved ADRs or that code/tests/provider permissions exist. Binding earlier approved ADRs, security and hard-budget gates prevail over all details below.
 
 **Rule:** implement with the defaults; change a default only for measured correctness/security/compatibility reasons and record a concise reason in the relevant PR. **Never** silently approve new spend, credentials, external provider access, sensitive Owner actions or alteration of an already activated DAG. A decision is not verified execution evidence.
 
-## Remaining thirteen topics — disposition and first working default
+## Thirteen formerly open topic categories — implementation defaults, not reopened decisions
 
 | ID / priority | v0.1 implementation direction selected | What can actually close it |
 | --- | --- | --- |
@@ -50,7 +50,7 @@ On 2026-10-25 the Owner requested that the assistant **resolve all remaining rou
 
 ## Evidence required to claim a topic “completed”
 
-All 13 have an initial **engineering direction** in this file, but **implementation and test gates remain incomplete**. An item may be called `Implemented` only when code exists; `Verified` only after repeatable tests. **OQ-008 legally permitted unattended subscriptions**, actual cloud IAM/cost and recovery test outcomes cannot be decided by implementation preference alone. Approved hard budget and human step-up rules remain binding.
+All 13 historical topic categories have an engineering direction here; **this is not a register of 13 still-open Owner decisions**. Implementation, external licensing evidence and tests remain incomplete. An item may be called `Implemented` only when code exists; `Verified` only after repeatable tests. **OQ-008 legally permitted unattended subscriptions**, actual cloud IAM/cost and recovery test outcomes cannot be decided by implementation preference alone. Approved hard budget and human step-up rules remain binding.
 
 ## Current external evidence checked 2026-10-25
 
