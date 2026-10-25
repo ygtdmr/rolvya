@@ -371,3 +371,17 @@ See [testing strategy](../development/testing.md), [project status](../project/s
 | AC-177 | Rotate KEK and restore a retained older encrypted SQLite snapshot from off-host emergency recovery kit | Versioned wrapped DEKs remain decryptable with authorized retained key material, recovery credentials remain separate and normal later restarts need no manual unlock | PR-036 |
 
 **Future acceptance cases only.** Exact Rust dependency versions, record format, file provisioning, recovery-kit crypto/KDF and worker attestation remain OQ-005/P0. No test was executed.
+
+## Connected Control — shared UI Elements, animations and responsive verification (ADR 0048)
+
+| Test ID | Scenario | Pass condition | Requirement |
+| --- | --- | --- | --- |
+| AC-178 | Render all five approved product sections and an Element states gallery | All sections use one canonical versioned token/Element/semantic status system; no route-specific copied button/dialog/table/modal, duplicated themes or arbitrary motion values; linked task/project selection remains consistent | PR-037 |
+| AC-179 | Toggle light/dark/high contrast, keyboard navigation, reduced motion and permission states | WCAG 2.2 AA evidence including visible focus, usable dialogs, aria labels and screen-reader task tree; `prefers-reduced-motion` eliminates nonessential motion, while approvals and state semantics remain clear | PR-037 |
+| AC-180 | Resize to 320/390/768/1024/1440/2560 CSS px, 200%/400% zoom, RTL and safe-area mobile devices | No page-level horizontal overflow; navigable five sections; touch controls and dialog/sheet transformations; graphs remain independently pannable with keyboard-friendly non-graph alternative; tables adapt without losing actions | PR-037 |
+| AC-181 | Navigate Projects → Execution → Costs & Approvals → Results while SSE reorders, pauses or disconnects | Shared task IDs, statuses, immutable graph and expected/settled/uncertain spending stay consistent; transitions preserve context and focus; unverified/inactive data never visually masquerades as success; no cost/approval action bypasses Rust checks | PR-037 |
+| AC-182 | Run same UI in Chrome, Firefox, Safari and mobile browser profiles with modern-CSS features toggled off | `@container`, `@starting-style`, native view transitions, anchor positioning, `interpolate-size`, color composition and scroll animation enhancements have safe static fallbacks; no missing controls or inaccessible content | PR-037 |
+| AC-183 | Build optimized production web assets under strict CSP and test external type/icon loading failures | Exactly one minified external application JS containing compiled CSS, separate `sw.js`, no extra CSS/chunks/embedded glyph or font data; fonts/icons load only via reviewed external URLs; icon/font failures leave usable labeled actions; original logo never silently substituted | PR-037 |
+| AC-184 | Execute reproducible graph/list/motion performance and visual-regression scenarios | Capture measured JS transfer/parse, Core Web Vitals, graph interaction, large-list CPU/memory, SSE bursts and motion frame timing on throttled devices; no unbounded animation loops, layout thrash or permanent `will-change`; approved budget thresholds are evidence-based not invented pass claims | PR-037 |
+
+This specification supplements [UI-001–UI-015](../product/connected-control-design-system.md) and existing AC-153–164; **no frontend code, accessibility audit, browser artifact or performance test has yet been executed**.
