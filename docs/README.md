@@ -121,7 +121,7 @@ The paths above are a **planned inventory**, not links to files that already exi
 - [Initial Rust + SQLite implementation task packages](development/initial-implementation-task-packages.md)
 - [Rust + SQLite core test matrix](development/rust-sqlite-test-matrix.md)
 - [Remote integration verification matrix](development/remote-integration-test-matrix.md)
-- [Open decisions and architectural questions](project/open-questions.md)
+- [Closed decision map and outstanding implementation/evidence gates](project/open-questions.md)
 
 ## Operations specifications now available
 
@@ -141,7 +141,7 @@ The paths above are a **planned inventory**, not links to files that already exi
 - [Approved ADR 0004 — Rust-only backend](decisions/0004-control-plane-language.md)
 - [Approved ADR 0005 — SQLite database](decisions/0005-authoritative-database.md)
 - [Approved ADR 0006 — HTTPS worker communication](decisions/0006-worker-communication.md)
-- [Proposed ADR 0007 — Remote worker hosting](decisions/0007-remote-worker-hosting.md)
+- [Historical hosting options (AWS-first settled by ADR 0041)](decisions/0007-remote-worker-hosting.md)
 - [Approved ADR 0008 — GitHub App authentication](decisions/0008-github-authentication.md)
 - [Approved ADR 0009 — Group-only parent tasks](decisions/0009-parent-aggregation.md)
 - [Approved ADR 0010 — Bounded worker continuation or stop-on-risk](decisions/0010-inflight-budget.md)
