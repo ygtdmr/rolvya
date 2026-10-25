@@ -340,3 +340,13 @@ See [testing strategy](../development/testing.md), [project status](../project/s
 | AC-167 | Root key unavailable after crash; key rotation and point-in-time backup restore are attempted | No unsafe fallback or silently generated replacement root key; recovery uses separately safeguarded correct key/version, old ciphertext rotation works, no unsupported managed secret service needed | PR-033 |
 
 **Not executed.** A decision to use encrypted SQLite does not close OQ-005/P0 key custody, provider entitlements (OQ-008), or certify full-database at-rest encryption.
+
+## Automatic local controller master-key unlock — future verification (ADR 0045)
+
+| Test ID | Scenario | Pass condition | Requirement |
+| --- | --- | --- | --- |
+| AC-168 | Existing encrypted test credential store is restarted repeatedly with a protected key file | The dedicated non-root controller reads the same existing key without operator input and only decrypts after authorized broker checks; no key ends up in UI/logs/SQLite/normal backups | PR-034 |
+| AC-169 | Key missing, corrupted, inaccessible, symlink-substituted, unexpectedly owned or world/group-readable at startup | Deny secret-dependent operations and all resulting unapproved billable work; do **not** generate a replacement key, delete ciphertext or silently use another connection; report recoverable error without secret data | PR-034 |
+| AC-170 | Simulated host loss and restore of encrypted SQLite backup without its root key; then separately controlled key recovery | Database backup has no master key; secrets stay unreadable without matching protected recovery material; permitted restore procedure and version compatibility work without introducing mandatory manual unlock at every normal startup | PR-034 |
+
+**No test has been implemented or executed.** Root-key recovery medium and cryptography remain OQ-005/P0.
