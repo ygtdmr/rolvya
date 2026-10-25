@@ -1,23 +1,23 @@
 ---
-title: Selected Encrypted SQLite Secret Store and Open Key Custody
-status: Approved storage; key custody proposed
+title: Approved Encrypted SQLite and Automatic Local Key Custody
+status: Approved store and local unlock; recovery implementation proposed
 category: architecture
 last-reviewed: 2026-10-25
 tags: [security, secrets, kms, credential-store, worker, p0]
 ---
 
-# Secret Broker encrypted SQLite storage — approved; key custody open
+# Secret Broker encrypted SQLite and automatic local key unlock — approved
 
 ## Status and question
 
-**Approved initial store:** [ADR 0044](../decisions/0044-encrypted-sqlite-secret-storage.md) selects **application-layer encrypted secret records in SQLite** as the first Secret Broker backend. [ADR 0037](../decisions/0037-central-secret-broker-task-scoped-access.md) still governs least-privilege broker access and [ADR 0038](../decisions/0038-multi-account-isolated-cli-and-api-access.md) governs independent CLI/API accounts. **OQ-005/P0 stays open for the exact outside-DB master-key custody, cryptographic implementation, remote worker bootstrap and recovery.** No secret manager, credential, paid resource or encryption code has been deployed.
+**Approved initial store:** [ADR 0044](../decisions/0044-encrypted-sqlite-secret-storage.md) selects **application-layer encrypted secret records in SQLite** as the first Secret Broker backend. [ADR 0037](../decisions/0037-central-secret-broker-task-scoped-access.md) still governs least-privilege broker access and [ADR 0038](../decisions/0038-multi-account-isolated-cli-and-api-access.md) governs independent CLI/API accounts. **[ADR 0045](../decisions/0045-automatic-local-master-key-unlock.md) approves automatic loading of an existing protected master key file on the remote controller host**; OQ-005/P0 remains open for detailed provisioning, encryption algorithm, rotation/recovery and worker bootstrap. No secret manager, credential, paid resource or encryption code has been deployed.
 
-The storage backend is **settled: encrypted SQLite records**. The next decision is **who controls master encryption keys and where the separately protected root key lives**. A short-lived worker control token is never a substitute for AI provider credentials. The planned AWS Fargate first worker does not automatically require all secrets to be stored in AWS or allow an AWS-only control-plane architecture.
+The store **and startup strategy** are settled: encrypted SQLite records and **automatic, noninteractive loading of a protected local controller-host key file**. The exact file path, key lifecycle and separately protected recovery mechanism remain open. A short-lived worker control token is never a substitute for AI provider credentials. The planned AWS Fargate first worker does not automatically require all secrets to be stored in AWS or allow an AWS-only control-plane architecture.
 
 ## Proposed provider-neutral boundary
 
 - Keep SQLite the **only authoritative project/task/budget database**, storing connection identities, owner/project grants, allowed access modes, secret references, audit and revocation state. Do **not** store raw unencrypted API keys, password/session grants or GitHub App private keys in those fields.
-- The initial Rust `SecretStore` implementation persists **authenticated encrypted credential records in SQLite**. Keep a small internal interface to avoid entangling business policy with encryption; this does **not** require implementing or shipping other backends. Root key material is held outside SQLite and its ordinary backups.
+- The initial Rust `SecretStore` implementation persists **authenticated encrypted credential records in SQLite**. Keep a small internal interface to avoid entangling business policy with encryption; this does **not** require implementing or shipping other backends. Root key material is held in a **separate access-restricted controller-host file** outside SQLite and its ordinary backups and loaded automatically during restart (ADR 0045). The exact path and first-time provisioning are open.
 - Only the trusted Rust Secret Broker can resolve or decrypt a connection's secret. Every use must verify authenticated actor/connection, project scope, provider mode, fixed task and attempt, worker identity/lease epoch, account eligibility, explicit budget reservation and cancellation status.
 - Prefer **brokered API calls** where provider support permits; only release CLI session material in an explicitly permitted isolated, short-lived remote runtime with per-connection protected home, redacted logs and cleanup. Raw upstream static credentials can be exfiltrated from a compromised worker even if its controller token is short-lived.
 - CLI subscriber terms, unattended-hosted rights, auth refresh and model/account quota remain separately gated under OQ-008; no official rights can be assumed merely from a successful login.
@@ -30,7 +30,7 @@ The storage backend is **settled: encrypted SQLite records**. The next decision 
 | **B. Envelope-encrypted credential records inside SQLite** + encryption root stored **outside** SQLite/repository/backups | Minimal operational dependencies, single authoritative SQLite instance, provider-neutral, can be economical for small self-host deployments | Higher responsibility for crypto correctness, key access, rotation and disaster recovery; same-host filesystem/process compromise can expose key + ciphertext; external KMS or tightly protected operator-supplied root is still needed |
 | **C. External secrets-management server** (e.g. dedicated Vault service) | Broad independent features for large installations, multi-provider | More memory, administration, recovery/key-unseal and always-on cost; not preferred initial default on constrained 2–4 GB controller |
 
-**Owner decision:** choose **option B, encrypted SQLite credential records with the master/key-encryption key kept outside SQLite, ordinary backups and source code** ([ADR 0044](../decisions/0044-encrypted-sqlite-secret-storage.md)). Option A (AWS Secrets Manager) and option C (Vault) are **not first-version requirements**. A future alternate backend needs its own explicit scope/decision. This selection does not decide the exact key custody source or imply full SQLite file encryption.
+**Owner decision:** choose **option B, encrypted SQLite credential records with the master/key-encryption key kept outside SQLite, ordinary backups and source code** ([ADR 0044](../decisions/0044-encrypted-sqlite-secret-storage.md)). Option A (AWS Secrets Manager) and option C (Vault) are **not first-version requirements**. A future alternate backend needs its own explicit scope/decision. The later ADR 0045 selects the initial **protected local key-file source with automatic restart loading**, without deciding concrete key file location, encryption primitive or a complete recovery workflow. It does not imply whole-file SQLite encryption.
 
 ## Necessary implementation safeguards
 
@@ -53,11 +53,11 @@ The storage backend is **settled: encrypted SQLite records**. The next decision 
 - Protect SQLite backups/storage and account for their actual storage/transfer charges, if any, within the approved project cost policy; no Secrets Manager recurring fee is assumed. Any future billable external backend requires explicit approval.
 - Real audits, provider isolation and cloud IAM tests are executed **only after separately approved test expenses and authorized accounts**.
 
-## Remaining Owner decision (do not infer from storage approval)
+## Remaining implementation and security decisions
 
-The **first store is now approved: encrypted SQLite**. Select **how to provision, protect, rotate and recover the master/key-encryption key outside SQLite and its ordinary backups**. In particular, whether the key lives in a protected local controller-host facility, separately supplied operator material or externally backed key custody requires explicit review of host compromise, noninteractive restart and safe recovery.
+**Already Owner-approved:** first secrets backend is encrypted SQLite ([ADR 0044](../decisions/0044-encrypted-sqlite-secret-storage.md)); its root key is automatically read at startup from a separate OS-protected controller-host file ([ADR 0045](../decisions/0045-automatic-local-master-key-unlock.md)). Manual unlock on every restart and mandatory managed KMS are not required.
 
-Provider-native worker identity, exact Rust crypto crate/algorithm, schema and credential grants remain implementation/security evidence gates, not newly approved choices. Do not silently switch to AWS Secrets Manager.
+**Still OQ-005/P0:** exact protected path and process user, safe first-run key provisioning, key encryption/AEAD crate and record format, rotation/versioning, independently protected key recovery and backup restore, host compromise and remote worker identity. Missing/invalid keys must block secrets without silently overwriting ciphertext. **Do not claim protection from a fully compromised host.** A separate recovery strategy must be proven before production with real connected credentials, without requiring manual entry at normal restart.
 
 ## References
 
