@@ -8,6 +8,10 @@ tags: [decisions, roadmap, unresolved, adr]
 
 # Open decisions and architecture questions
 
+## Owner-delegated engineering defaults — 2026-10-25
+
+The Owner asked to stop repeated micro-approval/documentation cycles. All **13 active OQ categories** now have a proposed execution/default disposition in the [single-pass engineering choices](implementation-defaults-and-release-gates.md). That does **not** make code implemented, tests passed, provider-hosted CLI subscription rights granted, an original logo asset available or cloud spend approved. Treat rows below as remaining **implementation/evidence gates** (with OQ-018/OQ-019 deliberately deferred). Work is tracked in [GitHub issues #1–#4](https://github.com/ygtdmr/rolvya/issues), not more one-decision-per-document rounds.
+
 ## Purpose and interpretation
 
 This register tracks **unresolved choices** that must not be silently converted into implemented requirements. It is a planning instrument, not evidence a particular provider, framework or algorithm has been approved. Approved constraints remain in the [decision register](../decisions/README.md), [requirements](../product/requirements.md) and numbered ADRs.
