@@ -100,9 +100,9 @@ See the [historical conversation audit](../project/historical-decision-audit.md)
 
 These are **Approved designs, not claims of implemented or production-verified software**. Detailed region/cost/adapter validation remains separate.
 
-**Remaining proposed provider rollout decision:**
+**Historical provider rollout exploration — does not reopen AWS-first selection:**
 
-- [ADR 0007 — Initial remote worker providers, regions and cost comparison](0007-remote-worker-hosting.md) — **Proposed**; it does not reopen approved multi-provider support.
+- [ADR 0007 — Earlier hosting alternatives and cost comparisons](0007-remote-worker-hosting.md) — **Historical/Proposed detail only.** **ADR 0041 already closes first-provider selection: AWS ECS Fargate**; specific region/image/IAM and live cost proof are implementation tasks, not a new provider vote.
 
 
 Selection gates, unresolved questions and evidence requirements are in the [open-decision register](../project/open-questions.md). Implementation order after approval is in the [proposed implementation slices](../project/implementation-slices.md).
