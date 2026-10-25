@@ -154,7 +154,7 @@ The paths above are a **planned inventory**, not links to files that already exi
 - [Architecture glossary](reference/glossary.md)
 - [Current Claude/Codex CLI and API terms evidence](reference/provider-cli-api-policy-evidence.md)
 
-**Approved 2026-10-21:** ADR 0004 (Rust), 0005 (SQLite), 0006 (worker HTTPS), 0008 (GitHub App), 0009 (group-only parents), 0010 (bounded-or-stop) and 0011 (multi-provider worker adapters). **ADR 0007 remains Proposed only for initial provider/vendor rollout and cost benchmarking**; concrete HTTP/security/adapter implementation details are also open. See [open technical questions](project/open-questions.md).
+**Approved 2026-10-21:** ADR 0004 (Rust), 0005 (SQLite), 0006 (worker HTTPS), 0008 (GitHub App), 0009 (group-only parents), 0010 (bounded-or-stop) and 0011 (multi-provider worker adapters). **AWS Fargate-first is settled by ADR 0041**; earlier ADR 0007 is historical cost/vendor exploration. Concrete IAM, cost and protocol tests are unfinished implementation, not open architectural selection. See the [closed-decision map and remaining evidence gates](project/open-questions.md).
 
 ## Project event history and audit
 
