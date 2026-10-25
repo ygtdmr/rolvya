@@ -61,7 +61,7 @@ A consequential decision uses a numbered Markdown ADR with context, alternatives
 
 ## Repository integration policy (2026-10-25)
 
-The Owner requested hands-free squash integration of verified routine internal Codex PRs. The [integration contract](pull-request-integration.md) defines the implemented CI foundation, narrow reviewed routine path list, trusted numeric author IDs, strict branch rules and one-time activation/verification steps. Workers still publish isolated PRs; a separate trusted repository workflow performs eligible merges. Security, authentication, secrets, budget authority, infrastructure, workflows, architecture/ADRs and unfamiliar paths require separate human Owner review and are never automatically merged. Agent self-approval and labels are not human authority. A worker must not claim a merge or operational automation without GitHub evidence.
+The Owner chose hands-free squash integration of verified low-risk internal Codex PRs using the existing `ygtdmr` GitHub account. The [integration contract](pull-request-integration.md) pins that shared account, retains a test-backed registry for actual low-risk Rust/frontend boundaries, and defines strict CI/protection plus browser-only setup. CODEOWNERS is advisory, with zero required approvals and no last-push approval, avoiding impossible self-review. A trusted main-branch workflow integrates eligible paths only after a real protected smoke receipt; sensitive/unfamiliar changes stay outside automation for the Owner's manual review and squash merge after CI. Agents must not perform sensitive merges without explicit Owner instructions. No label or agent review grants authorization, and the shared identity cannot prove independent human approval or technically distinguish an Owner click from an agent action. This is repository development tooling; product human-approval and GitHub App architecture decisions remain unchanged.
 
 ## Completion / evidence standard
 
@@ -69,6 +69,6 @@ After integration, verify target ref and commit, update [project status](../proj
 
 ## Open decisions
 
-Routine repository CI/merge direction is selected by the Owner's 2026-10-25 request; actual settings and live protected-merge evidence remain activation gates in the [integration contract](pull-request-integration.md). Reviewer identity separation, conventional commit adoption, product release approvals and accepted performance targets still need their applicable implementation/evidence.
+Routine repository CI/merge direction is selected by the Owner's 2026-10-25 request; actual settings and live protected-merge evidence remain activation gates in the [integration contract](pull-request-integration.md). The single-account repository model is explicitly selected; conventional commit adoption, product release approvals and accepted performance targets still need their applicable implementation/evidence.
 
 Related: [engineering standards](standards.md), [test strategy](testing.md), [agent handoffs](agent-handoffs.md), [remote Git](../architecture/integration-github.md), [documentation policy](documentation-policy.md).

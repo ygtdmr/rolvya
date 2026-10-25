@@ -1,8 +1,4 @@
-# Sensitive and unfamiliar files require the human Owner's review.
+# Advisory ownership only: the sole Owner also authors Codex PRs.
+# Required CODEOWNER approval would deadlock; rules require zero reviews.
+# Sensitive changes stay excluded from the automatic merge controller.
 * @ygtdmr
-
-# Routine documentation has no mandatory reviewer. This list must match policy.
-/README.md
-/docs/README.md
-/docs/project/status.md
-/docs/development/guides/routine-integration-smoke.md

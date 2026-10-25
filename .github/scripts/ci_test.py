@@ -23,8 +23,17 @@ class RepositoryChecks(unittest.TestCase):
         ci.ROOT = Path(self.temp.name)
         self.addCleanup(setattr, ci, 'ROOT', REAL_ROOT)
         subprocess.run(['git', 'init', '-q', str(ci.ROOT)], check=True)
-        for name in ('LICENSE', '.github/CODEOWNERS', '.github/integration-policy.json'):
+        for name in ('LICENSE', '.github/CODEOWNERS', '.github/integration-policy.json', '.github/integration-ruleset.json', '.github/scripts/integration-policy.cjs'):
             self.write(name, (REAL_ROOT / name).read_text())
+        # Repository fixtures are deliberately implementation-free, even after
+        # the real project registers source components or routine boundaries.
+        policy = json.loads((ci.ROOT / '.github/integration-policy.json').read_text())
+        policy['sourceRules'] = []
+        self.write('.github/integration-policy.json', json.dumps(policy))
+        generated = subprocess.check_output(['node', '-e',
+            "const fs=require('node:fs'); const m=require(process.argv[1]); const p=JSON.parse(fs.readFileSync(process.argv[2])); process.stdout.write(m.codeowners(p));",
+            str(ci.ROOT / '.github/scripts/integration-policy.cjs'), str(ci.ROOT / '.github/integration-policy.json')], text=True)
+        self.write('.github/CODEOWNERS', generated)
 
     def write(self, name, text):
         path = ci.ROOT / name
@@ -117,6 +126,54 @@ class RepositoryChecks(unittest.TestCase):
         self.write('.github/scripts/check-migrations.sh', 'exit 0\n')
         with self.assertRaisesRegex(ValueError, 'Rust workspace'):
             ci.inventory()
+
+
+    def test_shared_owner_is_valid_but_foreign_author_fails_repository_ci(self):
+        ci.repository_check()
+        policy = json.loads((ci.ROOT / '.github/integration-policy.json').read_text())
+        policy['account']['id'] = 999
+        self.write('.github/integration-policy.json', json.dumps(policy))
+        with self.assertRaisesRegex(ValueError, 'pinned repository Owner'):
+            ci.repository_check()
+
+    def test_codeowner_or_general_self_approval_deadlocks_fail_repository_ci(self):
+        template = json.loads((ci.ROOT / '.github/integration-ruleset.json').read_text())
+        for key, value in [('require_code_owner_review', True), ('required_approving_review_count', 1), ('require_last_push_approval', True)]:
+            bad = json.loads(json.dumps(template))
+            bad['rules'][-1]['parameters'][key] = value
+            self.write('.github/integration-ruleset.json', json.dumps(bad))
+            with self.assertRaisesRegex(ValueError, 'must not require self-approval'):
+                ci.repository_check()
+
+    def test_ruleset_template_cannot_ship_active_before_settings_and_smoke(self):
+        template = json.loads((ci.ROOT / '.github/integration-ruleset.json').read_text())
+        template['enforcement'] = 'active'
+        self.write('.github/integration-ruleset.json', json.dumps(template))
+        with self.assertRaisesRegex(ValueError, 'template must stay disabled'):
+            ci.repository_check()
+
+    def test_speculative_source_registration_fails_repository_ci(self):
+        policy = json.loads((ci.ROOT / '.github/integration-policy.json').read_text())
+        policy['sourceRules'] = [{'kind': 'rust', 'root': 'crates/text/src/format', 'manifest': 'Cargo.toml',
+            'tests': ['crates/text/tests/format.rs'], 'rationale': 'Unimplemented fixture'}]
+        self.write('.github/integration-policy.json', json.dumps(policy))
+        with self.assertRaises((ValueError, FileNotFoundError)):
+            ci.repository_check()
+
+
+    def test_registered_rust_source_and_tests_must_really_belong_to_checked_workspace(self):
+        policy = json.loads((ci.ROOT / '.github/integration-policy.json').read_text())
+        rule = {'kind': 'rust', 'root': 'crates/text/src/format', 'manifest': 'crates/text/Cargo.toml',
+                'tests': ['crates/text/tests/format.rs'], 'rationale': 'Formatting fixture'}
+        policy['sourceRules'] = [rule]
+        self.write('.github/integration-policy.json', json.dumps(policy))
+        with self.assertRaisesRegex(ValueError, 'checked workspace'):
+            ci.verify_rust_registration({'packages': [], 'workspace_members': []})
+        package = {'id': 'text', 'manifest_path': str(ci.ROOT / rule['manifest']), 'targets': []}
+        with self.assertRaisesRegex(ValueError, 'Cargo test target'):
+            ci.verify_rust_registration({'packages': [package], 'workspace_members': ['text']})
+        package['targets'] = [{'kind': ['test'], 'src_path': str(ci.ROOT / rule['tests'][0])}]
+        ci.verify_rust_registration({'packages': [package], 'workspace_members': ['text']})
 
 
 if __name__ == '__main__':
