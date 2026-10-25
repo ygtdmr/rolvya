@@ -8,6 +8,10 @@ tags: [readiness, gaps, review, implementation, approvals]
 
 # Pre-implementation gap closure and full project review
 
+## Historical checkpoint, not the active open-decision source
+
+This document captures the gap review as of 2026-10-23 and therefore contains older statuses such as 'frontend stack open', 'first provider unselected' and early Secret Broker work. **Those choices have subsequently been settled.** The [decision-closure and actual external gate register](open-questions.md) plus [latest binding ADRs](../decisions/README.md) override any conflicting 'open' label below. Do not send these settled matters back for Owner approval. Follow [Issues #1–#4](https://github.com/ygtdmr/rolvya/issues) for remaining code, integration and tests.
+
 ## Purpose and evidence boundary
 
 The project Owner requested **resolve the remaining gaps before a comprehensive, end-to-end review of Rolvya**. This file is the durable tracking register for that sequence, **not an assertion that all open choices have been resolved**. Current source license: **MIT**, see [LICENSE](../../LICENSE). The active Git commit history was rewritten after that licensing decision; prior historical SHA references must not be treated as current branch commits. The owner-approved architecture, product requirements and open questions are authoritative.
