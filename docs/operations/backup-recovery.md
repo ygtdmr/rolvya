@@ -66,6 +66,8 @@ A storage target cutover affects new writes only. Interrupted or budget-paused m
 - **Remote Git history changed:** compare provider commit/ref SHAs, stop silent branch overwrite.
 - **Region/provider outage:** alternative region/provider is an open deployment choice and may incur transfer charges requiring budget authority.
 
+**Key recovery option awaiting Owner decision:** [bootstrap, rotation and off-host encrypted recovery-kit proposal](../architecture/secret-key-bootstrap-rotation-recovery-proposal.md). Normal key unlock already runs automatically under ADR 0045; an encrypted emergency recovery kit and its offline custody have **not** been approved, built or tested. Do not store live root material in ordinary SQLite backups or accidentally treat proposed recovery as an implemented capability.
+
 ## Restore testing
 
 Run test restores to isolated remote infrastructure with fake-provider adapters and synthetic data. Exercise an interrupted reservation, orphan attempt, late cost invoice, unacknowledged successful Git push, missing artifact and compromised credentials. Record precise restore commands, versions, hashes, elapsed time, data loss estimate and remaining gaps.
