@@ -8,6 +8,10 @@ tags: [adr, cloud, worker, aws, google-cloud, budget]
 
 # ADR 0007: Remote worker hosting and cost model
 
+## Historical proposal superseded for the first provider by ADR 0041
+
+**Do not reopen first-provider selection on the basis of this earlier Proposed ADR.** The current Owner-approved order is **fake → AWS ECS Fargate → Google Cloud Run Jobs → remote VPS** ([ADR 0041](0041-aws-fargate-first-real-worker.md)). This document is an older cost/hosting exploration. Actual region, resource sizing, IAM and observed billing remain engineering validation, not an undecided choice of AWS versus Google.
+
 ## Subsequent approved adapter priority clarification (ADR 0018)
 
 [ADR 0018](0018-initial-worker-adapters.md), as **revised by the subsequently approved [ADR 0039](0039-aws-ecs-fargate-replaces-hetzner.md)**, selects Google Cloud Run Jobs, **Amazon ECS on AWS Fargate**, and user-enrolled remote VPS as the current initial three. The original Hetzner priority was superseded on 2026-10-24. Older candidate discussions in this ADR are historical, not current release certification. The [staged rollout proposal](../architecture/initial-remote-worker-rollout-proposal.md) is only **Proposed**; no default release count, benchmark budget, region or live provider integration is newly approved.
