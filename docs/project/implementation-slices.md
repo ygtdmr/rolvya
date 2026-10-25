@@ -16,7 +16,7 @@ No code implementation, worker deployment, provider integration or passing CI is
 
 The [decision readiness checklist](decision-readiness.md) separates approved architecture from transport/provider/security approvals, and the [worker provider evaluation](../operations/worker-provider-evaluation.md) specifies billable benchmark requirements.
 
-**Updated approved choices (2026-10-21):** [ADR 0006](../decisions/0006-worker-communication.md) fixes worker-initiated HTTPS; [ADR 0008](../decisions/0008-github-authentication.md) fixes GitHub App; [ADR 0011](../decisions/0011-multi-provider-worker-infrastructure.md) requires extensible multi-provider Rust adapters. [ADR 0007](../decisions/0007-remote-worker-hosting.md) remains Proposed for **which specific providers/regions to implement first**, not the common architecture. See [multi-provider adapter contract](../architecture/multi-provider-adapter-contract.md). Exact identity, permissions and wire/configuration remain implementation choices.
+**Updated approved choices (2026-10-21):** [ADR 0006](../decisions/0006-worker-communication.md) fixes worker-initiated HTTPS; [ADR 0008](../decisions/0008-github-authentication.md) fixes GitHub App; [ADR 0011](../decisions/0011-multi-provider-worker-infrastructure.md) requires extensible multi-provider Rust adapters. **[ADR 0041](../decisions/0041-aws-fargate-first-real-worker.md) already selects AWS ECS Fargate as the first real adapter**, after synthetic workers; [ADR 0007](../decisions/0007-remote-worker-hosting.md) is an earlier historical exploration. Provider regions and benchmark numbers are engineering validation, not an open provider-selection decision. See [multi-provider adapter contract](../architecture/multi-provider-adapter-contract.md). Exact identity, permissions and wire/configuration remain implementation choices.
 
 ## Latest approved first working provider (2026-10-24)
 
@@ -26,7 +26,7 @@ The [decision readiness checklist](decision-readiness.md) separates approved arc
 
 1. **Rust-only backend and SQLite database are approved** by [ADR 0004](../decisions/0004-control-plane-language.md) and [ADR 0005](../decisions/0005-authoritative-database.md). Worker-initiated HTTPS is already approved in [ADR 0006](../decisions/0006-worker-communication.md) and GitHub App authentication in [ADR 0008](../decisions/0008-github-authentication.md). Initial provider categories and priorities are approved in [ADRs 0017–0018](../decisions/README.md); concrete provider regions, budget limits and identity/wire implementation remain open in the [decision register](open-questions.md).
 2. **Implement Approved ADR 0010**: previously admitted workers can continue only within enforceably bounded pre-reserved exposure, otherwise stop-on-risk; assess actual provider-side bill limits and delayed invoices. Approved invariant: **no percentage overrun, explicit human approval for higher ceiling**.
-3. Approve security/identity and Git merge authority and define tenant isolation.
+3. **Implement and verify previously approved** security/identity and Git merge authority policies, including tenant isolation; seek authorization only for actual privileged actions, outside-provider eligibility or changes to approved constraints.
 4. Establish a sandboxed remote development/test environment using fake provider adapters first; no user's local computer worker or repository access.
 5. Define measurable acceptance/benchmark thresholds and capture exact toolchain versions in the handoff.
 
