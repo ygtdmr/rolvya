@@ -37,3 +37,7 @@ No approved UI visual design, font family, icon library/provider, exact icon ass
 This ADR is **not** executable frontend code, a built distribution, an audit of every browser version, or authorization to launch cloud resources.
 
 Related: [approved panel navigation](0042-five-section-web-panel-navigation.md), [updated frontend stack contract](../architecture/web-panel-technical-stack-proposal.md), [browser platform contract](../architecture/web-platform-artifact-and-capability-contract.md), [UX and accessibility contract](../product/web-ux-and-accessibility-contract.md), [project status](../project/status.md), [open decisions](../project/open-questions.md).
+
+## Subsequent approved delegation — ADR 0048 (2026-10-25)
+
+The Owner has since **delegated specific aesthetic direction, selected fonts/icons, unified Element library, motion/transitions, modern CSS and deep responsiveness** to the design agent in [ADR 0048](0048-owner-delegated-cohesive-ui-design.md). The [Connected Control design contract](../product/connected-control-design-system.md) is the resulting canonical visual and interaction system. This **supersedes this ADR's original decision to defer visual design** but **does not supersede** its architectural stack, approved five sections, one-JS-with-CSS packaging, separate Service Worker, external-only fonts/icons, CSP, permissions, accessibility and security constraints. No actual build/tests/UI exists from documentation alone.
