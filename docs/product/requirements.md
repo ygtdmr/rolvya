@@ -101,6 +101,14 @@ These are **approved future requirements**, not evidence that any frontend files
 
 These are future checks, not evidence of implemented encryption or completed key recovery.
 
+## Approved automatic Secret Broker master-key loading (ADR 0045)
+
+| ID | Requirement | Verification expectation |
+| --- | --- | --- |
+| PR-034 | Initial Rust Secret Broker **automatically loads its existing master/key-encryption key from a separate, access-restricted file on the remote controller host** at ordinary startup. No Owner manual unlock, mandatory external KMS or AWS secret manager is required. File is outside SQLite, ordinary DB backups, code, worker images and browser assets; only the dedicated non-root service can read it. A missing/invalid key **fails closed** without automatic replacement or wiping encrypted credentials. Exact first-run provisioning and separately protected key recovery/rotation remain OQ-005/P0. | Verify unattended restart, strict file/directory permissions, missing/invalid/broadly accessible file denial, no implicit key regeneration, encrypted backup isolation and controlled separate key recovery. [ADR 0045](../decisions/0045-automatic-local-master-key-unlock.md); AC-168–AC-170. |
+
+**Approved design, not proof of key generation or tested implementation.**
+
 ## Non-functional constraints (targets; thresholds not yet approved)
 
 - Fast scheduling and state reads on constrained control hardware; minimize unnecessary polling and database scans.
