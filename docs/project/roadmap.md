@@ -12,7 +12,7 @@ tags: [roadmap, phases, delivery, milestones]
 
 This is a **proposed software development roadmap**, not an approved date-based schedule, and **not** a runtime Rolvya task DAG. The user-approved product rule requires each *actual Rolvya project execution* to have one fully preplanned immutable task graph. Developers may refine the **future product delivery roadmap** between releases with owner approval; that does not authorize changing the graph of an already activated project.
 
-The backend is definitively Rust, authoritative DB SQLite, worker control **HTTPS**, GitHub authentication **GitHub App**, and remote worker architecture **multi-provider** (Approved ADRs 0004, 0005, 0006, 0008 and 0011). **The v0.1 feature boundary is now Owner-approved** in [product scope](../product/scope.md). Which concrete cloud adapters ship first, exact credentials/protocol implementation and frontend stack remain open. No implementation milestone is marked complete without evidence.
+The backend is definitively Rust, authoritative DB SQLite, worker control **HTTPS**, GitHub authentication **GitHub App**, and remote worker architecture **multi-provider** (Approved ADRs 0004, 0005, 0006, 0008 and 0011). **The v0.1 feature boundary is now Owner-approved** in [product scope](../product/scope.md). **AWS ECS Fargate is the approved first real worker (ADR 0041)**; **React/TypeScript/Vite with React Flow is the approved frontend stack (ADR 0043)**. Their coding, security tests, integrations and deployment are unfinished; these choices are not open for re-selection. No implementation milestone is marked complete without evidence.
 
 ## Delivery phases
 
