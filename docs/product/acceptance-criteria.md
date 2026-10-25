@@ -359,4 +359,15 @@ See [testing strategy](../development/testing.md), [project status](../project/s
 | AC-172 | Simulate lost controller and restore encrypted SQLite on a clean remote host | Authorized emergency recovery uses matching independently held kit/secret; subsequent ordinary startups automatically load local protected key | PR-035 |
 | AC-173 | Attempt restore with wrong recovery secret, tampered ciphertext or mismatched key version | Fail safely without replacing keys, losing ciphertext, starting paid tasks or falsely claiming recovery; archived valid key versions remain available for retained backups | PR-035 |
 
-**Specified, not tested.** Concrete crypto and first-run provisioning are still OQ-005/P0; the [XChaCha crypto/bootstrap candidate](../architecture/secret-broker-cryptography-bootstrap-proposal.md) remains Proposed.
+**Specified, not tested.** Secret-row XChaCha20-Poly1305 and controlled initial KEK/DEK setup are now **Approved** ([ADR 0047](../decisions/0047-secret-broker-xchacha20-key-hierarchy.md)); the recovery kit's KDF, storage/provider, and detailed installation/rotation implementation remain OQ-005/P0.
+
+## Approved XChaCha20-Poly1305, KEK/DEK and first-time initialization — future tests (ADR 0047)
+
+| Test ID | Scenario | Pass condition | Requirement |
+| --- | --- | --- | --- |
+| AC-174 | Generate first KEK and independent DEKs for protected test secrets | KEK is 256-bit and CSPRNG-generated only in authorized first setup; per-record fresh 256-bit DEKs, XChaCha20-Poly1305 AEAD, 24-byte per-encryption nonces, authenticated context and version metadata are enforced; no key/secret plaintext persists to SQLite/WAL/backups | PR-036 |
+| AC-175 | Move ciphertext and wrapped DEK between two projects/accounts, tamper with purpose, version, nonce or authentication tag | Broker fails closed without decrypted data or cross-account use; malformed versions and metadata do not cause unsafe implicit fallback | PR-036 |
+| AC-176 | Two initial installers compete; crash during key file creation; existing initialized SQLite loses protected key file | At most one valid KEK/installation binding; interrupted setup is reconciled safely; missing existing key never regenerates or overwrites old encrypted data | PR-036 |
+| AC-177 | Rotate KEK and restore a retained older encrypted SQLite snapshot from off-host emergency recovery kit | Versioned wrapped DEKs remain decryptable with authorized retained key material, recovery credentials remain separate and normal later restarts need no manual unlock | PR-036 |
+
+**Future acceptance cases only.** Exact Rust dependency versions, record format, file provisioning, recovery-kit crypto/KDF and worker attestation remain OQ-005/P0. No test was executed.
