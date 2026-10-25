@@ -112,6 +112,12 @@ class RepositoryChecks(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'replay gate'):
             ci.inventory()
 
+    def test_migration_replay_cannot_hide_in_a_skipped_rust_job(self):
+        self.write('migrations/0001.sql', 'CREATE TABLE example (id INTEGER PRIMARY KEY);')
+        self.write('.github/scripts/check-migrations.sh', 'exit 0\n')
+        with self.assertRaisesRegex(ValueError, 'Rust workspace'):
+            ci.inventory()
+
 
 if __name__ == '__main__':
     unittest.main()
