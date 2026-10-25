@@ -1,26 +1,26 @@
 ---
-title: First-Run Key Provisioning and Encrypted SQLite Cryptography
-status: Proposed — Owner approval pending
+title: Approved SQLite Secret Cryptography and First-Run Bootstrap Contract
+status: Approved crypto/bootstrap baseline; implementation details proposed
 category: architecture
 last-reviewed: 2026-10-25
 tags: [secrets, cryptography, rust, sqlite, bootstrap, keys, p0]
 ---
 
-# Secret Broker cryptography and first-run bootstrap — proposal
+# Secret Broker cryptography and first-run bootstrap — approved baseline
 
 ## Scope and decision boundary
 
-This technical selection is **Proposed, not Owner-approved**. Existing Owner-approved requirements remain binding:
+**Owner-approved:** [ADR 0047](../decisions/0047-secret-broker-xchacha20-key-hierarchy.md) selects 256-bit OS-generated KEK, XChaCha20-Poly1305, independently generated per-secret DEKs wrapped under KEK, and authorized one-time guarded setup. Exact data format, Rust package versions, recovery-kit cryptography, backup destination and security validation remain **Proposed/Open OQ-005/P0**. Existing approved requirements remain binding:
 - [ADR 0037](../decisions/0037-central-secret-broker-task-scoped-access.md): trusted Rust Secret Broker, scoped secret access and provider-entitlement checks.
 - [ADR 0044](../decisions/0044-encrypted-sqlite-secret-storage.md): application-layer encrypted SQLite credential records, not necessarily whole-file SQLite encryption.
 - [ADR 0045](../decisions/0045-automatic-local-master-key-unlock.md): automatic normal restart using **existing** protected local controller-host key file, separate from SQLite and ordinary backups; no silent key replacement.
 - [ADR 0046](../decisions/0046-off-host-encrypted-master-key-recovery.md): separately retained **encrypted** off-controller-host recovery kit and independent recovery secret, used only in deliberate emergency recovery. **No recovery storage provider, fee, upload path or exact recovery-secret format has been approved.**
 
-This document proposes a precise starting point for **secret-row encryption and setup**. Detailed key recovery wrapping, distribution, hosting identity and production signoff remain OQ-005/P0. No encryption is implemented or tested.
+This document specifies the **approved secret-row cipher and controlled first-time setup baseline**, with illustrative—not yet approved—data structures, file paths and failure-recovery implementation. Detailed key recovery wrapping, deployment identity and production signoff remain OQ-005/P0. No encryption is implemented or tested.
 
-## Recommended primitive and Rust dependencies
+## Approved primitive and Rust dependency family
 
-| Purpose | Candidate | Explanation |
+| Purpose | Approved baseline (version/details pending) | Explanation |
 | --- | --- | --- |
 | Root key / key-encryption key (KEK) | **256-bit (32-byte) random secret** | Generate **once** using the controller OS cryptographic random source; never derive from hostname, timestamp, username or weak password |
 | Cryptographic randomness | Rust `getrandom` API using OS facilities | Fail setup on RNG failure; no fallback to predictable randomness |
@@ -32,7 +32,7 @@ This document proposes a precise starting point for **secret-row encryption and 
 
 **Boundary:** XChaCha20-Poly1305 is broadly deployed but is **not itself NIST/FIPS-approved**. If a deployment later needs validated FIPS modules, investigate an appropriate validated AES-256-GCM implementation and separate Owner approval rather than asserting compliance. Do not change algorithm silently or promise formal audits without evidence.
 
-## Proposed authenticated record layout
+## Proposed authenticated record layout (exact schema not approved)
 
 Conceptual fields (not approved SQL DDL):
 - `cipher_suite_version`, `key_id`, `wrapped_dek`, `wrap_nonce` (24 bytes), `data_nonce` (24 bytes), `ciphertext`, `tag`/combined AEAD output, and stable, validated connection/project/purpose identifiers.
@@ -42,7 +42,7 @@ Conceptual fields (not approved SQL DDL):
 - Minimize plaintext residency and reject accidental logging, tracing, core-dump and SQLite temporary-file exposure. Only encrypted values enter DB/WAL/ordinary DB backup. No root KEK/DEK bytes in task DAG, prompt, frontend, log or Git repository.
 - Do not mistake **encryption at rest** for worker isolation: a compromised controller with its usable KEK may still decrypt credentials. Exposed model-provider credentials require **upstream revocation**, not only KEK rewrapping.
 
-## Proposed first-time setup state machine
+## Guarded first-time setup baseline approved; precise crash-safe sequence proposed
 
 A separate authorized **install/setup** action (not ordinary controller startup) controls all first-run initialization.
 
@@ -67,11 +67,11 @@ Rotations use version-aware key wrapping and a verified emergency recovery-kit u
 - Real provider credential exposure -> separately revoke/rotate the upstream credential; merely encrypting a different local copy does not cure compromise.
 - Existing approved budget/approval boundary remains enforced throughout install/recovery/worker dispatch.
 
-## Current decisions still required
+## Remaining implementation decisions and already approved baseline
 
-**One focused Owner choice:** adopt **XChaCha20-Poly1305**, 256-bit OS-generated root key, per-secret wrapped DEKs and guarded one-time setup as the initial Rust Secret Broker cryptography/bootstrapping baseline. This **does not approve** a recovery cloud provider, physical file path, recovery-password/KDF format, implementation runtime secrets, automatic upload, licensed CLI use, or money spending.
+**Resolved by [ADR 0047](../decisions/0047-secret-broker-xchacha20-key-hierarchy.md):** use XChaCha20-Poly1305, OS-generated 256-bit KEK, separate random wrapped DEK for each protected record, and controlled once-only setup. This **does not approve** a recovery cloud provider, physical file path, recovery-password/KDF format, runtime credentials, automatic upload, licensed CLI use or spending.
 
-Implementation still needs algorithm/code reviews, dependency version locking, fuzz/property/failure tests, OS service hardening, encrypted-kit wrapping/custody and restoration details. OQ-005/P0 remains open until these pass.
+Implementation still needs secure code review, dependency version locking, fuzz/property/failure tests, OS service hardening, encrypted-kit wrapping/custody and restoration details. OQ-005/P0 remains open until these pass.
 
 ## Verifiable references
 
