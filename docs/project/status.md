@@ -225,3 +225,7 @@ The [first-time setup, staged rotation and encrypted off-host recovery-kit desig
 ## Emergency encrypted key recovery approved (2026-10-25)
 
 [ADR 0046](../decisions/0046-off-host-encrypted-master-key-recovery.md) approves an encrypted off-controller-host recovery kit, stored separately from the SQLite backup, protected by a separately retained recovery secret. Ordinary startup stays automatic under ADR 0045. Exact provider, encryption parameters, initial setup, rotation and verified restore remain OQ-005/P0. This is documentation only: no recovery kit, encryption code or test was created.
+
+## Secret Broker cipher and initial setup — proposed 2026-10-25
+
+The [crypto/bootstrap decision proposal](../architecture/secret-broker-cryptography-bootstrap-proposal.md) evaluates an OS-generated 256-bit root KEK, RustCrypto XChaCha20-Poly1305 AEAD, independently wrapped per-secret DEKs and a guarded first-time-only provisioning workflow. **This exact crypto selection is not Owner-approved, coded, security-audited or tested.** Existing approved ADRs 0044–0046 continue to require encrypted SQLite secrets, automatic normal startup and an encrypted off-host emergency recovery kit with separately held recovery secret. OQ-005/P0 remains open for algorithm acceptance, physical custody, rotation/recovery implementation and worker authentication. No cloud spending or real provider connections were initiated.
