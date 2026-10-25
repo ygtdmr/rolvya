@@ -1,12 +1,16 @@
 ---
 title: Rolvya Web User Experience and Accessibility Contract
-status: Approved UX principles; detailed flows and visual design open
+status: Approved UX principles and subsequent delegated unified design; implementation open
 category: product
 last-reviewed: 2026-10-25
 tags: [ux, accessibility, i18n, pwa, user-flows, browser]
 ---
 
 # Rolvya browser UX and accessibility contract
+
+## Subsequent design delegation — ADR 0048
+
+The Owner subsequently delegated UI aesthetics, typography/icons, animation, latest CSS use, responsiveness and the integrated UI Elements catalog to the design agent. [ADR 0048](../decisions/0048-owner-delegated-cohesive-ui-design.md) and [Connected Control](connected-control-design-system.md) **supersede the earlier visual-design deferral below**, not this document's security, keyboard, comprehension, role or accessibility requirements. Do not treat this historic "do not select" paragraph as a live ban on the now-delegated design. No screen or browser test has been run.
 
 ## Approval scope
 
