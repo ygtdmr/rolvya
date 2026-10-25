@@ -21,6 +21,10 @@ The [remote integration test matrix](remote-integration-test-matrix.md) defines 
 
 The [conversation coverage audit](../project/two-conversation-coverage-audit.md) links historic user statements and illustrated examples to normative current documents. Its new acceptance cases AC-031–AC-036 test historical mode, scheduler, retry, cost, context and brand requirements; no tests are represented as executed. See [CLI entitlement](../architecture/model-access-entitlement-contract.md), [scheduler selection](../architecture/scheduler-selection-policy.md), [retry](../architecture/retry-escalation-policy.md), [token efficiency](../architecture/token-context-efficiency.md), [cost examples](../architecture/cost-scenario-worked-examples.md).
 
+## Executed Rust foundation boundary
+
+R01/R02 now have executable tests under `crates/domain/tests` and `crates/plan-validator/tests`, plus typed-ID unit/compile-fail tests. [The implementation guide](rust-core-foundation.md) lists commands, deterministic fixtures, limits and the v1 fingerprint contract. T-001–004, PA-01–02 and structural PA-07 are covered here; T-005/PA-05 remain partial until persisted attempts and activation exist. Later transaction, worker, browser and cloud cases below remain specified future checks.
+
 ## Test layers
 
 | Layer | Focus | Examples |
