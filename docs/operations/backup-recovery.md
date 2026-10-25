@@ -30,7 +30,7 @@ No RPO/RTO numbers have yet been approved. Do not imply a backup exists merely b
 | Authoritative database | Transaction-consistent snapshot plus suitable log/delta capture | Restore integrity; plan graph and ledger together |
 | Object/artifact storage | Versioned objects/manifests and checksum inventory | Preserve verified outputs; prevent orphan references |
 | Configuration | Versioned nonsecret configuration and infra definitions | Credentials only as secret-manager references |
-| Encrypted SQLite secret records + separate controller-host key | Consistent ciphertext backup; **do not copy the live master-key file into ordinary DB backup** | ADRs 0044–0045 approve SQLite ciphertext and automatic key loading; independently protected key recovery/versioning and tested restore remain required |
+| Encrypted SQLite secret records + separate controller-host key | Consistent ciphertext backup; **do not copy the live master-key file into ordinary DB backup** | ADRs 0044–0045 approve SQLite ciphertext and automatic key loading; independently encrypted off-host recovery kit with separate recovery-secret custody is approved ADR 0046; versions and restore testing remain implementation work |
 | Remote Git | Durable provider refs/commit IDs and repository identity | Reconcile against upstream; do not assume local history exists |
 | Audit log | Durable protected event history | Reconstruct approvals and ambiguous external operations |
 
@@ -66,7 +66,7 @@ A storage target cutover affects new writes only. Interrupted or budget-paused m
 - **Remote Git history changed:** compare provider commit/ref SHAs, stop silent branch overwrite.
 - **Region/provider outage:** alternative region/provider is an open deployment choice and may incur transfer charges requiring budget authority.
 
-**Key recovery option awaiting Owner decision:** [bootstrap, rotation and off-host encrypted recovery-kit proposal](../architecture/secret-key-bootstrap-rotation-recovery-proposal.md). Normal key unlock already runs automatically under ADR 0045; an encrypted emergency recovery kit and its offline custody have **not** been approved, built or tested. Do not store live root material in ordinary SQLite backups or accidentally treat proposed recovery as an implemented capability.
+**Approved key recovery architecture:** [ADR 0046](../decisions/0046-off-host-encrypted-master-key-recovery.md) requires an **encrypted off-controller-host emergency recovery kit**, stored apart from ordinary SQLite backups, with a separately held recovery secret. Emergency-only use is distinct from ordinary automated key unlock (ADR 0045). Exact medium/crypto/wrapping, first-run setup and rotation remain **proposed** in the [key lifecycle design](../architecture/secret-key-bootstrap-rotation-recovery-proposal.md); neither kit nor restore has been built or tested.
 
 ## Restore testing
 
