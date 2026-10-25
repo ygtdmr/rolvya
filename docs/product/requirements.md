@@ -109,6 +109,14 @@ These are future checks, not evidence of implemented encryption or completed key
 
 **Approved design, not proof of key generation or tested implementation.**
 
+## Approved encrypted off-host recovery (ADR 0046)
+
+| ID | Requirement | Verification expectation |
+| --- | --- | --- |
+| PR-035 | A separately retained **encrypted off-controller-host recovery copy** of the SQLite Secret Broker key material must exist, protected by an independent emergency recovery secret, separate from the ordinary database backups. Normal restarts remain automatic and never ask for emergency recovery credentials. Exact backup provider and cryptographic wrapping remain OQ-005/P0. | Restore encrypted records with a matching recovery kit to a trusted remote host; deny wrong key, tampered kit or mismatched version without data loss or paid dispatch. [ADR 0046](../decisions/0046-off-host-encrypted-master-key-recovery.md), AC-171–AC-173. |
+
+These are approved requirements but remain unimplemented.
+
 ## Non-functional constraints (targets; thresholds not yet approved)
 
 - Fast scheduling and state reads on constrained control hardware; minimize unnecessary polling and database scans.
