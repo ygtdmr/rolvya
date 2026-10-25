@@ -15,7 +15,7 @@ Owner approval: The Owner accepted an encrypted emergency recovery copy stored i
 
 ## Open implementation details
 
-The exact cryptographic algorithms and Rust libraries, key provisioning, off-host recovery medium/provider, recovery-secret custody, rotation mechanics, permission checks and restore workflow remain **OQ-005/P0**. Neither the specific external storage location nor automatic uploading is approved by this ADR. [Implementation options](../architecture/secret-key-bootstrap-rotation-recovery-proposal.md) remain proposals where not already covered by explicit decisions.
+[ADR 0047](0047-secret-broker-xchacha20-key-hierarchy.md) now approves the **SQLite protected-row** XChaCha20-Poly1305 cipher, OS-generated 256-bit KEK, separately wrapped per-record DEKs and controlled first setup. Exact **emergency recovery kit** cipher/KDF and Rust implementation versions, file provisioning, off-host recovery medium/provider, recovery-secret custody, rotation mechanics, permission checks and restore workflow remain **OQ-005/P0**. Neither the specific external storage location nor automatic uploading is approved by this ADR. [Implementation options](../architecture/secret-key-bootstrap-rotation-recovery-proposal.md) remain proposals where not already covered by explicit decisions.
 
 ## Verification state
 
