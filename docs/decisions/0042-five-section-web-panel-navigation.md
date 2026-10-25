@@ -34,7 +34,7 @@ The initial panel could have used one large undifferentiated dashboard or many s
 
 ## Open decisions
 
-The frontend framework, routing/component library, precise layouts and widgets, visualization library, live-update transport, responsive/accessibility acceptance details, and whether every first plan activation needs separate confirmation remain **OQ-013/P1**. No authentication rule, screen implementation, feature completeness or visual design is implied by this decision.
+**Later ADR 0043 approves React + TypeScript, Vite, React Flow, Rust Axum REST/SSE, single application JS containing CSS, and browser/accessibility/i18n requirements.** These choices are **closed**. Exact visual design is deferred by the Owner; code, routing, and browser certification are implementation work, not a reason to revisit framework selection. No authentication rule, screen implementation, feature completeness or visual design is implied by this decision.
 
 ## Validation and implementation state
 
