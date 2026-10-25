@@ -15,7 +15,7 @@ on:
         options: [audit, smoke-test]
         default: audit
       smoke_pr:
-        description: Independent-author smoke PR number (no shared-owner exception)
+        description: Pinned-account harmless smoke PR number (reuse PR 7)
         type: string
       smoke_head:
         description: Exact 40-character smoke PR head SHA

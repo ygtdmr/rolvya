@@ -1,16 +1,15 @@
 'use strict';
 const {test} = require('node:test');
 const assert = require('node:assert/strict');
-const {authorIds, routinePath, candidate, routineFiles, protectedRules, inspect, run, verifyIdentities, verifyActivation, securityPaths} = require('./integrate.cjs');
+const {authorIds, routinePath, candidate, routineFiles, protectedRules, inspect, run, verifyAccount, verifyActivation, securityPaths} = require('./integrate.cjs');
 const policy = require('../integration-policy.json');
 const clone = value => structuredClone(value);
 
 function fixture() {
   const configuration = clone(policy);
   configuration.sourceRules = [];
-  configuration.automationAuthors = [{id: 90000001, login: 'rolvya-fixture[bot]', type: 'Bot', proofPr: 42}];
   const state = {
-    pr: {number: 7, state: 'open', draft: false, locked: false, user: {id: 90000001, login: 'rolvya-fixture[bot]', type: 'Bot'}, changed_files: 1,
+    pr: {number: 7, state: 'open', draft: false, locked: false, user: {id: 72071644, login: 'ygtdmr', type: 'User'}, changed_files: 1,
       head: {ref: 'codex/harmless', sha: 'a'.repeat(40), repo: {id: policy.repositoryId}},
       base: {ref: 'main', sha: 'b'.repeat(40), repo: {id: policy.repositoryId}},
       mergeable: true, mergeable_state: 'clean', labels: [{name: 'owner-approved'}]},
@@ -18,17 +17,17 @@ function fixture() {
     workflow: {id: 99, path: policy.workflowPath, state: 'active'},
     runs: [{id: 55, workflow_id: 99, event: 'pull_request', head_sha: 'a'.repeat(40),
       head_repository: {id: policy.repositoryId}, path: policy.workflowPath, status: 'completed', conclusion: 'success',
-      actor: {id: 90000001}, triggering_actor: {id: 90000001}, pull_requests: [{number: 7}]}],
+      actor: {id: 72071644}, triggering_actor: {id: 72071644}, pull_requests: [{number: 7}]}],
     jobs: [{run_id: 55, name: 'Required checks', status: 'completed', conclusion: 'success'}],
     checks: [{name: 'Required checks', app: {id: policy.actionsAppId}, status: 'completed', conclusion: 'success'}],
     statuses: {total_count: 0, statuses: []},
-    settings: {id: policy.repositoryId, owner: {id: 72071644, type: 'User'}, allow_squash_merge: true, allow_merge_commit: false, allow_rebase_merge: false, allow_auto_merge: false},
+    settings: {id: policy.repositoryId, owner: {id: 72071644, type: 'User'}, allow_squash_merge: true, allow_merge_commit: false, allow_rebase_merge: false, allow_auto_merge: false, delete_branch_on_merge: false},
     rules: [
       {type: 'required_status_checks', ruleset_id: 1, parameters: {strict_required_status_checks_policy: true,
         required_status_checks: [{context: policy.requiredCheck, integration_id: policy.actionsAppId}]}},
-      {type: 'pull_request', ruleset_id: 1, parameters: {require_code_owner_review: true,
-        dismiss_stale_reviews_on_push: true, required_approving_review_count: 0, require_last_push_approval: false}},
-      {type: 'deletion', ruleset_id: 1}, {type: 'non_fast_forward', ruleset_id: 1}],
+      {type: 'pull_request', ruleset_id: 1, parameters: {require_code_owner_review: false,
+        dismiss_stale_reviews_on_push: true, required_approving_review_count: 0, require_last_push_approval: false, required_review_thread_resolution: true}},
+      {type: 'required_linear_history', ruleset_id: 1}, {type: 'deletion', ruleset_id: 1}, {type: 'non_fast_forward', ruleset_id: 1}],
     ruleset: {enforcement: 'active', bypass_actors: []},
     comparison: {status: 'ahead', behind_by: 0},
     branch: {commit: {sha: 'b'.repeat(40)}},
@@ -53,7 +52,7 @@ function fixture() {
       list: method('pulls', () => [state.pr]), listFiles: method('files', args => args.pull_number === 42 ? state.smokeFiles : state.files),
       merge: method('merge', () => ({merged: state.merged !== false})),
     },
-    users: {getByUsername: method('identity', args => state.badIdentity || [...configuration.humanOwners, ...configuration.automationAuthors].find(identity => identity.login === args.username))},
+    users: {getByUsername: method('identity', args => state.badIdentity || [configuration.account].find(identity => identity.login === args.username))},
     git: {getCommit: method('commit', args => ({tree: {sha: args.commit_sha}, parents: state.commitParents || [{sha: 'f'.repeat(40)}]})), getTree: method('tree', args => state.trees?.[args.tree_sha] || state.tree)},
     repos: {getCollaboratorPermissionLevel: method('permission', () => ({permission: state.humanPermission || 'admin'})), get: method('settings', 'settings'), getBranch: method('branch', 'branch'), compareCommitsWithBasehead: method('comparison', 'comparison'),
       getCombinedStatusForRef: method('statuses', 'statuses')},
@@ -72,7 +71,7 @@ async function check(change = () => {}) {
   const fixtureData = fixture();
   change(fixtureData.state);
   const result = await inspect({github: fixtureData.github, owner: 'ygtdmr', repo: 'rolvya', number: 7,
-    trusted: new Set([90000001]), configuration: fixtureData.configuration});
+    trusted: new Set([72071644]), configuration: fixtureData.configuration});
   return {result, ...fixtureData};
 }
 
@@ -116,12 +115,21 @@ for (const [name, change] of [
   ['deleted protected file', s => {s.files[0] = {filename: '.github/CODEOWNERS', status: 'removed'};}],
   ['unclassified file status', s => {s.files[0].status = 'changed';}],
   ['native auto-merge bypass route', s => {s.settings.allow_auto_merge = true;}],
+  ['automatic branch deletion enabled', s => {s.settings.delete_branch_on_merge = true;}],
+  ['branch deletion setting unobservable', s => {delete s.settings.delete_branch_on_merge;}],
   ['merge commits enabled', s => {s.settings.allow_merge_commit = true;}],
   ['squash disabled', s => {s.settings.allow_squash_merge = false;}],
   ['missing rules', s => {s.rules = [];}],
   ['non-strict checks', s => {s.rules[0].parameters.strict_required_status_checks_policy = false;}],
   ['spoofable check source', s => {s.rules[0].parameters.required_status_checks[0].integration_id = null;}],
-  ['missing owner review rule', s => {s.rules[1].parameters.require_code_owner_review = false;}],
+  ['CODEOWNER self-approval deadlock', s => {s.rules[1].parameters.require_code_owner_review = true;}],
+  ['general approval deadlock', s => {s.rules[1].parameters.required_approving_review_count = 1;}],
+  ['last-push approval deadlock', s => {s.rules[1].parameters.require_last_push_approval = true;}],
+  ['unresolved review threads permitted', s => {s.rules[1].parameters.required_review_thread_resolution = false;}],
+  ['missing linear history', s => {s.rules = s.rules.filter(rule => rule.type !== 'required_linear_history');}],
+  ['missing delete protection', s => {s.rules = s.rules.filter(rule => rule.type !== 'deletion');}],
+  ['missing force-push protection', s => {s.rules = s.rules.filter(rule => rule.type !== 'non_fast_forward');}],
+  ['overlapping ruleset requires self-approval', s => {s.rules.push({type: 'pull_request', parameters: {require_code_owner_review: true, required_approving_review_count: 1}});}],
   ['stale approval allowed', s => {s.rules[1].parameters.dismiss_stale_reviews_on_push = false;}],
   ['bypass actor', s => {s.ruleset.bypass_actors = [{actor_type: 'RepositoryRole', actor_id: 5}];}],
   ['unobservable bypass list', s => {delete s.ruleset.bypass_actors;}],
@@ -151,14 +159,14 @@ for (const [name, change] of [
   test(`fails closed: ${name}`, async () => assert.equal((await check(change)).result.eligible, false));
 }
 
-test('human owners cannot be trusted automation authors, including legacy overrides', async () => {
-  const empty = clone(policy); empty.automationAuthors = [];
-  assert.equal(authorIds(empty).size, 0);
+test('the shared Owner is the pinned author; external proof and legacy trust overrides are not required', async () => {
+  assert.deepEqual([...authorIds()], [72071644]);
   const f = fixture();
-  f.configuration.automationAuthors[0].id = 72071644;
-  assert.throws(() => authorIds(f.configuration), /overlapping/);
-  await assert.rejects(run({...fixture(), mode: 'enabled', trustedAuthorIds: '[72071644]'}), /Legacy/);
-  assert.equal(candidate(fixture().state.pr, new Set()), false);
+  assert.equal(candidate(f.state.pr, authorIds(f.configuration), f.configuration), true);
+  assert.equal(candidate(f.state.pr, new Set(), f.configuration), false);
+  await assert.rejects(run({...f, mode: 'enabled', trustedAuthorIds: '[72071644]'}), /Legacy/);
+  await verifyAccount(f.github, {owner: 'ygtdmr', repo: 'rolvya'}, f.configuration);
+  assert.equal(f.state.calls.some(call => call.name === 'get'), false, 'no external identity proof PR is fetched');
 });
 
 test('disabled and dry-run modes never merge', async () => {
@@ -190,19 +198,29 @@ test('API denial and merge rejection never cause bypass, approval or automatic r
   }
 });
 
-test('unknown mode, wrong repo, non-default ref and empty trust reject execution', async () => {
+test('unknown mode, wrong repo and non-default ref reject execution', async () => {
   const f = fixture();
   await assert.rejects(run({...f, mode: 'enable'}));
-  await assert.rejects(run({...f, mode: 'enabled', configuration: clone(policy)}));
   f.context.ref = 'refs/heads/codex/untrusted-workflow';
   await assert.rejects(run({...f, mode: 'enabled'}));
   f.context.ref = 'refs/heads/main'; f.context.payload.repository.id = 123;
   await assert.rejects(run({...f, mode: 'enabled'}));
 });
 
-test('CODEOWNERS protects all unknown files and exempts only the reviewed routine paths', () => {
+test('advisory CODEOWNERS identifies the Owner without defining merge eligibility', () => {
   assert.equal(routineFiles({...fixture().state.pr, changed_files: 0}, []), false);
   assert.equal(protectedRules(fixture().state.rules), true);
+  const advisory = codeowners(policy);
+  assert.ok(advisory.includes('* @ygtdmr'));
+  assert.equal(advisory.split('\n').filter(line => line && !line.startsWith('#')).length, 1);
+});
+
+test('the shipped ruleset preserves every required protection without self-approval or bypass', () => {
+  const template = require('../integration-ruleset.json');
+  assert.equal(template.enforcement, 'disabled');
+  assert.deepEqual(template.bypass_actors, []);
+  assert.deepEqual(template.conditions.ref_name, {include: ['refs/heads/main'], exclude: []});
+  assert.equal(protectedRules(template.rules), true);
 });
 
 const fs = require('node:fs');
@@ -211,39 +229,37 @@ const path = require('node:path');
 const {validatePolicy, codeowners} = require('./integration-policy.cjs');
 
 for (const [name, change] of [
-  ['missing independent author', f => {f.configuration.automationAuthors = [];}],
-  ['shared Owner ID', f => {f.configuration.automationAuthors[0].id = 72071644;}],
-  ['shared Owner login with another ID', f => {f.configuration.automationAuthors[0].login = 'YGtdmr';}],
-  ['bot presented as human CODEOWNER', f => {f.configuration.humanOwners[0].type = 'Bot';}],
-  ['Owner removed from human role', f => {f.configuration.humanOwners = [{id: 123, login: 'someone', type: 'User'}];}],
-  ['no demonstrated PR', f => {f.configuration.automationAuthors[0].proofPr = null;}],
-  ['generic Actions bot used as dedicated author', f => {f.configuration.automationAuthors[0].id = policy.integrationActorId;}],
+  ['missing account', f => {delete f.configuration.account;}],
+  ['wrong account ID', f => {f.configuration.account.id = 999;}],
+  ['bot presented as Owner', f => {f.configuration.account.type = 'Bot';}],
+  ['legacy independent roles', f => {f.configuration.automationAuthors = [];}],
+  ['external identity proof gate', f => {f.configuration.account.proofPr = 7;}],
   ['renamed/reassigned login', f => {f.state.badIdentity = {id: 999, login: 'ygtdmr', type: 'User'};}],
-  ['human has no write access', f => {f.state.humanPermission = 'read';}],
+  ['Owner has no write access', f => {f.state.humanPermission = 'read';}],
   ['actual repository owner differs', f => {f.state.settings.owner.id = 999;}],
-  ['proof authored by shared Owner', f => {f.state.proofPr.user = {id: 72071644, login: 'ygtdmr', type: 'User'};}],
-  ['proof from another repository', f => {f.state.proofPr.head.repo.id = 123;}],
 ]) {
-  test(`identity preflight blocks ${name}`, async () => {
+  test(`account preflight blocks ${name}`, async () => {
     const f = fixture(); change(f);
     await assert.rejects(run({...f, mode: 'dry-run'}));
     assert.equal(f.state.calls.some(call => call.name === 'merge'), false);
   });
 }
 
-test('Owner may rerun independent-author CI; Owner-originated automated CI is not trusted', async () => {
-  assert.equal((await check(s => {s.runs[0].triggering_actor.id = 72071644;})).result.eligible, true);
-  assert.equal((await check(s => {s.runs[0].actor.id = 72071644;})).result.eligible, false);
+test('shared-account CI and reruns are accepted as verification, never independent approval', async () => {
+  assert.equal((await check()).result.eligible, true);
+  assert.equal((await check(s => {s.runs[0].actor.id = 999;})).result.eligible, false);
+  assert.equal((await check(s => {s.pr.user.login = 'impostor';})).result.eligible, false);
+  assert.equal((await check(s => {s.pr.user.type = 'Bot';})).result.eligible, false);
 });
 
-test('existing Owner-authored smoke PR is rejected, even with labels and a matching head', async () => {
+test('Owner-authored PR 7 is reusable as positive protected smoke without an approving review', async () => {
   const f = fixture();
-  f.state.pr.user = {id: 72071644, login: 'ygtdmr', type: 'User'};
-  await assert.rejects(run({...f, mode: 'smoke-test', smokePr: 7, smokeHead: 'a'.repeat(40)}));
-  assert.equal(f.state.calls.some(call => call.name === 'merge'), false);
+  const result = await run({...f, mode: 'smoke-test', smokePr: 7, smokeHead: 'a'.repeat(40)});
+  assert.equal(result[0].merged, true);
+  assert.ok(f.state.calls.every(call => !/review|approv/i.test(call.name)));
 });
 
-test('isolated protected smoke merges one exact harmless independent-author PR with routine mode disabled', async () => {
+test('isolated protected smoke merges one exact harmless shared-account PR with routine mode disabled', async () => {
   const f = fixture();
   const result = await run({...f, mode: 'smoke-test', routineMode: 'disabled', smokePr: 7, smokeHead: 'a'.repeat(40)});
   assert.equal(result.length, 1); assert.equal(result[0].merged, true);
@@ -255,7 +271,7 @@ for (const [name, change] of [
   ['head mismatch', f => {f.smokeHead = 'c'.repeat(40);}],
   ['invalid selector', f => {f.smokePr = '7; arbitrary';}],
   ['automatic event', f => {f.context.eventName = 'workflow_run';}],
-  ['automation actor', f => {f.context.actor = 'rolvya-fixture[bot]';}],
+  ['unrecognized dispatch actor', f => {f.context.actor = 'rolvya-fixture[bot]';}],
   ['routine mode already enabled', f => {f.routineMode = 'enabled';}],
   ['protected change', f => {f.state.files[0].filename = '.github/workflows/ci.yml';}],
   ['rename into harmless name', f => {f.state.files[0].previous_filename = 'README.md'; f.state.files[0].status = 'renamed';}],
@@ -278,11 +294,13 @@ for (const [name, change] of [
   ['non-main receipt', f => {f.state.receipt.head_branch = 'codex/untrusted';}],
   ['wrong workflow', f => {f.state.receipt.workflow_id = 999;}],
   ['wrong repository', f => {f.state.receipt.head_repository.id = 123;}],
-  ['bot initiated receipt', f => {f.state.receipt.actor.id = 90000001;}],
+  ['foreign initiated receipt', f => {f.state.receipt.actor.id = 999;}],
   ['arbitrary run title', f => {f.state.receipt.display_title = 'approved';}],
   ['unmerged proof', f => {f.state.proofPr.merged = false;}],
   ['human manual merge instead of controller merge', f => {f.state.proofPr.merged_by.id = 72071644;}],
-  ['owner-authored proof', f => {f.state.proofPr.user.id = 72071644;}],
+  ['foreign-authored smoke', f => {f.state.proofPr.user.id = 999;}],
+  ['wrong smoke author login', f => {f.state.proofPr.user.login = 'impostor';}],
+  ['wrong smoke author type', f => {f.state.proofPr.user.type = 'Bot';}],
   ['merge predates run', f => {f.state.proofPr.merged_at = '2026-10-24T10:00:00Z';}],
   ['merge follows run', f => {f.state.proofPr.merged_at = '2026-10-26T10:00:00Z';}],
   ['changed proof head', f => {f.state.proofPr.head.sha = 'c'.repeat(40);}],
@@ -330,9 +348,9 @@ for (const kind of ['rust', 'frontend']) {
       assert.equal(validatePolicy(f.configuration, root), true);
       assert.equal(routinePath(source, f.configuration), true);
       assert.equal(routinePath(registration.tests[0], f.configuration), true);
-      assert.ok(codeowners(f.configuration).includes('/' + registration.root + '/**'));
+      assert.equal(codeowners(f.configuration), codeowners(policy), 'classification never manufactures a human review');
       f.state.files = [{filename: source, status: 'modified'}];
-      const inspectFixture = () => inspect({...f, owner: 'ygtdmr', repo: 'rolvya', number: 7, trusted: new Set([90000001])});
+      const inspectFixture = () => inspect({...f, owner: 'ygtdmr', repo: 'rolvya', number: 7, trusted: new Set([72071644])});
       assert.equal((await inspectFixture()).eligible, false, 'a successful aggregate cannot hide skipped source CI');
       f.state.jobs.push({run_id: 55, name: kind === 'rust' ? 'Rust checks' : 'Frontend checks', status: 'completed', conclusion: 'success'});
       assert.equal((await inspectFixture()).eligible, true);
@@ -371,14 +389,14 @@ test('future source paths are blocked until registered; broad/speculative/overla
   try {assert.throws(() => validatePolicy(f.configuration, empty));} finally {fs.rmSync(empty, {recursive: true, force: true});}
 });
 
-test('a verified independent GitHub user connection is supported without inventing an App bot', async () => {
+test('sensitive shared-account PRs are excluded even with labels or fabricated approvals', async () => {
   const f = fixture();
-  f.configuration.automationAuthors[0].type = 'User';
-  f.configuration.automationAuthors[0].login = 'rolvya-fixture';
-  f.state.pr.user = {id: 90000001, login: 'rolvya-fixture', type: 'User'};
-  f.state.proofPr.user = clone(f.state.pr.user);
-  const result = await run({...f, mode: 'dry-run'});
-  assert.equal(result[0].eligible, true);
+  f.state.files[0].filename = '.github/integration-policy.json';
+  f.state.pr.labels = [{name: 'owner-approved'}];
+  f.state.pr.approved = true;
+  const results = await run({...f, mode: 'enabled'});
+  assert.equal(results[0].eligible, false);
+  assert.equal(f.state.calls.some(call => call.name === 'merge'), false);
 });
 
 for (const failAt of ['identity', 'permission']) {

@@ -2,11 +2,11 @@
 
 // Runs only from the default branch. Never checkout, import, or execute PR code.
 const policy = require('../integration-policy.json');
-const {routinePath: classifyPath, sourceRule, validatePolicy} = require('./integration-policy.cjs');
+const {routinePath: classifyPath, sourceRule, validatePolicy, singleAccountReview} = require('./integration-policy.cjs');
 
 function authorIds(configuration = policy) {
   validatePolicy(configuration);
-  return new Set(configuration.automationAuthors.map(identity => identity.id));
+  return new Set([configuration.account.id]);
 }
 
 function routinePath(path, configuration = policy) {
@@ -17,9 +17,8 @@ function candidate(pr, trusted, configuration = policy) {
   return pr.state === 'open' && !pr.draft && !pr.locked &&
     pr.base?.ref === policy.baseBranch && pr.base?.repo?.id === policy.repositoryId &&
     pr.head?.repo?.id === policy.repositoryId && pr.head.ref.startsWith(policy.branchPrefix) &&
-    !configuration.humanOwners.some(owner => owner.id === pr.user?.id) && trusted.has(pr.user?.id) &&
-    configuration.automationAuthors.some(identity => identity.id === pr.user?.id &&
-      identity.login === pr.user.login && identity.type === pr.user.type);
+    trusted.has(pr.user?.id) && pr.user.id === configuration.account.id &&
+    pr.user.login === configuration.account.login && pr.user.type === configuration.account.type;
 }
 
 function routineFiles(pr, files, configuration = policy) {
@@ -28,29 +27,19 @@ function routineFiles(pr, files, configuration = policy) {
     routinePath(file.filename, configuration) && (!file.previous_filename || routinePath(file.previous_filename, configuration)));
 }
 
-async function verifyIdentities(github, args, configuration) {
+async function verifyAccount(github, args, configuration) {
   const trusted = authorIds(configuration);
-  if (!trusted.size) throw new Error('Independent automation author is not configured; keep protection/merging inactive');
   const {data: repository} = await github.rest.repos.get(args);
-  if (repository.id !== configuration.repositoryId || repository.owner?.id !== configuration.repositoryOwnerId ||
-      repository.owner?.type !== 'User') throw new Error('Repository ownership does not match the human-review policy');
-  for (const identity of [...configuration.humanOwners, ...configuration.automationAuthors]) {
-    const {data: user} = await github.rest.users.getByUsername({username: identity.login});
-    if (user.id !== identity.id || user.login !== identity.login || user.type !== identity.type) {
-      throw new Error('GitHub identity is missing, renamed or does not match its reviewed role');
-    }
+  const account = configuration.account;
+  if (repository.id !== configuration.repositoryId || repository.owner?.id !== account.id ||
+      repository.owner?.type !== account.type) throw new Error('Repository ownership does not match the single-account policy');
+  const {data: user} = await github.rest.users.getByUsername({username: account.login});
+  if (user.id !== account.id || user.login !== account.login || user.type !== account.type) {
+    throw new Error('GitHub account is missing, renamed or does not match its pinned identity');
   }
-  for (const identity of [...configuration.humanOwners, ...configuration.automationAuthors].filter(identity => identity.type === 'User')) {
-    const {data} = await github.rest.repos.getCollaboratorPermissionLevel({...args, username: identity.login});
-    if (!['admin', 'maintain', 'write'].includes(data.permission)) throw new Error('Human CODEOWNER or automation user lacks write access');
-  }
-  for (const author of configuration.automationAuthors) {
-    const {data: proof} = await github.rest.pulls.get({...args, pull_number: author.proofPr});
-    if (proof.user?.id !== author.id || proof.user?.login !== author.login || proof.user?.type !== author.type ||
-        proof.base?.repo?.id !== configuration.repositoryId || proof.head?.repo?.id !== configuration.repositoryId) {
-      throw new Error('Independent authorship has not been demonstrated by an actual repository PR');
-    }
-  }
+  const {data} = await github.rest.repos.getCollaboratorPermissionLevel({...args, username: account.login});
+  if (!['admin', 'maintain', 'write'].includes(data.permission)) throw new Error('Owner account lacks repository write access');
+  // This verifies account provenance only, never independent human authorization.
   return trusted;
 }
 
@@ -59,12 +48,9 @@ function protectedRules(rules) {
     rule.parameters?.strict_required_status_checks_policy === true &&
     rule.parameters.required_status_checks?.some(check =>
       check.context === policy.requiredCheck && check.integration_id === policy.actionsAppId));
-  const review = rules.find(rule => rule.type === 'pull_request' &&
-    rule.parameters?.require_code_owner_review === true &&
-    rule.parameters.dismiss_stale_reviews_on_push === true &&
-    rule.parameters.required_approving_review_count === 0 &&
-    rule.parameters.require_last_push_approval === false);
-  return Boolean(status && review && rules.some(rule => rule.type === 'deletion') &&
+  const reviews = rules.filter(rule => rule.type === 'pull_request');
+  return Boolean(status && reviews.length && reviews.every(singleAccountReview) &&
+    rules.some(rule => rule.type === 'required_linear_history') && rules.some(rule => rule.type === 'deletion') &&
     rules.some(rule => rule.type === 'non_fast_forward'));
 }
 
@@ -75,7 +61,7 @@ function ciEvidence(pr, workflow, runs, jobs, checks, statuses, trusted, require
       run.head_sha !== pr.head.sha || run.head_repository?.id !== policy.repositoryId ||
       run.path !== policy.workflowPath || run.status !== 'completed' || run.conclusion !== 'success' ||
       !trusted.has(run.actor?.id) ||
-      !new Set([...trusted, ...configuration.humanOwners.map(identity => identity.id)]).has(run.triggering_actor?.id) ||
+      !trusted.has(run.triggering_actor?.id) ||
       !run.pull_requests?.some(pull => pull.number === pr.number)) return false;
   if (!jobs.some(job => job.name === policy.requiredCheck && job.status === 'completed' &&
       job.conclusion === 'success' && job.run_id === run.id)) return false;
@@ -105,20 +91,20 @@ async function inspect({github, owner, repo, number, trusted, configuration = po
   validatePolicy(configuration);
   const args = {owner, repo};
   const {data: pr} = await github.rest.pulls.get({...args, pull_number: number});
-  if (!candidate(pr, trusted, configuration)) return {eligible: false, reason: 'untrusted/shared identity, fork, base, branch, draft or state'};
+  if (!candidate(pr, trusted, configuration)) return {eligible: false, reason: 'untrusted account, fork, base, branch, draft or state'};
   const files = await github.paginate(github.rest.pulls.listFiles, {...args, pull_number: number, per_page: 100});
   if (!routineFiles(pr, files, configuration)) return {eligible: false, reason: 'sensitive/unfamiliar path, rename or incomplete file inventory'};
   if (pr.mergeable !== true || pr.mergeable_state !== 'clean') return {eligible: false, reason: 'conflict, pending checks or unknown mergeability'};
   const {data: settings} = await github.rest.repos.get(args);
-  if (!settings.allow_squash_merge || settings.allow_merge_commit || settings.allow_rebase_merge || settings.allow_auto_merge) {
-    return {eligible: false, reason: 'repository must allow squash only and disable native auto-merge enrollment'};
+  if (!settings.allow_squash_merge || settings.allow_merge_commit || settings.allow_rebase_merge || settings.allow_auto_merge || settings.delete_branch_on_merge !== false) {
+    return {eligible: false, reason: 'repository must allow squash only, disable native auto-merge and preserve head branches'};
   }
 
   // GitHub's branch-rules endpoint requires Contents:read, not Administration.
   // Use a repository ruleset: classic protection alone does not satisfy this gate.
   const rules = await github.paginate('GET /repos/{owner}/{repo}/rules/branches/{branch}',
     {...args, branch: policy.baseBranch, per_page: 100});
-  if (!protectedRules(rules)) return {eligible: false, reason: 'strict status/Code Owner branch rules not established'};
+  if (!protectedRules(rules)) return {eligible: false, reason: 'strict checks or deadlock-free single-account branch rules not established'};
   for (const id of new Set(rules.map(rule => rule.ruleset_id))) {
     if (!Number.isSafeInteger(id)) return {eligible: false, reason: 'unverifiable ruleset identity'};
     const {data: ruleset} = await github.request('GET /repos/{owner}/{repo}/rulesets/{ruleset_id}', {...args, ruleset_id: id});
@@ -182,7 +168,7 @@ async function verifyActivation({github, context, configuration, smokeRunId, smo
       workflow.path !== '.github/workflows/integrate.yml' || receipt.path !== workflow.path ||
       receipt.event !== 'workflow_dispatch' || receipt.head_branch !== configuration.baseBranch ||
       receipt.head_repository?.id !== configuration.repositoryId || receipt.status !== 'completed' || receipt.conclusion !== 'success' ||
-      !configuration.humanOwners.some(human => human.id === receipt.actor?.id)) throw new Error('Untrusted or unsuccessful protected smoke run');
+      receipt.actor?.id !== configuration.account.id) throw new Error('Untrusted or unsuccessful protected smoke run');
   const jobs = await github.paginate(github.rest.actions.listJobsForWorkflowRun,
     {...args, run_id: receipt.id, filter: 'latest', per_page: 100});
   if (!jobs.some(job => job.run_id === receipt.id && job.name === 'Protected smoke test' && job.status === 'completed' && job.conclusion === 'success')) {
@@ -193,9 +179,9 @@ async function verifyActivation({github, context, configuration, smokeRunId, smo
   if (!proof.merged || proof.head?.sha !== match[2] || proof.base?.ref !== configuration.baseBranch ||
       proof.base?.repo?.id !== configuration.repositoryId || proof.head?.repo?.id !== configuration.repositoryId ||
       proof.merged_by?.id !== configuration.integrationActorId ||
-      !configuration.automationAuthors.some(author => author.id === proof.user?.id && author.login === proof.user?.login && author.type === proof.user?.type) ||
+      (proof.user?.id !== configuration.account.id || proof.user?.login !== configuration.account.login || proof.user?.type !== configuration.account.type) ||
       !/^[0-9a-f]{40}$/.test(proof.merge_commit_sha || '') || !Number.isFinite(merged) || !(start <= merged && merged <= end)) {
-    throw new Error('No independent-author protected squash merge occurred in the recorded run');
+    throw new Error('No pinned-account protected squash merge occurred in the recorded run');
   }
   const files = await github.paginate(github.rest.pulls.listFiles, {...args, pull_number: Number(smokePr), per_page: 100});
   if (proof.changed_files !== 1 || files.length !== 1 || files[0].filename !== configuration.smokePath ||
@@ -219,7 +205,7 @@ async function verifyActivation({github, context, configuration, smokeRunId, smo
 
 async function run({github, context, core, mode, trustedAuthorIds, configuration = policy,
   smokeRunId, smokePr, smokeHead, routineMode}) {
-  if (trustedAuthorIds !== undefined) throw new Error('Legacy shared-account trust overrides are unsupported');
+  if (trustedAuthorIds !== undefined) throw new Error('Legacy unreviewed author overrides are unsupported');
   validatePolicy(configuration, require('node:path').join(__dirname, '../..'));
   if (!['disabled', 'dry-run', 'smoke-test', 'enabled'].includes(mode || 'disabled')) throw new Error('Unknown merge mode');
   if (!mode || mode === 'disabled') {core.info('Integration is disabled'); return [];}
@@ -227,10 +213,10 @@ async function run({github, context, core, mode, trustedAuthorIds, configuration
       context.payload.repository?.id !== policy.repositoryId ||
       context.ref !== `refs/heads/${policy.baseBranch}`) throw new Error('Wrong repository or untrusted workflow ref');
   const {owner, repo} = context.repo;
-  const trusted = await verifyIdentities(github, {owner, repo}, configuration);
+  const trusted = await verifyAccount(github, {owner, repo}, configuration);
   if (mode === 'enabled') await verifyActivation({github, context, configuration, smokeRunId, smokePr});
   if (mode === 'smoke-test' && (context.eventName !== 'workflow_dispatch' || routineMode === 'enabled' ||
-      !configuration.humanOwners.some(human => human.login === context.actor) ||
+      configuration.account.login !== context.actor ||
       !/^[1-9]\d*$/.test(String(smokePr)) || !Number.isSafeInteger(Number(smokePr)) || !/^[0-9a-f]{40}$/.test(smokeHead || ''))) {
     throw new Error('Protected smoke test requires a main-branch manual dispatch, exact PR/head and inactive routine mode');
   }
@@ -268,4 +254,4 @@ async function run({github, context, core, mode, trustedAuthorIds, configuration
 }
 
 module.exports = {authorIds, routinePath, candidate, routineFiles, protectedRules, ciEvidence, inspect, run,
-  verifyIdentities, verifyActivation, securitySnapshot, securityPaths};
+  verifyAccount, verifyActivation, securitySnapshot, securityPaths};

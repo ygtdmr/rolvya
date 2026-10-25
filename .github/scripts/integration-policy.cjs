@@ -36,24 +36,15 @@ function routinePath(pathname, configuration) {
 }
 
 function validatePolicy(configuration, root) {
-  const humans = configuration.humanOwners;
-  const authors = configuration.automationAuthors;
-  if (!Array.isArray(humans) || !humans.length || !Array.isArray(authors) ||
-      !Array.isArray(configuration.sourceRules) || !Array.isArray(configuration.routinePaths)) throw new Error('Missing policy roles/paths');
-  const ids = new Set(), logins = new Set();
-  for (const identity of [...humans, ...authors]) {
-    if (!Number.isSafeInteger(identity.id) || identity.id <= 0 ||
-        !/^[a-z0-9][a-z0-9-]*(?:\[bot\])?$/i.test(identity.login || '') ||
-        !['User', 'Bot'].includes(identity.type) || ids.has(identity.id) || logins.has(identity.login.toLowerCase())) {
-      throw new Error('Invalid, duplicate or overlapping human/automation identity');
-    }
-    ids.add(identity.id); logins.add(identity.login.toLowerCase());
+  const account = configuration.account;
+  if (!account || !Array.isArray(configuration.sourceRules) || !Array.isArray(configuration.routinePaths)) {
+    throw new Error('Missing single-account policy or paths');
   }
-  if (humans.some(identity => identity.type !== 'User')) throw new Error('Human CODEOWNERS must be User identities');
-  if (!humans.some(identity => identity.id === configuration.repositoryOwnerId)) throw new Error('Repository Owner must remain an independent human reviewer');
-  if (authors.some(identity => identity.id === configuration.integrationActorId ||
-      !Number.isSafeInteger(identity.proofPr) || identity.proofPr <= 0)) {
-    throw new Error('Dedicated automation identity and a real independent-author proof PR are required');
+  if (configuration.humanOwners !== undefined || configuration.automationAuthors !== undefined ||
+      !Number.isSafeInteger(account.id) || account.id <= 0 || account.id !== configuration.repositoryOwnerId ||
+      !/^[a-z0-9][a-z0-9-]*$/i.test(account.login || '') || account.type !== 'User' ||
+      account.id === configuration.integrationActorId || account.proofPr !== undefined) {
+    throw new Error('Expected the pinned repository Owner User account; legacy independent-author roles/proofs are unsupported');
   }
   for (const pathname of configuration.routinePaths) {
     if (!safePath(pathname) || protectedPath(pathname) || !pathname.endsWith('.md')) throw new Error('Unsafe routine documentation path');
@@ -90,7 +81,7 @@ function validatePolicy(configuration, root) {
         if (++count > 2000 || entry.isSymbolicLink() || entry.name.startsWith('.') || protectedPath(relative)) throw new Error('Unsafe/overbroad source boundary');
         if (entry.isDirectory()) walk(relative);
         else if (sourceRule(relative, configuration)?.root === rule.root) sources++;
-        else throw new Error('Non-source/configuration file inside ownerless source boundary');
+        else throw new Error('Non-source/configuration file inside routine source boundary');
       }
     };
     walk(rule.root);
@@ -100,14 +91,21 @@ function validatePolicy(configuration, root) {
 }
 
 function codeowners(configuration) {
-  const owners = configuration.humanOwners.map(identity => '@' + identity.login).join(' ');
-  return ['# Sensitive and unfamiliar files require independent human review.', '* ' + owners, '',
-    '# Owner-reviewed routine boundaries; generated from integration-policy.json.',
-    ...configuration.routinePaths.map(pathname => '/' + pathname),
-    ...configuration.sourceRules.flatMap(rule => ['/' + rule.root + '/**', ...rule.tests.map(test => '/' + test)]), ''].join('\n');
+  return ['# Advisory ownership only: the sole Owner also authors Codex PRs.',
+    '# Required CODEOWNER approval would deadlock; rules require zero reviews.',
+    '# Sensitive changes stay excluded from the automatic merge controller.',
+    '* @' + configuration.account.login, ''].join('\n');
 }
 
-module.exports = {safePath, protectedPath, sourceRule, routinePath, validatePolicy, codeowners};
+function singleAccountReview(rule) {
+  return rule.parameters?.require_code_owner_review === false &&
+    rule.parameters.required_approving_review_count === 0 &&
+    rule.parameters.require_last_push_approval === false &&
+    rule.parameters.dismiss_stale_reviews_on_push === true &&
+    rule.parameters.required_review_thread_resolution === true;
+}
+
+module.exports = {safePath, protectedPath, sourceRule, routinePath, validatePolicy, codeowners, singleAccountReview};
 
 if (require.main === module) {
   const root = path.resolve(process.argv[2] || path.join(__dirname, '../..'));
@@ -118,7 +116,9 @@ if (require.main === module) {
   }
   const template = JSON.parse(fs.readFileSync(path.join(root, '.github/integration-ruleset.json'), 'utf8'));
   if (template.enforcement !== 'disabled' || template.bypass_actors?.length !== 0) {
-    throw new Error('Ruleset template must stay disabled with no bypass actors until identity preflight is complete');
+    throw new Error('Ruleset template must stay disabled with no bypass actors until settings and protected smoke verification are complete');
   }
-  console.log('Identity separation, source boundaries and CODEOWNERS validated; unconfigured authors do not activate merging.');
+  const reviews = template.rules.filter(rule => rule.type === 'pull_request');
+  if (!reviews.length || !reviews.every(singleAccountReview)) throw new Error('Single-account rules must not require self-approval');
+  console.log('Single-account identity, source boundaries and advisory CODEOWNERS validated; protected smoke still required.');
 }

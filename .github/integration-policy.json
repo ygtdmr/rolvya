@@ -8,8 +8,7 @@
   "requiredCheck": "Required checks",
   "actionsAppId": 15368,
   "integrationActorId": 41898282,
-  "humanOwners": [{"id": 72071644, "login": "ygtdmr", "type": "User"}],
-  "automationAuthors": [],
+  "account": {"id": 72071644, "login": "ygtdmr", "type": "User"},
   "sourceRules": [],
   "smokePath": "docs/development/guides/routine-integration-smoke.md",
   "routinePaths": [
