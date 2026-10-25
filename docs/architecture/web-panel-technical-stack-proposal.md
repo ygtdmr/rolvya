@@ -10,7 +10,7 @@ tags: [web-ui, frontend, react, vite, dag, sse, axum]
 
 ## Decision status
 
-**Owner-approved on 2026-10-25:** React + TypeScript, Vite, React Flow for read-only DAG visualization, Rust Axum JSON REST + SSE, and the single minified application JS containing CSS ([ADR 0043](../decisions/0043-single-bundle-browser-platform-and-ux-boundary.md)). The five sections are separately approved in [ADR 0042](../decisions/0042-five-section-web-panel-navigation.md). **All exact configuration, service worker, MIME/cache, UX interaction, security and visual design details remain implementation work**, guided by the [browser asset contract](web-platform-artifact-and-capability-contract.md) and [UX contract](../product/web-ux-and-accessibility-contract.md). No runnable app or deployment is verified.
+**Owner-approved on 2026-10-25:** React + TypeScript, Vite, React Flow for read-only DAG visualization, Rust Axum JSON REST + SSE, and the single minified application JS containing CSS ([ADR 0043](../decisions/0043-single-bundle-browser-platform-and-ux-boundary.md)). The five sections are separately approved in [ADR 0042](../decisions/0042-five-section-web-panel-navigation.md). **Exact deployment configuration, service worker, MIME/cache, UX wiring and security testing remain implementation work; the Owner has now delegated and chosen the visual design direction in [ADR 0048](../decisions/0048-owner-delegated-cohesive-ui-design.md) and [Connected Control](../product/connected-control-design-system.md)**, guided by the [browser asset contract](web-platform-artifact-and-capability-contract.md) and [UX contract](../product/web-ux-and-accessibility-contract.md). No runnable app or deployment is verified.
 
 ## Approved core stack; implementation choices still pending
 
