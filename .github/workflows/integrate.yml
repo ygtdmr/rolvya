@@ -1,0 +1,43 @@
+name: Routine integration
+
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+  schedule:
+    - cron: '*/15 * * * *'
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: rolvya-protected-integration
+  cancel-in-progress: false
+
+jobs:
+  integrate:
+    if: github.repository == 'ygtdmr/rolvya' && github.ref == 'refs/heads/main' && vars.ROLVYA_MERGE_MODE != '' && vars.ROLVYA_MERGE_MODE != 'disabled'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: write
+      pull-requests: write
+      actions: read
+      checks: read
+      statuses: read
+    steps:
+      # workflow_run/schedule/dispatch use trusted default-branch code only.
+      # No artifacts, caches, event-supplied refs or code from a PR are loaded.
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7
+        env:
+          MERGE_MODE: ${{ vars.ROLVYA_MERGE_MODE }}
+          TRUSTED_AUTHOR_IDS: ${{ vars.ROLVYA_CODEX_AUTHOR_IDS }}
+        with:
+          script: |
+            const {run} = require(process.env.GITHUB_WORKSPACE + '/.github/scripts/integrate.cjs');
+            await run({github, context, core, mode: process.env.MERGE_MODE,
+              trustedAuthorIds: process.env.TRUSTED_AUTHOR_IDS});

@@ -14,6 +14,10 @@ Current authoritative decision cross-check: 2026-10-25 (see current ADRs; earlie
 
 Graphify CLI `0.9.95` was available in Codex Cloud, and `graphify codex install --project` installed the project-scoped skill and hook configuration under `.codex/`. The hook is an intentional no-op; [AGENTS.md](../../AGENTS.md#graphify) establishes graph-first investigation, source/test verification and graph refresh after source edits. Generated `graphify-out/` artifacts are ignored by Git. This is development tooling only; no Rolvya application features were implemented.
 
+## Repository CI and routine integration foundation (2026-10-25)
+
+The Owner requested verified, hands-free routine Codex PR integration. The [integration contract](../development/pull-request-integration.md) and `.github/` configuration implement read-only PR CI, a default-branch-only squash controller, a conservative routine path list and CODEOWNERS protection for sensitive/unfamiliar changes. Local negative tests cover identity, path/rename, check provenance, failures, conflicts, stale evidence, races and missing/bypassed rules. GitHub repository rule/Actions/variable settings could not be inspected or changed through the available cloud API access. **Activation and a live protected automatic squash merge remain unverified** until the one-time human-reviewed bootstrap and harmless PR acceptance steps succeed. No application source, cloud infrastructure or approved ADR was changed.
+
 ## Established project decisions
 - Project name Rolvya; open-source AI coding-agent orchestration.
 - GitHub repository `ygtdmr/rolvya` (public, `main`); current source license MIT.

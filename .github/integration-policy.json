@@ -1,0 +1,15 @@
+{
+  "repository": "ygtdmr/rolvya",
+  "repositoryId": 1427301567,
+  "baseBranch": "main",
+  "branchPrefix": "codex/",
+  "workflowPath": ".github/workflows/ci.yml",
+  "requiredCheck": "Required checks",
+  "actionsAppId": 15368,
+  "routinePaths": [
+    "README.md",
+    "docs/README.md",
+    "docs/project/status.md",
+    "docs/development/guides/routine-integration-smoke.md"
+  ]
+}

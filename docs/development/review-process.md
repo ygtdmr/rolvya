@@ -59,9 +59,9 @@ Do not call a product feature *verified* without concrete code ref and repeatabl
 
 A consequential decision uses a numbered Markdown ADR with context, alternatives, accepted tradeoffs, approving actor/date (if known), links to requirements/tests and supersession. Use **Proposed** while owner approval is absent. Avoid overwriting the original ADR rationale; use a superseding ADR when reversing decisions. Follow [decision register](../decisions/README.md).
 
-## Merge and branch policy (open)
+## Repository integration policy (2026-10-25)
 
-Suggested default is task-isolated remote branch → validation → approved remote merge or PR, with protected main and no uncontrolled force push. The merge method, required checks, CI installation, branch protection and human-review threshold still need owner decisions. A worker must not claim a branch was merged merely because it pushed a ref.
+The Owner requested hands-free squash integration of verified routine internal Codex PRs. The [integration contract](pull-request-integration.md) defines the implemented CI foundation, narrow reviewed routine path list, trusted numeric author IDs, strict branch rules and one-time activation/verification steps. Workers still publish isolated PRs; a separate trusted repository workflow performs eligible merges. Security, authentication, secrets, budget authority, infrastructure, workflows, architecture/ADRs and unfamiliar paths require separate human Owner review and are never automatically merged. Agent self-approval and labels are not human authority. A worker must not claim a merge or operational automation without GitHub evidence.
 
 ## Completion / evidence standard
 
@@ -69,6 +69,6 @@ After integration, verify target ref and commit, update [project status](../proj
 
 ## Open decisions
 
-Codeowners, reviewer assignment, branch protections, merge strategy, conventional commit adoption, project release approvals, CI architecture and accepted performance targets.
+Routine repository CI/merge direction is selected by the Owner's 2026-10-25 request; actual settings and live protected-merge evidence remain activation gates in the [integration contract](pull-request-integration.md). Reviewer identity separation, conventional commit adoption, product release approvals and accepted performance targets still need their applicable implementation/evidence.
 
 Related: [engineering standards](standards.md), [test strategy](testing.md), [agent handoffs](agent-handoffs.md), [remote Git](../architecture/integration-github.md), [documentation policy](documentation-policy.md).

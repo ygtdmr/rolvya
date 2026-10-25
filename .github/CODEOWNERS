@@ -1,0 +1,8 @@
+# Sensitive and unfamiliar files require the human Owner's review.
+* @ygtdmr
+
+# Routine documentation has no mandatory reviewer. This list must match policy.
+/README.md
+/docs/README.md
+/docs/project/status.md
+/docs/development/guides/routine-integration-smoke.md

@@ -1,0 +1,148 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# PR code runs with a read-only token, no secrets and no persistent credentials.
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  repository:
+    name: Repository checks
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    outputs:
+      rust: ${{ steps.inventory.outputs.rust }}
+      web: ${{ steps.inventory.outputs.web }}
+      rust_toolchain: ${{ steps.inventory.outputs.rust_toolchain }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '24'
+      - run: python3 .github/scripts/ci.py inventory
+        id: inventory
+      - run: python3 .github/scripts/ci.py repository
+        env:
+          CI_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          CI_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+      - run: node --test --test-isolation=none .github/scripts/integrate.test.cjs
+      - run: python3 -m unittest discover -s .github/scripts -p '*_test.py'
+      - name: Validate GitHub workflow definitions
+        run: |
+          curl --fail --location --silent --show-error --retry 3 \
+            https://github.com/rhysd/actionlint/releases/download/v1.7.7/actionlint_1.7.7_linux_amd64.tar.gz \
+            -o "$RUNNER_TEMP/actionlint.tar.gz"
+          printf '%s  %s\n' 023070a287cd8cccd71515fedc843f1985bf96c436b7effaecce67290e7e0757 "$RUNNER_TEMP/actionlint.tar.gz" | sha256sum --check
+          tar -xzf "$RUNNER_TEMP/actionlint.tar.gz" -C "$RUNNER_TEMP" actionlint
+          "$RUNNER_TEMP/actionlint"
+
+  secrets:
+    name: Secret scan
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Scan the complete changed commit range
+        env:
+          SCAN_BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+          SCAN_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          curl --fail --location --silent --show-error --retry 3 \
+            https://github.com/gitleaks/gitleaks/releases/download/v8.24.3/gitleaks_8.24.3_linux_x64.tar.gz \
+            -o "$RUNNER_TEMP/gitleaks.tar.gz"
+          printf '%s  %s\n' 9991e0b2903da4c8f6122b5c3186448b927a5da4deef1fe45271c3793f4ee29c "$RUNNER_TEMP/gitleaks.tar.gz" | sha256sum --check
+          tar -xzf "$RUNNER_TEMP/gitleaks.tar.gz" -C "$RUNNER_TEMP" gitleaks
+          if [[ -n "$SCAN_BASE_SHA" && ! "$SCAN_BASE_SHA" =~ ^0+$ ]]; then
+            [[ "$SCAN_BASE_SHA" =~ ^[0-9a-f]{40}$ && "$SCAN_HEAD_SHA" =~ ^[0-9a-f]{40}$ ]]
+            "$RUNNER_TEMP/gitleaks" git --redact --no-banner --log-opts="$SCAN_BASE_SHA..$SCAN_HEAD_SHA" .
+          else
+            "$RUNNER_TEMP/gitleaks" git --redact --no-banner --log-opts=-1 .
+          fi
+
+  rust:
+    name: Rust checks
+    needs: repository
+    if: needs.repository.outputs.rust == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - name: Install the repository's pinned Rust toolchain
+        env:
+          RUST_VERSION: ${{ needs.repository.outputs.rust_toolchain }}
+        run: rustup toolchain install "$RUST_VERSION" --profile minimal --component rustfmt --component clippy
+      - run: python3 .github/scripts/ci.py rust
+
+  web:
+    name: Frontend checks
+    needs: repository
+    if: needs.repository.outputs.web == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: apps/web
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '24'
+      - run: npm ci --ignore-scripts --no-audit --no-fund
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm run test:ci
+      - run: npm run build
+      - run: npm run verify:dist
+      - run: npm run check:browser-assets
+
+  required:
+    name: Required checks
+    if: always()
+    needs: [repository, secrets, rust, web]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 2
+    steps:
+      - name: Require every applicable job to succeed
+        env:
+          REPOSITORY: ${{ needs.repository.result }}
+          SECRETS: ${{ needs.secrets.result }}
+          RUST: ${{ needs.rust.result }}
+          WEB: ${{ needs.web.result }}
+          HAS_RUST: ${{ needs.repository.outputs.rust }}
+          HAS_WEB: ${{ needs.repository.outputs.web }}
+        run: |
+          python3 - <<'PY'
+          import os
+          assert os.environ['REPOSITORY'] == 'success', 'Repository checks failed'
+          assert os.environ['SECRETS'] == 'success', 'Secret scan failed'
+          for language in ('RUST', 'WEB'):
+              expected = 'success' if os.environ['HAS_' + language] == 'true' else 'skipped'
+              assert os.environ[language] == expected, language + ' checks did not pass'
+          print('Every applicable check passed; absent application stacks were explicitly skipped.')
+          PY
