@@ -30,7 +30,7 @@ No RPO/RTO numbers have yet been approved. Do not imply a backup exists merely b
 | Authoritative database | Transaction-consistent snapshot plus suitable log/delta capture | Restore integrity; plan graph and ledger together |
 | Object/artifact storage | Versioned objects/manifests and checksum inventory | Preserve verified outputs; prevent orphan references |
 | Configuration | Versioned nonsecret configuration and infra definitions | Credentials only as secret-manager references |
-| Secret manager | Provider-approved recovery/rotation procedure | Never store plaintext in repository or unencrypted backups |
+| Encrypted SQLite secret records + separate controller-host key | Consistent ciphertext backup; **do not copy the live master-key file into ordinary DB backup** | ADRs 0044–0045 approve SQLite ciphertext and automatic key loading; independently protected key recovery/versioning and tested restore remain required |
 | Remote Git | Durable provider refs/commit IDs and repository identity | Reconcile against upstream; do not assume local history exists |
 | Audit log | Durable protected event history | Reconstruct approvals and ambiguous external operations |
 
@@ -62,7 +62,7 @@ A storage target cutover affects new writes only. Interrupted or budget-paused m
 - **Corrupt or incomplete snapshot:** reject and use prior verified backup or repair with evidence.
 - **Database failure during financial reservation:** replay durable transaction/event log and reconcile external charge before admitting work.
 - **Artifact missing:** mark affected validation state uncertain; do not present it as completed.
-- **Key unavailable:** secrets recovery requires provider-approved recovery plan, not embedding credentials in backups.
+- **Key unavailable:** [ADR 0045](../decisions/0045-automatic-local-master-key-unlock.md) requires automatic local-file key loading on normal startup. A missing/invalid key **must not trigger generation of a replacement key**; hold secret-dependent work and use an independently protected authorized recovery workflow, not an ordinary DB backup or embedded credential.
 - **Remote Git history changed:** compare provider commit/ref SHAs, stop silent branch overwrite.
 - **Region/provider outage:** alternative region/provider is an open deployment choice and may incur transfer charges requiring budget authority.
 
@@ -78,6 +78,6 @@ Before declaring recovery successful, produce: incident ID, triggering symptoms,
 
 ## Open decisions
 
-Chosen database and snapshot method, backup cadence/retention, encryption/key manager, object-storage versioning, warm standby, approved RPO/RTO, restore test frequency, data deletion/legal compliance and secondary-region costs.
+Chosen database and snapshot method, backup cadence/retention, key-file recovery/rotation and cryptographic implementation (storage/unlock architecture already approved ADRs 0044–0045), object-storage versioning, warm standby, approved RPO/RTO, restore test frequency, data deletion/legal compliance and secondary-region costs.
 
 Related: [deployment](deployment.md), [runbooks](runbooks.md), [data model](../architecture/data-model.md), [failure recovery](../architecture/failure-recovery.md), [budget](../architecture/budget-costs.md), [secrets](secrets.md).
