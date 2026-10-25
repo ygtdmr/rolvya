@@ -1,6 +1,6 @@
 ---
 title: Decision Readiness and Approval Gates
-status: Proposed
+status: Approved architecture; implementation verification pending
 category: project
 last-reviewed: 2026-10-21
 tags: [decisions, approvals, roadmap]
@@ -10,7 +10,7 @@ tags: [decisions, approvals, roadmap]
 
 ## Purpose
 
-Track which architectural decisions are approved and which are still proposals. This checklist is documentation only. It does not represent deployed infrastructure or a running application.
+**Architecture/product choices have been consolidated and closed** in the [decision-closure map](open-questions.md). This checklist tracks engineering and external verification gates, **not another round of Owner approvals**. It is documentation only. It does not represent deployed infrastructure or a running application.
 
 ## Approved product decisions
 
@@ -53,6 +53,6 @@ The [transport/Git/hosting implementation and rollout pack](transport-git-hostin
 
 A design may be approved without being implemented. The architecture is currently in specification phase. Production readiness requires tested software, reviewed security rules, reproducible deployments, verified billing behavior and documented recovery procedures.
 
-The [delivery roadmap](roadmap.md) and [milestone definitions](milestones.md) distinguish future engineering goals from verified project status. The product MVP scope itself remains proposed in [product scope](../product/scope.md).
+The [delivery roadmap](roadmap.md) and [milestone definitions](milestones.md) distinguish future engineering goals from verified project status. The product v0.1 MVP feature boundary is **Owner-approved** in [product scope](../product/scope.md); actual implementation and release certification are pending.
 
 Related: [implementation slices](implementation-slices.md), [open decisions](open-questions.md), [project status](status.md), [documentation index](../README.md).
