@@ -25,6 +25,8 @@ The Owner subsequently approved the off-host encrypted recovery kit and separate
 | **Normal startup/restart** | Rust reads the already-provisioned protected file automatically and verifies key identity/format before enabling access to encrypted credentials. | Keep approved [ADR 0045](../decisions/0045-automatic-local-master-key-unlock.md): missing/mismatched/key-permission failure **blocks**, with no replacement generation or paid task dispatch requiring secrets. |
 | **Controlled key rotation / host-loss recovery** | Rotation is version-aware and recoverable. A separately protected **encrypted recovery copy** of the required key material lives **off the controller host and outside ordinary SQLite backups**. Restoring after real host loss is a privileged, audited recovery operation, **not** an additional manual step for routine startup. | No loss of prior ciphertext access, old matching SQLite backup/key pairs remain restorable for their retention period, and host compromise triggers provider-credential revocation as well as master-key replacement. |
 
+The [separate technical crypto/bootstrap proposal](secret-broker-cryptography-bootstrap-proposal.md) evaluates 256-bit OS-generated master keys, XChaCha20-Poly1305, independently wrapped per-secret DEKs and a first-run guarded installation state machine. **These exact cryptographic choices are not yet Owner-approved.** The off-host encrypted recovery kit principle remains Approved ADR 0046.
+
 ## Proposal A — key creation and validation
 
 1. Only an **explicitly authorized first-time setup** can create a new root key; the first ordinary startup must **never** treat an absent key as authorization to generate a new one.
