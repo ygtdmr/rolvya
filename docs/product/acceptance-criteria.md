@@ -350,3 +350,13 @@ See [testing strategy](../development/testing.md), [project status](../project/s
 | AC-170 | Simulated host loss and restore of encrypted SQLite backup without its root key; then separately controlled key recovery | Database backup has no master key; secrets stay unreadable without matching protected recovery material; permitted restore procedure and version compatibility work without introducing mandatory manual unlock at every normal startup | PR-034 |
 
 **No test has been implemented or executed.** Root-key recovery medium and cryptography remain OQ-005/P0.
+
+## Separately encrypted off-host emergency key recovery — future tests (ADR 0046)
+
+| Test ID | Scenario | Pass condition | Requirement |
+| --- | --- | --- | --- |
+| AC-171 | Encrypted recovery kit prepared independently of controller and SQLite backup | Recovery kit is encrypted and external; recovery secret stored independently; no plaintext root key in normal DB backup or kit; no mandatory paid manager | PR-035 |
+| AC-172 | Simulate lost controller and restore encrypted SQLite on a clean remote host | Authorized emergency recovery uses matching independently held kit/secret; subsequent ordinary startups automatically load local protected key | PR-035 |
+| AC-173 | Attempt restore with wrong recovery secret, tampered ciphertext or mismatched key version | Fail safely without replacing keys, losing ciphertext, starting paid tasks or falsely claiming recovery; archived valid key versions remain available for retained backups | PR-035 |
+
+**Specified, not tested.** Concrete crypto and first-run provisioning are still OQ-005/P0; the [XChaCha crypto/bootstrap candidate](../architecture/secret-broker-cryptography-bootstrap-proposal.md) remains Proposed.
