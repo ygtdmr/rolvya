@@ -61,7 +61,7 @@ A consequential decision uses a numbered Markdown ADR with context, alternatives
 
 ## Repository integration policy (2026-10-25)
 
-The Owner requested hands-free squash integration of verified routine internal Codex PRs. The [integration contract](pull-request-integration.md) defines the implemented CI foundation, narrow reviewed routine path list, trusted numeric author IDs, strict branch rules and one-time activation/verification steps. Workers still publish isolated PRs; a separate trusted repository workflow performs eligible merges. Security, authentication, secrets, budget authority, infrastructure, workflows, architecture/ADRs and unfamiliar paths require separate human Owner review and are never automatically merged. Agent self-approval and labels are not human authority. A worker must not claim a merge or operational automation without GitHub evidence.
+The Owner requested hands-free squash integration of verified routine internal Codex PRs. The [integration contract](pull-request-integration.md) separates verified automation authors from human CODEOWNERS, supplies a test-backed registry for actual low-risk Rust/frontend boundaries, and defines strict CI/protection plus browser-only setup. Shared Owner identity is never automation authorization. Workers publish isolated PRs; a separate trusted main-branch workflow merges eligible changes only after a real protected smoke receipt. Sensitive and unfamiliar paths remain human-reviewed, with no automatic approval or label authorization. Identity readiness precedes protection activation; ordinary automatic merging remains disabled until end-to-end evidence exists.
 
 ## Completion / evidence standard
 

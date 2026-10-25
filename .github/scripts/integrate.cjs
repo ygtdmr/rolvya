@@ -2,36 +2,56 @@
 
 // Runs only from the default branch. Never checkout, import, or execute PR code.
 const policy = require('../integration-policy.json');
+const {routinePath: classifyPath, sourceRule, validatePolicy} = require('./integration-policy.cjs');
 
-function authorIds(value) {
-  const ids = JSON.parse(value || '[]');
-  if (!Array.isArray(ids) || !ids.every(id => Number.isSafeInteger(id) && id > 0)) {
-    throw new Error('Trusted author IDs must be a JSON array of positive integers');
-  }
-  return new Set(ids);
+function authorIds(configuration = policy) {
+  validatePolicy(configuration);
+  return new Set(configuration.automationAuthors.map(identity => identity.id));
 }
 
-function routinePath(path) {
-  if (typeof path !== 'string' || /[\\\x00-\x1f\x7f]/.test(path) ||
-      path.split('/').some(part => part === '..' || part === '.' || part === '')) return false;
-  // No application, policy, architecture, security, budget, infrastructure or
-  // workflow paths are admitted. Expand this list only in an Owner-reviewed PR.
-  return policy.routinePaths.some(pattern => pattern.endsWith('/**')
-    ? path.startsWith(pattern.slice(0, -2)) && path.endsWith('.md')
-    : path === pattern);
+function routinePath(path, configuration = policy) {
+  return classifyPath(path, configuration);
 }
 
-function candidate(pr, trusted) {
+function candidate(pr, trusted, configuration = policy) {
   return pr.state === 'open' && !pr.draft && !pr.locked &&
     pr.base?.ref === policy.baseBranch && pr.base?.repo?.id === policy.repositoryId &&
     pr.head?.repo?.id === policy.repositoryId && pr.head.ref.startsWith(policy.branchPrefix) &&
-    trusted.has(pr.user?.id);
+    !configuration.humanOwners.some(owner => owner.id === pr.user?.id) && trusted.has(pr.user?.id) &&
+    configuration.automationAuthors.some(identity => identity.id === pr.user?.id &&
+      identity.login === pr.user.login && identity.type === pr.user.type);
 }
 
-function routineFiles(pr, files) {
+function routineFiles(pr, files, configuration = policy) {
   return files.length > 0 && files.length === pr.changed_files && files.every(file =>
     ['added', 'modified', 'removed', 'renamed'].includes(file.status) &&
-    routinePath(file.filename) && (!file.previous_filename || routinePath(file.previous_filename)));
+    routinePath(file.filename, configuration) && (!file.previous_filename || routinePath(file.previous_filename, configuration)));
+}
+
+async function verifyIdentities(github, args, configuration) {
+  const trusted = authorIds(configuration);
+  if (!trusted.size) throw new Error('Independent automation author is not configured; keep protection/merging inactive');
+  const {data: repository} = await github.rest.repos.get(args);
+  if (repository.id !== configuration.repositoryId || repository.owner?.id !== configuration.repositoryOwnerId ||
+      repository.owner?.type !== 'User') throw new Error('Repository ownership does not match the human-review policy');
+  for (const identity of [...configuration.humanOwners, ...configuration.automationAuthors]) {
+    const {data: user} = await github.rest.users.getByUsername({username: identity.login});
+    if (user.id !== identity.id || user.login !== identity.login || user.type !== identity.type) {
+      throw new Error('GitHub identity is missing, renamed or does not match its reviewed role');
+    }
+  }
+  for (const identity of [...configuration.humanOwners, ...configuration.automationAuthors].filter(identity => identity.type === 'User')) {
+    const {data} = await github.rest.repos.getCollaboratorPermissionLevel({...args, username: identity.login});
+    if (!['admin', 'maintain', 'write'].includes(data.permission)) throw new Error('Human CODEOWNER or automation user lacks write access');
+  }
+  for (const author of configuration.automationAuthors) {
+    const {data: proof} = await github.rest.pulls.get({...args, pull_number: author.proofPr});
+    if (proof.user?.id !== author.id || proof.user?.login !== author.login || proof.user?.type !== author.type ||
+        proof.base?.repo?.id !== configuration.repositoryId || proof.head?.repo?.id !== configuration.repositoryId) {
+      throw new Error('Independent authorship has not been demonstrated by an actual repository PR');
+    }
+  }
+  return trusted;
 }
 
 function protectedRules(rules) {
@@ -48,16 +68,24 @@ function protectedRules(rules) {
     rules.some(rule => rule.type === 'non_fast_forward'));
 }
 
-function ciEvidence(pr, workflow, runs, jobs, checks, statuses, trusted, required = []) {
+function ciEvidence(pr, workflow, runs, jobs, checks, statuses, trusted, required = [], files = [], configuration = policy) {
   if (workflow.path !== policy.workflowPath || workflow.state !== 'active') return false;
   const run = [...runs].sort((a, b) => b.id - a.id)[0];
   if (!run || run.workflow_id !== workflow.id || run.event !== 'pull_request' ||
       run.head_sha !== pr.head.sha || run.head_repository?.id !== policy.repositoryId ||
       run.path !== policy.workflowPath || run.status !== 'completed' || run.conclusion !== 'success' ||
-      !trusted.has(run.actor?.id) || !trusted.has(run.triggering_actor?.id) ||
+      !trusted.has(run.actor?.id) ||
+      !new Set([...trusted, ...configuration.humanOwners.map(identity => identity.id)]).has(run.triggering_actor?.id) ||
       !run.pull_requests?.some(pull => pull.number === pr.number)) return false;
   if (!jobs.some(job => job.name === policy.requiredCheck && job.status === 'completed' &&
       job.conclusion === 'success' && job.run_id === run.id)) return false;
+  const kinds = new Set(files.flatMap(file => [file.filename, file.previous_filename].filter(Boolean))
+    .map(path => sourceRule(path, configuration)?.kind).filter(Boolean));
+  for (const kind of kinds) {
+    const name = kind === 'rust' ? 'Rust checks' : 'Frontend checks';
+    if (!jobs.some(job => job.name === name && job.run_id === run.id &&
+        job.status === 'completed' && job.conclusion === 'success')) return false;
+  }
   // Reject failing or unfinished optional checks too. Required checks must be
   // successful (not neutral/skipped), and must come from GitHub Actions.
   if (!checks.some(check => check.name === policy.requiredCheck &&
@@ -73,12 +101,13 @@ function ciEvidence(pr, workflow, runs, jobs, checks, statuses, trusted, require
   return true;
 }
 
-async function inspect({github, owner, repo, number, trusted}) {
+async function inspect({github, owner, repo, number, trusted, configuration = policy}) {
+  validatePolicy(configuration);
   const args = {owner, repo};
   const {data: pr} = await github.rest.pulls.get({...args, pull_number: number});
-  if (!candidate(pr, trusted)) return {eligible: false, reason: 'untrusted identity, fork, base, branch, draft or state'};
+  if (!candidate(pr, trusted, configuration)) return {eligible: false, reason: 'untrusted/shared identity, fork, base, branch, draft or state'};
   const files = await github.paginate(github.rest.pulls.listFiles, {...args, pull_number: number, per_page: 100});
-  if (!routineFiles(pr, files)) return {eligible: false, reason: 'sensitive/unfamiliar path, rename or incomplete file inventory'};
+  if (!routineFiles(pr, files, configuration)) return {eligible: false, reason: 'sensitive/unfamiliar path, rename or incomplete file inventory'};
   if (pr.mergeable !== true || pr.mergeable_state !== 'clean') return {eligible: false, reason: 'conflict, pending checks or unknown mergeability'};
   const {data: settings} = await github.rest.repos.get(args);
   if (!settings.allow_squash_merge || settings.allow_merge_commit || settings.allow_rebase_merge || settings.allow_auto_merge) {
@@ -116,39 +145,116 @@ async function inspect({github, owner, repo, number, trusted}) {
   // a successful status hide another context outside the returned page.
   if (combined.data.total_count !== combined.data.statuses.length ||
       !ciEvidence(pr, workflow, runs, jobs, checks, combined.data.statuses, trusted,
-        rules.flatMap(rule => rule.type === 'required_status_checks' ? rule.parameters.required_status_checks : []))) {
+        rules.flatMap(rule => rule.type === 'required_status_checks' ? rule.parameters.required_status_checks : []), files, configuration)) {
     return {eligible: false, reason: 'missing, stale, failing or untrusted check evidence'};
   }
   const {data: fresh} = await github.rest.pulls.get({...args, pull_number: number});
-  if (!candidate(fresh, trusted) || fresh.head.sha !== pr.head.sha || fresh.base.sha !== pr.base.sha ||
+  if (!candidate(fresh, trusted, configuration) || fresh.head.sha !== pr.head.sha || fresh.base.sha !== pr.base.sha ||
       fresh.changed_files !== pr.changed_files || fresh.mergeable !== true || fresh.mergeable_state !== 'clean') {
     return {eligible: false, reason: 'PR changed during validation'};
   }
   return {eligible: true, reason: 'verified routine PR', sha: pr.head.sha};
 }
 
-async function run({github, context, core, mode, trustedAuthorIds}) {
-  if (!['disabled', 'dry-run', 'enabled'].includes(mode || 'disabled')) throw new Error('Unknown merge mode');
+const securityPaths = ['.github/scripts/integrate.cjs', '.github/scripts/integration-policy.cjs',
+  '.github/integration-policy.json', '.github/CODEOWNERS', '.github/workflows/integrate.yml', '.github/workflows/ci.yml'];
+
+function securitySnapshot(tree) {
+  if (tree.truncated || !Array.isArray(tree.tree) ||
+      !securityPaths.every(path => tree.tree.some(entry => entry.path === path && entry.type === 'blob' && entry.mode === '100644'))) {
+    throw new Error('Incomplete or non-regular security configuration tree');
+  }
+  const entries = tree.tree.filter(entry => entry.path.startsWith('.github/') || entry.path === 'AGENTS.md');
+  if (entries.some(entry => !((entry.type === 'blob' && ['100644', '100755'].includes(entry.mode)) ||
+      (entry.type === 'tree' && entry.mode === '040000')))) throw new Error('Security configuration cannot contain symlinks or submodules');
+  return JSON.stringify(entries.map(entry => [entry.path, entry.mode, entry.type, entry.sha]).sort((a, b) => a[0].localeCompare(b[0], 'en')));
+}
+
+async function verifyActivation({github, context, configuration, smokeRunId, smokePr}) {
+  const positive = value => /^[1-9]\d*$/.test(String(value)) && Number.isSafeInteger(Number(value));
+  if (!positive(smokeRunId) || !positive(smokePr)) throw new Error('Routine merging remains disabled until a protected smoke receipt exists');
+  const args = {...context.repo};
+  const {data: workflow} = await github.rest.actions.getWorkflow({...args, workflow_id: 'integrate.yml'});
+  const {data: receipt} = await github.rest.actions.getWorkflowRun({...args, run_id: Number(smokeRunId)});
+  const match = /^Protected smoke PR ([1-9]\d*) at ([0-9a-f]{40})$/.exec(receipt.display_title || '');
+  if (!match || receipt.id !== Number(smokeRunId) || workflow.state !== 'active' ||
+      Number(match[1]) !== Number(smokePr) || receipt.workflow_id !== workflow.id ||
+      workflow.path !== '.github/workflows/integrate.yml' || receipt.path !== workflow.path ||
+      receipt.event !== 'workflow_dispatch' || receipt.head_branch !== configuration.baseBranch ||
+      receipt.head_repository?.id !== configuration.repositoryId || receipt.status !== 'completed' || receipt.conclusion !== 'success' ||
+      !configuration.humanOwners.some(human => human.id === receipt.actor?.id)) throw new Error('Untrusted or unsuccessful protected smoke run');
+  const jobs = await github.paginate(github.rest.actions.listJobsForWorkflowRun,
+    {...args, run_id: receipt.id, filter: 'latest', per_page: 100});
+  if (!jobs.some(job => job.run_id === receipt.id && job.name === 'Protected smoke test' && job.status === 'completed' && job.conclusion === 'success')) {
+    throw new Error('Receipt did not execute a successful protected smoke job');
+  }
+  const {data: proof} = await github.rest.pulls.get({...args, pull_number: Number(smokePr)});
+  const merged = Date.parse(proof.merged_at), start = Date.parse(receipt.run_started_at), end = Date.parse(receipt.updated_at);
+  if (!proof.merged || proof.head?.sha !== match[2] || proof.base?.ref !== configuration.baseBranch ||
+      proof.base?.repo?.id !== configuration.repositoryId || proof.head?.repo?.id !== configuration.repositoryId ||
+      proof.merged_by?.id !== configuration.integrationActorId ||
+      !configuration.automationAuthors.some(author => author.id === proof.user?.id && author.login === proof.user?.login && author.type === proof.user?.type) ||
+      !/^[0-9a-f]{40}$/.test(proof.merge_commit_sha || '') || !Number.isFinite(merged) || !(start <= merged && merged <= end)) {
+    throw new Error('No independent-author protected squash merge occurred in the recorded run');
+  }
+  const files = await github.paginate(github.rest.pulls.listFiles, {...args, pull_number: Number(smokePr), per_page: 100});
+  if (proof.changed_files !== 1 || files.length !== 1 || files[0].filename !== configuration.smokePath ||
+      files[0].previous_filename || !['added', 'modified'].includes(files[0].status)) throw new Error('Smoke receipt changed more than the harmless document');
+  const {data: branch} = await github.rest.repos.getBranch({...args, branch: configuration.baseBranch});
+  const {data: mergedCommit} = await github.rest.git.getCommit({...args, commit_sha: proof.merge_commit_sha});
+  if (mergedCommit.parents?.length !== 1) throw new Error('Recorded smoke merge is not a single-parent squash commit');
+  const {data: contained} = await github.rest.repos.compareCommitsWithBasehead({...args, basehead: `${proof.merge_commit_sha}...${branch.commit.sha}`});
+  if (!['ahead', 'identical'].includes(contained.status) || contained.behind_by !== 0) throw new Error('Smoke merge is not on protected main');
+  const snapshot = async sha => {
+    const {data: commit} = await github.rest.git.getCommit({...args, commit_sha: sha});
+    const {data: tree} = await github.rest.git.getTree({...args, tree_sha: commit.tree.sha, recursive: 'true'});
+    return securitySnapshot(tree);
+  };
+  const verified = await snapshot(receipt.head_sha);
+  for (const sha of new Set([context.sha, branch.commit.sha])) {
+    if (await snapshot(sha) !== verified) throw new Error('Security configuration changed since protected smoke verification; repeat the smoke test');
+  }
+  return true;
+}
+
+async function run({github, context, core, mode, trustedAuthorIds, configuration = policy,
+  smokeRunId, smokePr, smokeHead, routineMode}) {
+  if (trustedAuthorIds !== undefined) throw new Error('Legacy shared-account trust overrides are unsupported');
+  validatePolicy(configuration, require('node:path').join(__dirname, '../..'));
+  if (!['disabled', 'dry-run', 'smoke-test', 'enabled'].includes(mode || 'disabled')) throw new Error('Unknown merge mode');
   if (!mode || mode === 'disabled') {core.info('Integration is disabled'); return [];}
   if (`${context.repo.owner}/${context.repo.repo}` !== policy.repository ||
       context.payload.repository?.id !== policy.repositoryId ||
       context.ref !== `refs/heads/${policy.baseBranch}`) throw new Error('Wrong repository or untrusted workflow ref');
-  const trusted = authorIds(trustedAuthorIds);
-  if (!trusted.size) throw new Error('No trusted Codex author IDs configured');
   const {owner, repo} = context.repo;
-  const pulls = await github.paginate(github.rest.pulls.list, {owner, repo, state: 'open', base: policy.baseBranch, per_page: 100});
+  const trusted = await verifyIdentities(github, {owner, repo}, configuration);
+  if (mode === 'enabled') await verifyActivation({github, context, configuration, smokeRunId, smokePr});
+  if (mode === 'smoke-test' && (context.eventName !== 'workflow_dispatch' || routineMode === 'enabled' ||
+      !configuration.humanOwners.some(human => human.login === context.actor) ||
+      !/^[1-9]\d*$/.test(String(smokePr)) || !Number.isSafeInteger(Number(smokePr)) || !/^[0-9a-f]{40}$/.test(smokeHead || ''))) {
+    throw new Error('Protected smoke test requires a main-branch manual dispatch, exact PR/head and inactive routine mode');
+  }
+  const pulls = mode === 'smoke-test' ? [{number: Number(smokePr)}]
+    : await github.paginate(github.rest.pulls.list, {owner, repo, state: 'open', base: policy.baseBranch, per_page: 100});
   const results = [];
   for (const pull of pulls) {
     try {
-      const result = await inspect({github, owner, repo, number: pull.number, trusted});
-      results.push({number: pull.number, ...result});
+      const result = await inspect({github, owner, repo, number: pull.number, trusted, configuration});
+      const record = {number: pull.number, ...result};
+      results.push(record);
       core.info(`#${pull.number}: ${result.reason}`);
-      if (result.eligible && mode === 'enabled') {
+      if (result.eligible && mode === 'smoke-test') {
+        const files = await github.paginate(github.rest.pulls.listFiles, {owner, repo, pull_number: pull.number, per_page: 100});
+        if (result.sha !== smokeHead || files.length !== 1 || files[0].filename !== configuration.smokePath ||
+            files[0].previous_filename || !['added', 'modified'].includes(files[0].status)) throw new Error('Smoke target is not the exact harmless revision');
+      }
+      if (result.eligible && ['enabled', 'smoke-test'].includes(mode)) {
         // No auto-merge enrollment: a later sensitive push must be reclassified.
         // Expected SHA plus GitHub's strict rules close head/base update races.
         const response = await github.rest.pulls.merge({owner, repo, pull_number: pull.number,
           merge_method: 'squash', sha: result.sha});
         if (!response.data.merged) throw new Error('GitHub did not confirm merge');
+        record.merged = true;
         core.info(`#${pull.number}: squash merged ${result.sha}`);
       }
     } catch (error) {
@@ -156,8 +262,10 @@ async function run({github, context, core, mode, trustedAuthorIds}) {
       results.push({number: pull.number, eligible: false, reason: 'API error or rejected merge'});
     }
   }
+  if (mode === 'smoke-test' && (results.length !== 1 || !results[0].merged)) throw new Error('No protected smoke merge verified; routine integration stays disabled');
   await core.summary.addHeading(`Routine integration: ${mode}`).addCodeBlock(JSON.stringify(results, null, 2), 'json').write();
   return results;
 }
 
-module.exports = {authorIds, routinePath, candidate, routineFiles, protectedRules, ciEvidence, inspect, run};
+module.exports = {authorIds, routinePath, candidate, routineFiles, protectedRules, ciEvidence, inspect, run,
+  verifyIdentities, verifyActivation, securitySnapshot, securityPaths};

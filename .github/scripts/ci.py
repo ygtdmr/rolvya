@@ -95,12 +95,15 @@ def repository_check():
         errors.append('MIT license notice is missing')
     if subprocess.check_output(['git', 'ls-files', 'graphify-out'], cwd=ROOT).strip():
         errors.append('Generated Graphify artifacts must not be tracked')
+    result = subprocess.run(['node', str(ROOT / '.github/scripts/integration-policy.cjs'), str(ROOT)],
+                            capture_output=True, text=True)
+    if result.returncode:
+        errors.append('CODEOWNERS/identity/source policy invalid: ' + result.stderr)
     policy = json.loads((ROOT / '.github/integration-policy.json').read_text())
-    expected = ['# Sensitive and unfamiliar files require the human Owner\'s review.', '* @ygtdmr', '',
-                '# Routine documentation has no mandatory reviewer. This list must match policy.']
-    expected += ['/' + pattern for pattern in policy['routinePaths']]
-    if (ROOT / '.github/CODEOWNERS').read_text() != '\n'.join(expected) + '\n':
-        errors.append('CODEOWNERS and the reviewed routine path policy differ')
+    tracked = {str(path) for path in tracked_files()}
+    for rule in policy.get('sourceRules', []):
+        if rule['manifest'] not in tracked or not all(test in tracked for test in rule['tests']):
+            errors.append('Registered source manifests and tests must be tracked Git files')
     base = os.environ.get('CI_BASE_SHA')
     head = os.environ.get('CI_HEAD_SHA')
     if base and head:
@@ -117,10 +120,31 @@ def repository_check():
     print(f'PASS: repository documentation, MIT notice, CODEOWNERS and {link_count} relative links')
 
 
+def verify_rust_registration(metadata):
+    policy = json.loads((ROOT / '.github/integration-policy.json').read_text())
+    packages = {str(Path(package['manifest_path']).resolve()): package for package in metadata['packages']}
+    for rule in policy.get('sourceRules', []):
+        if rule['kind'] != 'rust':
+            continue
+        package = packages.get(str((ROOT / rule['manifest']).resolve()))
+        if not package or package['id'] not in metadata['workspace_members']:
+            raise ValueError('Registered Rust component is not in the checked workspace')
+        tests = {str(Path(target['src_path']).resolve()) for target in package['targets'] if 'test' in target['kind']}
+        if not all(str((ROOT / test).resolve()) in tests for test in rule['tests']):
+            raise ValueError('Registered Rust test evidence is not an executed Cargo test target')
+
+
 def rust_check():
     data = inventory()
     if not data['rust']:
         raise ValueError('Rust job invoked without a Rust manifest')
+    packages, members = [], []
+    for manifest in data['rust_manifests']:
+        metadata = json.loads(subprocess.check_output(['cargo', 'metadata', '--format-version', '1',
+            '--no-deps', '--locked', '--manifest-path', manifest], cwd=ROOT, text=True))
+        packages.extend(metadata['packages'])
+        members.extend(metadata['workspace_members'])
+    verify_rust_registration({'packages': packages, 'workspace_members': members})
     for manifest in data['rust_manifests']:
         commands = [
             ['cargo', 'fmt', '--manifest-path', manifest, '--all', '--', '--check'],

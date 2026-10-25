@@ -1,7 +1,7 @@
 {
   "name": "Rolvya verified integration",
   "target": "branch",
-  "enforcement": "active",
+  "enforcement": "disabled",
   "bypass_actors": [],
   "conditions": {
     "ref_name": {"include": ["refs/heads/main"], "exclude": []}

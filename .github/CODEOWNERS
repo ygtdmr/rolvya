@@ -1,7 +1,7 @@
-# Sensitive and unfamiliar files require the human Owner's review.
+# Sensitive and unfamiliar files require independent human review.
 * @ygtdmr
 
-# Routine documentation has no mandatory reviewer. This list must match policy.
+# Owner-reviewed routine boundaries; generated from integration-policy.json.
 /README.md
 /docs/README.md
 /docs/project/status.md

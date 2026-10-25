@@ -1,11 +1,17 @@
 {
   "repository": "ygtdmr/rolvya",
   "repositoryId": 1427301567,
+  "repositoryOwnerId": 72071644,
   "baseBranch": "main",
   "branchPrefix": "codex/",
   "workflowPath": ".github/workflows/ci.yml",
   "requiredCheck": "Required checks",
   "actionsAppId": 15368,
+  "integrationActorId": 41898282,
+  "humanOwners": [{"id": 72071644, "login": "ygtdmr", "type": "User"}],
+  "automationAuthors": [],
+  "sourceRules": [],
+  "smokePath": "docs/development/guides/routine-integration-smoke.md",
   "routinePaths": [
     "README.md",
     "docs/README.md",
