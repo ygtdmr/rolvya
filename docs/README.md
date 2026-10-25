@@ -40,6 +40,7 @@ All Markdown documentation follows the [Obsidian-compatible documentation policy
 - [ADR 0044 — Approved encrypted SQLite Secret Broker storage](decisions/0044-encrypted-sqlite-secret-storage.md)
 - [ADR 0045 — Approved automatic protected local key loading](decisions/0045-automatic-local-master-key-unlock.md)
 - [Encrypted SQLite, automatic local key and remaining recovery/rotation details](architecture/secret-storage-key-custody-decision-proposal.md)
+- [Proposed secure first-time key creation, versioned rotation and independently protected emergency recovery](architecture/secret-key-bootstrap-rotation-recovery-proposal.md)
 - [Approved ADR 0043 — Single application JS and browser platform boundary](decisions/0043-single-bundle-browser-platform-and-ux-boundary.md)
 - [Browser platform asset checklist and production build verification](architecture/web-platform-artifact-and-capability-contract.md)
 - [UX and accessibility contract — without selected visual design](product/web-ux-and-accessibility-contract.md)
