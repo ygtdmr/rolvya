@@ -16,7 +16,7 @@ Graphify CLI `0.9.95` was available in Codex Cloud, and `graphify codex install 
 
 ## Repository CI and routine integration foundation (2026-10-25)
 
-The Owner requested verified, hands-free routine Codex PR integration. The [integration contract](../development/pull-request-integration.md) and `.github/` configuration implement read-only PR CI, a default-branch-only squash controller, a conservative routine path list and CODEOWNERS protection for sensitive/unfamiliar changes. Local negative tests cover identity, path/rename, check provenance, failures, conflicts, stale evidence, races and missing/bypassed rules. GitHub repository rule/Actions/variable settings could not be inspected or changed through the available cloud API access. **Activation and a live protected automatic squash merge remain unverified** until the one-time human-reviewed bootstrap and harmless PR acceptance steps succeed. No application source, cloud infrastructure or approved ADR was changed.
+The Owner requested verified, hands-free routine Codex PR integration. The [integration contract](../development/pull-request-integration.md) and `.github/` configuration implement read-only PR CI, a default-branch-only squash controller, a conservative routine path list and CODEOWNERS protection for sensitive/unfamiliar changes. **74 merge-policy and 13 repository-check tests pass**, including negative cases for identity, paths/renames, failed checks, conflicts, stale evidence, races and missing/bypassed rules. Live CI passed on [configuration PR #6](https://github.com/ygtdmr/rolvya/pull/6) ([run](https://github.com/ygtdmr/rolvya/actions/runs/40215707653)) and [harmless stacked PR #7](https://github.com/ygtdmr/rolvya/pull/7) ([initial passing run](https://github.com/ygtdmr/rolvya/actions/runs/40215823436)). A temporary missing-link fixture correctly failed both Repository checks and Required checks ([negative run](https://github.com/ygtdmr/rolvya/actions/runs/40216000815)); it was then repaired for [reverification](https://github.com/ygtdmr/rolvya/actions/runs/40216107270). Absent Rust/frontend jobs are explicitly skipped. GitHub rule/Actions/variable settings could not be inspected or changed through available cloud API access. **Activation and a live protected automatic squash merge remain unverified** until the one-time human-reviewed bootstrap and main-targeted harmless PR acceptance steps succeed. No application source, cloud infrastructure or approved ADR was changed.
 
 ## Established project decisions
 - Project name Rolvya; open-source AI coding-agent orchestration.
@@ -30,7 +30,7 @@ See [decision register](../decisions/README.md) for nuances.
 
 ## Not yet verified as implemented
 - Orchestrator, scheduler, worker runtime or adapters, UI, API, database or cloud infrastructure.
-- Production GitHub integrations, cost enforcement, approval workflow, or automated testing.
+- Production GitHub integrations, cost enforcement, approval workflow, or application automated testing.
 - Deployment, releases, security and performance properties.
 
 ## Architecture documentation progress (2026-10-21)
