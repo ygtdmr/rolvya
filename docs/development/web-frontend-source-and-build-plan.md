@@ -10,9 +10,15 @@ tags: [frontend, source-layout, build, vite, ci, pwa, csp, ux]
 
 ## Purpose and decision boundary
 
-The Owner approved the **core frontend stack and packaging invariants** in [ADR 0043](../decisions/0043-single-bundle-browser-platform-and-ux-boundary.md), and previously approved five top-level panel sections in [ADR 0042](../decisions/0042-five-section-web-panel-navigation.md). This document is a practical **source/module and implementation sequence proposal** to reach that already approved target. Detailed UI visual design, font and icon selection, exact runtime routes, visual components and precise provider accounts **are not being chosen here**.
+The Owner approved the **core frontend stack and packaging invariants** in [ADR 0043](../decisions/0043-single-bundle-browser-platform-and-ux-boundary.md), and previously approved five top-level panel sections in [ADR 0042](../decisions/0042-five-section-web-panel-navigation.md). This document is a practical **source/module and implementation sequence proposal** to reach that already approved target. **Subsequent [ADR 0048](../decisions/0048-owner-delegated-cohesive-ui-design.md) settles creative UI authority.** The [Connected Control design system](../product/connected-control-design-system.md) now specifies distinctive visual tokens, Inter/IBM Plex Mono, external Lucide icon assets, shared UI Elements, motion, modern CSS, responsive and performance validation. Exact frontend source files, routes and paid/provider accounts still require engineering implementation, not another aesthetic Owner vote.
 
 **Current actual repository state (checked 2026-10-25):** documentation-only; no `apps/web`, `Cargo.toml`, React source, Vite build output, GitHub Actions workflow or executable integration is verified. The paths and examples below are **planned**, not existing files.
+
+## Mandatory UI Elements-first architecture (ADR 0048)
+
+Before building Projects/Execution/Costs/Connections/Results screens, implement a single shared `src/ui/tokens/`, `src/ui/primitives/`, `src/ui/elements/`, `src/ui/patterns/`, `src/ui/motion/` and test/gallery boundary from [Connected Control](../product/connected-control-design-system.md). **All five features must compose the same semantic Elements and business-state patterns**; route-local cloned buttons, status chips, tables, modal logic, animation timing and independent themes are not acceptable. Motion variants, reduced-motion, responsive container queries, keyboard focus and deep-link context must be designed into Elements, not added as end-stage decoration.
+
+The design contract's U0–U5 sequence **complements** the F0–F4 browser/build stages below and does not authorize frontend source creation merely because design documentation is approved.
 
 ## Proposed repository location and boundaries
 
@@ -138,13 +144,13 @@ Build tools and CI may use multiple internal/source JS files; **only final produ
 | **F3 — Rust integration** | Versioned REST/SSE client, secure session/role/CSRF handling, cost/approval read models, redacted events | Auth/permissions and stale-event/refresh tests against Rust fake handlers; no paid provider launch | F2 + backend contracts |
 | **F4 — Browser/PWA certification** | Manifest/icons after brand assets approved, SW/cache lifecycle, i18n and RTL, offline rules, browser matrix | AC-153–164 with actual artifacts and browser evidence; no sensitive cache or unapproved browser permissions | F1–F3 + real visual assets |
 
-**Recommended immediate next engineering slice:** implement **F0–F1 in a limited branch/PR**, with neutral placeholder *text* only and no fabricated logo/icon/fonts or visual UI design. This is **not an Owner approval to bypass a later review of actual code/security results**. No AWS account, API key, CLI session, paid worker or remote Git integration is required to prove the browser packaging contract.
+**When frontend coding is scheduled:** implement **F0–F1** to prove the single-JS build, while building the **U0/U1 shared token, UI Elements and motion foundations** first. Use the genuine approved logo only when its source asset is verified; external Lucide glyph and Inter/Plex font URLs are selected by ADR 0048, not embedded. The Owner's current request is for design documentation, not an instruction to scaffold frontend source right now. This is **not an Owner approval to bypass a later review of actual code/security results**. No AWS account, API key, CLI session, paid worker or remote Git integration is required to prove the browser packaging contract.
 
 ## User-facing vs implementation decisions
 
 Already settled: five panel sections, React/TypeScript/Vite, React Flow, Rust Axum REST+SSE, immutable DAG server authority, one application JS containing CSS, separate `sw.js`, no bundled fonts/icons, UX/accessibility/browser completeness requirements.
 
-Left to implementation or Owner design review: concrete folder presence, package version/lock manager, exact static hosting/nonces and CSP hashes, CSS minifier operation, manifest icon assets and name, selected font/icon provider, graphic/color/UI components/layout, routes/schema, shipped locales, dependency graph layout algorithm, browser version support floor, and first-plan-activation UX. Deferring UI aesthetics does not defer **accessible interactions and security**.
+**Design choices now selected under ADR 0048:** Connected Control, shared UI Elements first, integrated motion rules, app-theme token palette, Inter / IBM Plex Mono external type assets and externally fetched Lucide icons. **Still implementation/evidence:** actual folder creation, pinned dependencies, licensed asset files and genuine approved logo, nonce/CSP/one-JS verification, component states, routes/schema, shipped locales, graph layout benchmarking and tested browser support. Accessibility and security remain binding, and no UI build or visual regression has yet passed.
 
 ## References / traceability
 
