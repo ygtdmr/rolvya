@@ -14,6 +14,18 @@ Current authoritative decision cross-check: 2026-10-25 (see current ADRs; earlie
 
 Graphify CLI `0.9.95` was available in Codex Cloud, and `graphify codex install --project` installed the project-scoped skill and hook configuration under `.codex/`. The hook is an intentional no-op; [AGENTS.md](../../AGENTS.md#graphify) establishes graph-first investigation, source/test verification and graph refresh after source edits. Generated `graphify-out/` artifacts are ignored by Git. This is development tooling only; no Rolvya application features were implemented.
 
+## Current single-account integration revision (2026-10-25)
+
+The Owner explicitly selected the existing `ygtdmr` account for Codex Cloud and PR authorship; [PR #6](https://github.com/ygtdmr/rolvya/pull/6) now removes mandatory independent authors/proof PRs. The committed account is pinned by ID/login/type and checked live. CODEOWNERS is advisory, and strict main protection requires zero approvals, no CODEOWNER/last-push approval, PRs, resolved threads, CI, linear history, deletion/force-push blocks and zero bypass actors. This avoids self-approval deadlock without protection bypass. Sensitive/unfamiliar changes stay ineligible for the controller and follow the Owner's manual review/squash process; a shared GitHub identity **cannot prove independent human authorization or enforce human-versus-agent separation**. No product authentication or approved architecture decision is changed.
+
+**158 policy/controller tests and 19 repository/CI tests pass locally.** They cover pinned shared provenance, self-approval/overlapping-rule deadlocks, sensitive scope, real future source boundaries/tests, language-job failures, smoke scope and receipt forgery/staleness. The actual-source registry remains empty because no application code exists. Routine mode still needs a real protected controller squash receipt bound to the security tree. [The browser-only runbook](../development/pull-request-integration.md) covers Owner bootstrap review, live settings, refreshing/retargeting existing [PR #7](https://github.com/ygtdmr/rolvya/pull/7) and isolated smoke verification before activation. #7 is reusable as a positive test under this model; no fresh account or PR is required by identity. **Not operational; live settings and protected automatic merge remain unverified and no activation is performed.** No separate account, reviewer, authentication service, paid infrastructure or application feature is introduced.
+
+The preceding independent-identity proposal in #6 was superseded by this explicit Owner decision before activation. Its earlier CI successes established tooling checks, not operational protected integration.
+
+## Earlier repository CI foundation verification (2026-10-25)
+
+The Owner requested verified, hands-free routine Codex PR integration. The [integration contract](../development/pull-request-integration.md) and `.github/` configuration implement read-only PR CI, a default-branch-only squash controller, a conservative routine path list and CODEOWNERS protection for sensitive/unfamiliar changes. **74 merge-policy and 14 repository-check tests pass**, including negative cases for identity, paths/renames, failed checks, conflicts, stale evidence, races, missing/bypassed rules and migration gates hidden by skipped jobs. Live CI passed on [configuration PR #6](https://github.com/ygtdmr/rolvya/pull/6) ([run](https://github.com/ygtdmr/rolvya/actions/runs/40216598651)) and [harmless stacked PR #7](https://github.com/ygtdmr/rolvya/pull/7) ([initial passing run](https://github.com/ygtdmr/rolvya/actions/runs/40215823436)). A temporary missing-link fixture correctly failed both Repository checks and Required checks ([negative run](https://github.com/ygtdmr/rolvya/actions/runs/40216000815)); the broken link was removed and the refreshed harmless head passed [final CI](https://github.com/ygtdmr/rolvya/actions/runs/40216614862). The test PR remains open for later protected-merge verification. Absent Rust/frontend jobs are explicitly skipped. GitHub rule/Actions/variable settings could not be inspected or changed through available cloud API access. **Activation and a live protected automatic squash merge remain unverified** until the one-time human-reviewed bootstrap and main-targeted harmless PR acceptance steps succeed. No application source, cloud infrastructure or approved ADR was changed.
+
 ## Established project decisions
 - Project name Rolvya; open-source AI coding-agent orchestration.
 - GitHub repository `ygtdmr/rolvya` (public, `main`); current source license MIT.
@@ -26,7 +38,7 @@ See [decision register](../decisions/README.md) for nuances.
 
 ## Not yet verified as implemented
 - Orchestrator, scheduler, worker runtime or adapters, UI, API, database or cloud infrastructure.
-- Production GitHub integrations, cost enforcement, approval workflow, or automated testing.
+- Production GitHub integrations, cost enforcement, approval workflow, or application automated testing.
 - Deployment, releases, security and performance properties.
 
 ## Architecture documentation progress (2026-10-21)

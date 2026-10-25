@@ -1,0 +1,4 @@
+# Advisory ownership only: the sole Owner also authors Codex PRs.
+# Required CODEOWNER approval would deadlock; rules require zero reviews.
+# Sensitive changes stay excluded from the automatic merge controller.
+* @ygtdmr

@@ -59,9 +59,9 @@ Do not call a product feature *verified* without concrete code ref and repeatabl
 
 A consequential decision uses a numbered Markdown ADR with context, alternatives, accepted tradeoffs, approving actor/date (if known), links to requirements/tests and supersession. Use **Proposed** while owner approval is absent. Avoid overwriting the original ADR rationale; use a superseding ADR when reversing decisions. Follow [decision register](../decisions/README.md).
 
-## Merge and branch policy (open)
+## Repository integration policy (2026-10-25)
 
-Suggested default is task-isolated remote branch → validation → approved remote merge or PR, with protected main and no uncontrolled force push. The merge method, required checks, CI installation, branch protection and human-review threshold still need owner decisions. A worker must not claim a branch was merged merely because it pushed a ref.
+The Owner chose hands-free squash integration of verified low-risk internal Codex PRs using the existing `ygtdmr` GitHub account. The [integration contract](pull-request-integration.md) pins that shared account, retains a test-backed registry for actual low-risk Rust/frontend boundaries, and defines strict CI/protection plus browser-only setup. CODEOWNERS is advisory, with zero required approvals and no last-push approval, avoiding impossible self-review. A trusted main-branch workflow integrates eligible paths only after a real protected smoke receipt; sensitive/unfamiliar changes stay outside automation for the Owner's manual review and squash merge after CI. Agents must not perform sensitive merges without explicit Owner instructions. No label or agent review grants authorization, and the shared identity cannot prove independent human approval or technically distinguish an Owner click from an agent action. This is repository development tooling; product human-approval and GitHub App architecture decisions remain unchanged.
 
 ## Completion / evidence standard
 
@@ -69,6 +69,6 @@ After integration, verify target ref and commit, update [project status](../proj
 
 ## Open decisions
 
-Codeowners, reviewer assignment, branch protections, merge strategy, conventional commit adoption, project release approvals, CI architecture and accepted performance targets.
+Routine repository CI/merge direction is selected by the Owner's 2026-10-25 request; actual settings and live protected-merge evidence remain activation gates in the [integration contract](pull-request-integration.md). The single-account repository model is explicitly selected; conventional commit adoption, product release approvals and accepted performance targets still need their applicable implementation/evidence.
 
 Related: [engineering standards](standards.md), [test strategy](testing.md), [agent handoffs](agent-handoffs.md), [remote Git](../architecture/integration-github.md), [documentation policy](documentation-policy.md).

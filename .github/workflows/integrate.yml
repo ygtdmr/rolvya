@@ -1,0 +1,64 @@
+name: Routine integration
+run-name: ${{ github.event_name == 'workflow_dispatch' && inputs.operation == 'smoke-test' && format('Protected smoke PR {0} at {1}', inputs.smoke_pr, inputs.smoke_head) || 'Routine integration evaluation' }}
+
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+  schedule:
+    - cron: '*/15 * * * *'
+  workflow_dispatch:
+    inputs:
+      operation:
+        description: Audit or perform one pinned harmless protected merge; routine mode stays disabled
+        type: choice
+        options: [audit, smoke-test]
+        default: audit
+      smoke_pr:
+        description: Pinned-account harmless smoke PR number (reuse PR 7)
+        type: string
+      smoke_head:
+        description: Exact 40-character smoke PR head SHA
+        type: string
+
+permissions: {}
+
+concurrency:
+  group: rolvya-protected-integration
+  cancel-in-progress: false
+
+jobs:
+  integrate:
+    name: ${{ github.event_name == 'workflow_dispatch' && inputs.operation == 'smoke-test' && 'Protected smoke test' || 'Routine integration' }}
+    if: github.repository == 'ygtdmr/rolvya' && github.ref == 'refs/heads/main' && (github.event_name == 'workflow_dispatch' || (vars.ROLVYA_MERGE_MODE != '' && vars.ROLVYA_MERGE_MODE != 'disabled'))
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: write
+      pull-requests: write
+      actions: read
+      checks: read
+      statuses: read
+    steps:
+      # workflow_run/schedule/dispatch use trusted default-branch code only.
+      # No artifacts, caches, event-supplied refs or code from a PR are loaded.
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7
+        env:
+          MERGE_MODE: ${{ vars.ROLVYA_MERGE_MODE }}
+          VERIFIED_SMOKE_RUN_ID: ${{ vars.ROLVYA_VERIFIED_SMOKE_RUN_ID }}
+          VERIFIED_SMOKE_PR: ${{ vars.ROLVYA_VERIFIED_SMOKE_PR }}
+        with:
+          script: |
+            const {run} = require(process.env.GITHUB_WORKSPACE + '/.github/scripts/integrate.cjs');
+            const inputs = context.payload.inputs || {};
+            const manual = context.eventName === 'workflow_dispatch';
+            await run({github, context, core,
+              mode: manual ? (inputs.operation === 'smoke-test' ? 'smoke-test' : 'dry-run') : process.env.MERGE_MODE,
+              routineMode: process.env.MERGE_MODE,
+              smokeRunId: process.env.VERIFIED_SMOKE_RUN_ID,
+              smokePr: manual && inputs.operation === 'smoke-test' ? inputs.smoke_pr : process.env.VERIFIED_SMOKE_PR,
+              smokeHead: inputs.smoke_head});

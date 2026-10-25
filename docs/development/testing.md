@@ -10,9 +10,12 @@ tags: [testing, ci, reliability, security]
 
 ## Status and quality gate
 
-**Not implemented:** no claim is made that the CI pipeline or tests described here currently exist. Test requirements derive from [product acceptance criteria](../product/acceptance-criteria.md), [execution](../architecture/execution.md), [budget](../architecture/budget-costs.md) and [security](../architecture/security.md).
+**Application tests remain unimplemented.** A [repository CI and integration foundation](pull-request-integration.md) now provides documentation, secret scanning and merge-policy tests, with explicit activation contracts for future Rust/frontend checks. Its local tests and GitHub activation evidence are distinct from the future product tests below. Test requirements derive from [product acceptance criteria](../product/acceptance-criteria.md), [execution](../architecture/execution.md), [budget](../architecture/budget-costs.md) and [security](../architecture/security.md).
 
 The [initial Rust/SQLite verification matrix](rust-sqlite-test-matrix.md) catalogs detailed future fixtures, concurrency tests and fault-injection points; [engineering task packages](initial-implementation-task-packages.md) assign candidate ownership and dependencies. These are planning artifacts, **not tests that have already run**.
+
+Repository integration regression tests exercise pinned shared-account provenance without external identity proofs, advisory CODEOWNERS, general/CODEOWNER/last-push approval deadlocks including overlapping rules, future source registration against temporary real boundaries/tests, language-job omissions, strict checks, isolated protected smoke scope, forged/stale receipts and security-tree changes. Temporary Rust/frontend fixtures test classification only, not the application. Passing unit tests or historical #7 CI cannot activate routine merging; #7 must be retargeted/refreshed and actually squash-merged by the controller under verified main protection. No test or shared-account action claims independent human authorization.
+
 
 The [remote integration test matrix](remote-integration-test-matrix.md) defines RI-001–RI-030 (future, not executed) across remote authentication, duplicate worker messages, Git branch protection, provider hidden retries, spending bounds and billing reconciliation. Use [proposed wire](../architecture/worker-wire-contract-draft.md), [remote Git](../architecture/git-remote-integration-contract.md) and [remote worker lifecycle](../operations/remote-worker-lifecycle-contract.md) contracts only under the eventual selected ADRs.
 
