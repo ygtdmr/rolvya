@@ -4,6 +4,7 @@ const assert = require('node:assert/strict');
 const {authorIds, routinePath, candidate, routineFiles, protectedRules, inspect, run, verifyAccount, verifyActivation, securityPaths} = require('./integrate.cjs');
 const policy = require('../integration-policy.json');
 const clone = value => structuredClone(value);
+const {rulesetDigest, normalizeRevision} = require('./integration-policy.cjs');
 
 function fixture() {
   const configuration = clone(policy);
@@ -33,6 +34,14 @@ function fixture() {
     branch: {commit: {sha: 'b'.repeat(40)}},
     calls: [], logs: [], errors: [], gets: 0,
   };
+  state.rules.forEach(rule => Object.assign(rule, {ruleset_source_type: 'Repository', ruleset_source: policy.repository}));
+  Object.assign(state.ruleset, {id: 1, name: 'Fixture protection', source_type: 'Repository', source: policy.repository,
+    target: 'branch', updated_at: '2026-10-25T10:00:00.123Z', current_user_can_bypass: 'never',
+    conditions: {ref_name: {include: ['refs/heads/main'], exclude: []}},
+    rules: state.rules.map(({type, parameters}) => parameters ? {type, parameters: clone(parameters)} : {type})});
+  configuration.rulesetAttestations = [{rulesetId: 1, updatedAt: state.ruleset.updated_at,
+    configurationSha256: rulesetDigest(state.ruleset), verifiedBy: policy.account.id, bypassActors: []}];
+  state.rulesetReads = 0; state.branchRulesReads = 0;
   state.proofPr = {...clone(state.pr), number: 42, state: 'closed', merged: true, merged_at: '2026-10-25T10:01:00Z', merged_by: {id: policy.integrationActorId}, merge_commit_sha: 'd'.repeat(40)};
   state.controllerWorkflow = {id: 100, path: '.github/workflows/integrate.yml', state: 'active'};
   state.receipt = {id: 777, workflow_id: 100, path: '.github/workflows/integrate.yml', event: 'workflow_dispatch', head_branch: 'main', head_sha: 'b'.repeat(40), head_repository: {id: policy.repositoryId}, status: 'completed', conclusion: 'success', actor: {id: 72071644}, display_title: 'Protected smoke PR 42 at ' + 'a'.repeat(40), run_started_at: '2026-10-25T10:00:00Z', updated_at: '2026-10-25T10:02:00Z'};
@@ -59,8 +68,9 @@ function fixture() {
     actions: {getWorkflow: method('workflow', args => args.workflow_id === 'integrate.yml' ? state.controllerWorkflow : state.workflow), getWorkflowRun: method('receipt', 'receipt'), listWorkflowRuns: method('runs', 'runs'),
       listJobsForWorkflowRun: method('jobs', args => args.run_id === 777 ? state.smokeJobs : state.jobs)},
     checks: {listForRef: method('checks', 'checks')},
-  }, request: method('ruleset', 'ruleset')};
-  github.paginate = async (endpoint, args) => typeof endpoint === 'string' ? clone(state.rules) : (await endpoint(args)).data;
+  }, request: method('ruleset', () => ++state.rulesetReads > 1 && state.freshRuleset ? state.freshRuleset : state.ruleset)};
+  const branchRules = method('branchRules', () => ++state.branchRulesReads > 1 && state.freshRules ? state.freshRules : state.rules);
+  github.paginate = async (endpoint, args) => (await (typeof endpoint === 'string' ? branchRules : endpoint)(args)).data;
   const core = {info: message => state.logs.push(message), setFailed: message => state.errors.push(message),
     summary: {addHeading() {return this;}, addCodeBlock() {return this;}, async write() {}}};
   const context = {repo: {owner: 'ygtdmr', repo: 'rolvya'}, ref: 'refs/heads/main', sha: 'b'.repeat(40), actor: 'ygtdmr', eventName: 'workflow_dispatch', payload: {repository: {id: policy.repositoryId}}};
@@ -132,7 +142,7 @@ for (const [name, change] of [
   ['overlapping ruleset requires self-approval', s => {s.rules.push({type: 'pull_request', parameters: {require_code_owner_review: true, required_approving_review_count: 1}});}],
   ['stale approval allowed', s => {s.rules[1].parameters.dismiss_stale_reviews_on_push = false;}],
   ['bypass actor', s => {s.ruleset.bypass_actors = [{actor_type: 'RepositoryRole', actor_id: 5}];}],
-  ['unobservable bypass list', s => {delete s.ruleset.bypass_actors;}],
+  ['malformed bypass list', s => {s.ruleset.bypass_actors = null;}],
   ['unenforced rules', s => {s.ruleset.enforcement = 'evaluate';}],
   ['stale base', s => {s.comparison = {status: 'diverged', behind_by: 1};}],
   ['missing CI', s => {s.runs = [];}],
@@ -412,3 +422,116 @@ test('security symlinks cannot hide dependencies outside the verified tree', asy
   f.state.tree.tree.push({path: '.github/scripts/hidden.py', mode: '120000', type: 'blob', sha: 'c'.repeat(40)});
   await assert.rejects(verifyActivation(f), /symlinks/);
 });
+
+// Exact configuration supplied and verified by the Owner in this task, not an
+// API claim made by this test. The runtime always fetches current GitHub data.
+const ownerRuleset = require('./fixtures/ruleset-25836182.json');
+function ownerFixture() {
+  const f = fixture();
+  f.state.ruleset = clone(ownerRuleset);
+  f.state.rules = ownerRuleset.rules.map(rule => ({...clone(rule), ruleset_id: ownerRuleset.id,
+    ruleset_source: ownerRuleset.source, ruleset_source_type: ownerRuleset.source_type}));
+  f.configuration.rulesetAttestations = clone(policy.rulesetAttestations);
+  return f;
+}
+
+async function inspectFixture(f) {
+  return inspect({...f, owner: 'ygtdmr', repo: 'rolvya', number: 7, trusted: authorIds(f.configuration),
+    report: message => f.state.logs.push(message)});
+}
+
+test('the exact Owner-verified configuration and millisecond revision match the committed attestation', () => {
+  assert.equal(normalizeRevision('2026-10-25T23:31:28.338+03:00'), '2026-10-25T20:31:28.338Z');
+  const entry = policy.rulesetAttestations.find(entry => entry.rulesetId === 25836182);
+  assert.equal(entry.updatedAt, normalizeRevision(ownerRuleset.updated_at));
+  assert.equal(entry.configurationSha256, rulesetDigest(ownerRuleset));
+  assert.equal(entry.verifiedBy, 72071644);
+  assert.deepEqual(entry.bypassActors, []);
+});
+
+test('restricted API response with omitted bypass actors is accepted only with matching live and Owner verification evidence', async () => {
+  const f = ownerFixture(); delete f.state.ruleset.bypass_actors;
+  const result = await inspectFixture(f);
+  assert.equal(result.eligible, true);
+  const observation = JSON.parse(f.state.logs.find(log => log.startsWith('Ruleset observation: ')).slice('Ruleset observation: '.length));
+  assert.equal(observation.bypassActorsVisible, false);
+  assert.equal(observation.currentUserCanBypass, 'never');
+  assert.equal(observation.rulesetId, 25836182);
+  assert.equal(f.state.rulesetReads, 2, 'revalidate after CI before allowing a write');
+});
+
+test('a fully visible empty bypass list also requires the pinned revision and non-bypassable token', async () => {
+  const f = ownerFixture();
+  assert.equal((await inspectFixture(f)).eligible, true);
+  f.configuration.rulesetAttestations = [];
+  assert.equal((await inspectFixture(f)).eligible, false);
+});
+
+for (const [name, change] of [
+  ['no attestation', f => {f.configuration.rulesetAttestations = [];}],
+  ['missing attestation registry', f => {delete f.configuration.rulesetAttestations;}],
+  ['duplicate attestation', f => {f.configuration.rulesetAttestations.push(clone(f.configuration.rulesetAttestations[0]));}],
+  ['non-Owner attestation', f => {f.configuration.rulesetAttestations[0].verifiedBy = 999;}],
+  ['nonempty attested bypass list', f => {f.configuration.rulesetAttestations[0].bypassActors = [{actor_id: 5}];}],
+  ['missing attested bypass list', f => {delete f.configuration.rulesetAttestations[0].bypassActors;}],
+  ['missing digest', f => {delete f.configuration.rulesetAttestations[0].configurationSha256;}],
+  ['missing attested revision', f => {delete f.configuration.rulesetAttestations[0].updatedAt;}],
+  ['changed attested ID', f => {f.configuration.rulesetAttestations[0].rulesetId++;}],
+  ['stale revision', f => {f.state.ruleset.updated_at = '2026-10-25T20:31:29.338Z';}],
+  ['same-second different revision', f => {f.state.ruleset.updated_at = '2026-10-25T20:31:28.339Z';}],
+  ['rounded revision', f => {f.state.ruleset.updated_at = '2026-10-25T20:31:28Z';}],
+  ['missing live revision', f => {delete f.state.ruleset.updated_at;}],
+  ['invalid live revision', f => {f.state.ruleset.updated_at = 'yesterday';}],
+  ['always bypass token', f => {f.state.ruleset.current_user_can_bypass = 'always';}],
+  ['PR-only bypass token', f => {f.state.ruleset.current_user_can_bypass = 'pull_requests_only';}],
+  ['exempt token', f => {f.state.ruleset.current_user_can_bypass = 'exempt';}],
+  ['unknown bypass capability', f => {f.state.ruleset.current_user_can_bypass = 'unknown';}],
+  ['missing bypass capability', f => {delete f.state.ruleset.current_user_can_bypass;}],
+  ['null visible bypass list', f => {f.state.ruleset.bypass_actors = null;}],
+  ['nonempty visible bypass list', f => {f.state.ruleset.bypass_actors = [{actor_type: 'Integration', actor_id: 15368, bypass_mode: 'always'}];}],
+  ['inactive enforcement', f => {f.state.ruleset.enforcement = 'disabled';}],
+  ['evaluate enforcement', f => {f.state.ruleset.enforcement = 'evaluate';}],
+  ['replaced ruleset', f => {f.state.ruleset.id++;}],
+  ['wrong repository', f => {f.state.ruleset.source = 'other/repo';}],
+  ['inherited unverified ruleset', f => {f.state.ruleset.source_type = 'Organization';}],
+  ['wrong target', f => {f.state.ruleset.target = 'tag';}],
+  ['changed branch scope', f => {f.state.ruleset.conditions.ref_name.exclude = ['refs/heads/main'];}],
+  ['changed rules with unchanged timestamp', f => {f.state.ruleset.rules[3].parameters.do_not_enforce_on_create = true;}],
+  ['new unknown configuration field', f => {f.state.ruleset.new_security_setting = true;}],
+  ['incomplete effective rules', f => {f.state.rules.pop();}],
+  ['effective parameters differ', f => {f.state.rules[3].parameters.do_not_enforce_on_create = true;}],
+  ['spoofed effective source', f => {f.state.rules[0].ruleset_source = 'other/repo';}],
+  ['missing effective source', f => {delete f.state.rules[0].ruleset_source_type;}],
+  ['new unattested ruleset', f => {f.state.rules.push({...clone(f.state.rules[0]), ruleset_id: 999});}],
+  ['attested ruleset no longer effective', f => {f.configuration.rulesetAttestations.push({...clone(f.configuration.rulesetAttestations[0]), rulesetId: 999});}],
+  ['bypass granted during validation', f => {f.state.freshRuleset = {...clone(f.state.ruleset), current_user_can_bypass: 'always'};}],
+  ['hidden bypass revision changes during validation', f => {f.state.freshRuleset = {...clone(f.state.ruleset), updated_at: '2026-10-25T20:31:28.339Z'};}],
+  ['effective rule removed during validation', f => {f.state.freshRules = f.state.rules.slice(1);}],
+]) {
+  test(`restricted ruleset verification fails closed: ${name}`, async () => {
+    const f = ownerFixture(); delete f.state.ruleset.bypass_actors; change(f);
+    let result;
+    try {result = await inspectFixture(f);} catch {result = {eligible: false};}
+    assert.equal(result.eligible, false);
+    assert.equal(f.state.calls.some(call => call.name === 'merge'), false);
+  });
+}
+
+test('caller visibility, read-only metadata, JSON key order and equivalent timezone do not change configuration', async () => {
+  const f = ownerFixture();
+  f.state.ruleset.updated_at = normalizeRevision(ownerRuleset.updated_at);
+  f.state.ruleset.node_id = 'ReadOnlyNodeId';
+  f.state.ruleset.created_at = '2026-10-25T20:00:00Z';
+  f.state.ruleset._links = {self: {href: 'https://api.github.com/repos/ygtdmr/rolvya/rulesets/25836182'}};
+  f.state.ruleset = Object.fromEntries(Object.entries(f.state.ruleset).reverse());
+  delete f.state.ruleset.bypass_actors;
+  assert.equal((await inspectFixture(f)).eligible, true);
+});
+
+for (const failAt of ['branchRules', 'ruleset']) {
+  test(`restricted ruleset API denial cannot fall back to attestation alone: ${failAt}`, async () => {
+    const f = ownerFixture(); f.state.failAt = failAt;
+    await assert.rejects(inspectFixture(f));
+    assert.equal(f.state.calls.some(call => call.name === 'merge'), false);
+  });
+}

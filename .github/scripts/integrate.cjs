@@ -2,7 +2,7 @@
 
 // Runs only from the default branch. Never checkout, import, or execute PR code.
 const policy = require('../integration-policy.json');
-const {routinePath: classifyPath, sourceRule, validatePolicy, singleAccountReview} = require('./integration-policy.cjs');
+const {routinePath: classifyPath, sourceRule, validatePolicy, singleAccountReview, canonical, rulesetDigest, validRevision, normalizeRevision} = require('./integration-policy.cjs');
 
 function authorIds(configuration = policy) {
   validatePolicy(configuration);
@@ -54,6 +54,49 @@ function protectedRules(rules) {
     rules.some(rule => rule.type === 'non_fast_forward'));
 }
 
+async function protectionEvidence({github, args, configuration, report = () => {}}) {
+  // Effective rules include active repository and inherited rulesets. Never
+  // substitute the checked-in template or a PR-provided list for this endpoint.
+  const rules = await github.paginate('GET /repos/{owner}/{repo}/rules/branches/{branch}',
+    {...args, branch: configuration.baseBranch, per_page: 100});
+  const reject = reason => ({rules, reason});
+  if (!protectedRules(rules)) return reject('strict checks or deadlock-free single-account branch rules not established');
+  const ids = new Set(rules.map(rule => rule.ruleset_id));
+  if ([...ids].some(id => !Number.isSafeInteger(id) || id <= 0)) return reject('unverifiable ruleset identity');
+  for (const id of ids) {
+    const {data: ruleset} = await github.request('GET /repos/{owner}/{repo}/rulesets/{ruleset_id}', {...args, ruleset_id: id});
+    const visible = Object.hasOwn(ruleset, 'bypass_actors');
+    const digest = validRevision(ruleset.updated_at) ? rulesetDigest(ruleset) : undefined;
+    // Public metadata only, useful for the Owner's browser-only attestation.
+    // This is an observation, not an assertion that hidden bypass actors are empty.
+    report('Ruleset observation: ' + JSON.stringify({rulesetId: ruleset.id,
+      updatedAt: ruleset.updated_at, configurationSha256: digest, enforcement: ruleset.enforcement,
+      currentUserCanBypass: ruleset.current_user_can_bypass, bypassActorsVisible: visible}));
+    if (ruleset.id !== id || ruleset.enforcement !== 'active' || ruleset.target !== 'branch' ||
+        ruleset.source_type !== 'Repository' || ruleset.source !== configuration.repository ||
+        !validRevision(ruleset.updated_at) ||
+        !Array.isArray(ruleset.rules) || !ruleset.conditions?.ref_name) {
+      return reject(`ruleset ${id}: active identity, revision or configuration cannot be verified`);
+    }
+    if (ruleset.current_user_can_bypass !== 'never') return reject(`ruleset ${id}: current token bypass capability is not explicitly never`);
+    if (visible && (!Array.isArray(ruleset.bypass_actors) || ruleset.bypass_actors.length !== 0)) {
+      return reject(`ruleset ${id}: bypass actors are present or malformed`);
+    }
+    const entry = configuration.rulesetAttestations.find(entry => entry.rulesetId === id);
+    if (!entry || normalizeRevision(entry.updatedAt) !== normalizeRevision(ruleset.updated_at) || entry.configurationSha256 !== digest) {
+      return reject(`ruleset ${id}: missing or changed Owner-verified zero-bypass revision attestation`);
+    }
+    const effective = rules.filter(rule => rule.ruleset_id === id);
+    const content = list => list.map(rule => canonical({type: rule.type, parameters: rule.parameters || {}})).sort();
+    if (effective.some(rule => rule.ruleset_source_type !== ruleset.source_type || rule.ruleset_source !== ruleset.source) ||
+        canonical(content(effective)) !== canonical(content(ruleset.rules))) {
+      return reject(`ruleset ${id}: effective branch rules differ from the attested configuration`);
+    }
+  }
+  if (ids.size !== configuration.rulesetAttestations.length) return reject('Owner-attested ruleset set no longer matches effective main rules');
+  return {rules};
+}
+
 function ciEvidence(pr, workflow, runs, jobs, checks, statuses, trusted, required = [], files = [], configuration = policy) {
   if (workflow.path !== policy.workflowPath || workflow.state !== 'active') return false;
   const run = [...runs].sort((a, b) => b.id - a.id)[0];
@@ -87,7 +130,7 @@ function ciEvidence(pr, workflow, runs, jobs, checks, statuses, trusted, require
   return true;
 }
 
-async function inspect({github, owner, repo, number, trusted, configuration = policy}) {
+async function inspect({github, owner, repo, number, trusted, configuration = policy, report}) {
   validatePolicy(configuration);
   const args = {owner, repo};
   const {data: pr} = await github.rest.pulls.get({...args, pull_number: number});
@@ -100,18 +143,9 @@ async function inspect({github, owner, repo, number, trusted, configuration = po
     return {eligible: false, reason: 'repository must allow squash only, disable native auto-merge and preserve head branches'};
   }
 
-  // GitHub's branch-rules endpoint requires Contents:read, not Administration.
-  // Use a repository ruleset: classic protection alone does not satisfy this gate.
-  const rules = await github.paginate('GET /repos/{owner}/{repo}/rules/branches/{branch}',
-    {...args, branch: policy.baseBranch, per_page: 100});
-  if (!protectedRules(rules)) return {eligible: false, reason: 'strict checks or deadlock-free single-account branch rules not established'};
-  for (const id of new Set(rules.map(rule => rule.ruleset_id))) {
-    if (!Number.isSafeInteger(id)) return {eligible: false, reason: 'unverifiable ruleset identity'};
-    const {data: ruleset} = await github.request('GET /repos/{owner}/{repo}/rulesets/{ruleset_id}', {...args, ruleset_id: id});
-    if (ruleset.enforcement !== 'active' || !Array.isArray(ruleset.bypass_actors) || ruleset.bypass_actors.length) {
-      return {eligible: false, reason: 'ruleset bypass or enforcement cannot be excluded'};
-    }
-  }
+  const protection = await protectionEvidence({github, args, configuration, report});
+  if (protection.reason) return {eligible: false, reason: protection.reason};
+  const {rules} = protection;
   const {data: branch} = await github.rest.repos.getBranch({...args, branch: policy.baseBranch});
   const {data: comparison} = await github.rest.repos.compareCommitsWithBasehead({...args, basehead: `${branch.commit.sha}...${pr.head.sha}`});
   if (!['ahead', 'identical'].includes(comparison.status) || comparison.behind_by !== 0) {
@@ -139,6 +173,10 @@ async function inspect({github, owner, repo, number, trusted, configuration = po
       fresh.changed_files !== pr.changed_files || fresh.mergeable !== true || fresh.mergeable_state !== 'clean') {
     return {eligible: false, reason: 'PR changed during validation'};
   }
+  // Recheck immediately before returning permission to merge: settings may have
+  // changed while CI, checks and fresh PR state were being fetched.
+  const finalProtection = await protectionEvidence({github, args, configuration});
+  if (finalProtection.reason) return {eligible: false, reason: finalProtection.reason};
   return {eligible: true, reason: 'verified routine PR', sha: pr.head.sha};
 }
 
@@ -225,7 +263,7 @@ async function run({github, context, core, mode, trustedAuthorIds, configuration
   const results = [];
   for (const pull of pulls) {
     try {
-      const result = await inspect({github, owner, repo, number: pull.number, trusted, configuration});
+      const result = await inspect({github, owner, repo, number: pull.number, trusted, configuration, report: message => core.info(message)});
       const record = {number: pull.number, ...result};
       results.push(record);
       core.info(`#${pull.number}: ${result.reason}`);
@@ -254,4 +292,4 @@ async function run({github, context, core, mode, trustedAuthorIds, configuration
 }
 
 module.exports = {authorIds, routinePath, candidate, routineFiles, protectedRules, ciEvidence, inspect, run,
-  verifyAccount, verifyActivation, securitySnapshot, securityPaths};
+  verifyAccount, verifyActivation, securitySnapshot, securityPaths, protectionEvidence};
