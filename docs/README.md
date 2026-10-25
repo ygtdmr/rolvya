@@ -36,6 +36,8 @@ All Markdown documentation follows the [Obsidian-compatible documentation policy
 - [Owner panel and user journeys](product/user-flows.md)
 - [Owner-approved five-section web panel navigation and proposed screen details](product/initial-web-panel-structure.md)
 - [ADR 0042 — Approved web panel navigation](decisions/0042-five-section-web-panel-navigation.md)
+- [ADR 0048 — Owner-delegated unified UI design, motion and elements](decisions/0048-owner-delegated-cohesive-ui-design.md)
+- [Connected Control — UI design tokens, UI Elements catalog, animations, modern CSS, responsive quality and validation](product/connected-control-design-system.md)
 - [Approved frontend core stack — React/Vite, DAG and Axum/SSE](architecture/web-panel-technical-stack-proposal.md)
 - [ADR 0044 — Approved encrypted SQLite Secret Broker storage](decisions/0044-encrypted-sqlite-secret-storage.md)
 - [ADR 0045 — Approved automatic protected local key loading](decisions/0045-automatic-local-master-key-unlock.md)
