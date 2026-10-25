@@ -1,6 +1,6 @@
 ---
 title: Secret Broker Key Bootstrap, Rotation and Disaster Recovery Proposal
-status: Proposed — Owner approval pending
+status: Approved recovery principle; implementation proposed
 category: architecture
 last-reviewed: 2026-10-25
 tags: [security, secrets, encryption, bootstrap, rotation, recovery, sqlite, p0]
@@ -10,12 +10,12 @@ tags: [security, secrets, encryption, bootstrap, rotation, recovery, sqlite, p0]
 
 ## Approval boundary
 
-**Proposed only.** Previously approved binding decisions are:
+**The encrypted off-host recovery kit with a separately retained recovery secret is Owner-approved in [ADR 0046](../decisions/0046-off-host-encrypted-master-key-recovery.md).** Bootstrap, crypto choices, storage medium, rotation and operational details below remain Proposed. Previously approved binding decisions are:
 - [ADR 0044](../decisions/0044-encrypted-sqlite-secret-storage.md): encrypt secret records before persistence in the one authoritative SQLite database.
 - [ADR 0045](../decisions/0045-automatic-local-master-key-unlock.md): on every normal start, the Rust Secret Broker automatically reads an **existing** protected key file on the remote controller host; no manual unlocking and no silently regenerated key.
 - [ADR 0037](../decisions/0037-central-secret-broker-task-scoped-access.md): account/project/attempt/budget/lease authorization and brokered secrets; [ADR 0038](../decisions/0038-multi-account-isolated-cli-and-api-access.md): separately isolated Claude/Codex CLI accounts and API-key modes.
 
-The user's latest "devam edelim" initiates examination of **bootstrap, rotation and disaster recovery**; it does **not** itself approve the following precise recovery design. No filesystem, database, live key or provider resource exists because of this proposal.
+The Owner subsequently approved the off-host encrypted recovery kit and separate emergency recovery secret. This does not authorize a particular provider, cipher, key wrapping procedure, upload or spending. No filesystem, database, live key or provider resource exists because of this proposal.
 
 ## Three-stage recommended operator experience
 
@@ -70,7 +70,7 @@ The user's latest "devam edelim" initiates examination of **bootstrap, rotation 
 
 ## Pending explicit Owner choice
 
-**Would Rolvya use the recommended independently encrypted off-host recovery kit, with a recovery secret retained separately and required only if disaster recovery is performed?** Normal startup remains automatic. If approved, the detailed implementation can be recorded in a follow-up ADR; otherwise keep this as a design alternative.
+**Resolved by ADR 0046:** Use an encrypted off-host recovery kit with a separately protected recovery secret, needed only for emergency restore. Normal startup remains automatic. Exact custody, cipher, initial provisioning and rotation method remain open.
 
 **Still P0:** exact encryption algorithm/library, safe key-file bootstrap path, recovery-kit wrapping/custody method and threat model, rotation checkpoints, provider CLI entitlement OQ-008 and remote worker attestation. Do not mark OQ-005 resolved by this proposal.
 
