@@ -120,6 +120,7 @@ The paths above are a **planned inventory**, not links to files that already exi
 - [Engineering standards](development/standards.md)
 - [AI agent handoff contract](development/agent-handoffs.md)
 - [Review and ADR governance](development/review-process.md)
+- [Repository CI, routine PR integration and one-time activation](development/pull-request-integration.md)
 - [Initial Rust + SQLite implementation task packages](development/initial-implementation-task-packages.md)
 - [Rust + SQLite core test matrix](development/rust-sqlite-test-matrix.md)
 - [Remote integration verification matrix](development/remote-integration-test-matrix.md)

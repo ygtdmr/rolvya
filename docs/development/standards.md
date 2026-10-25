@@ -73,4 +73,4 @@ An agent must not claim completion unless its deliverables, reproducible tests, 
 
 ## Open decisions
 
-Rust edition/toolchain, remaining dependency versions, SQLite schema/migrations and `synchronous`/checkpoint policy, style/linter tooling, code-owner/branch protection policy, commit-convention approval, coverage thresholds, performance SLOs and automated CI remain unselected. **Axum, SQLx and initial WAL/pool/busy settings are already Approved (ADRs 0012–0014).** **Backend Rust and SQLite database engines are settled.**
+Rust edition/toolchain, remaining dependency versions, SQLite schema/migrations and `synchronous`/checkpoint policy, application style/linter tooling, commit-convention approval, coverage thresholds and performance SLOs still need their implementation/evidence. The [repository CI and routine merge contract](pull-request-integration.md) now defines CODEOWNERS, branch-rule and automation direction; settings and live protected-merge verification are explicit activation gates. **Axum, SQLx and initial WAL/pool/busy settings are already Approved (ADRs 0012–0014).** **Backend Rust and SQLite database engines are settled.**

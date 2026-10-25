@@ -47,6 +47,8 @@ def inventory():
     migrations = any('migrations' in p.parts and p.suffix == '.sql' for p in files)
     if migrations and not (ROOT / '.github/scripts/check-migrations.sh').is_file():
         raise ValueError('SQL migrations require a reviewed .github/scripts/check-migrations.sh replay gate')
+    if migrations and not rust:
+        raise ValueError('SQL migrations require a Rust workspace to execute their replay gate')
     result = dict(rust=bool(rust), web=bool(packages), rust_manifests=[str(p) for p in rust],
                   rust_toolchain=toolchain, migrations=migrations)
     print(json.dumps(result))

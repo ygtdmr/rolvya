@@ -76,3 +76,7 @@ Rules:
 - Read graphify-out/GRAPH_REPORT.md only for broad architecture review or when query/path/explain do not surface enough context.
 - After modifying code, run `graphify update .` to keep the graph current (AST-only, no API cost).
 - Keep `graphify-out/` ignored by Git; do not commit generated graphs, reports, caches, or visualizations.
+
+## Repository pull request integration
+
+Follow the [CI and routine integration contract](docs/development/pull-request-integration.md). Publish scoped `codex/` PRs with accurate test evidence and current project status; after activation, the trusted default-branch controller performs eligible routine squash merges. Workflow configuration, security/authentication/secrets, budget authority, infrastructure, architecture/ADRs and unfamiliar paths require separate human Owner review. Never self-approve, use a label as authorization, bypass protection or widen the routine policy from a PR to make it merge. Distinguish passing PR CI from verified operational auto-merge; the latter requires the documented live harmless-PR acceptance evidence.
