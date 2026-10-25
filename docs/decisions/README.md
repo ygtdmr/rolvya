@@ -95,6 +95,7 @@ See the [historical conversation audit](../project/historical-decision-audit.md)
 - [ADR 0044 — Encrypted SQLite for initial Rust Secret Broker credential storage](0044-encrypted-sqlite-secret-storage.md) — **Approved 2026-10-25**; the key is kept outside SQLite/backup; ADR 0045 settles automatic loading, while crypto implementation and recovery stay OQ-005/P0.
 - [ADR 0045 — Automatic unlock from a protected controller-host master-key file](0045-automatic-local-master-key-unlock.md) — **Approved 2026-10-25**; automatic normal restarts, missing-key fail-closed.
 - [ADR 0046 — Encrypted off-host recovery copy and independent recovery secret](0046-off-host-encrypted-master-key-recovery.md) — **Approved 2026-10-25**; emergency-only recovery, exact storage/cipher/procedures still open OQ-005.
+- [ADR 0047 — XChaCha20-Poly1305 secret encryption and guarded KEK/DEK bootstrap](0047-secret-broker-xchacha20-key-hierarchy.md) — **Approved 2026-10-25**; 256-bit OS-generated KEK, per-record wrapped DEKs, controlled first setup; record layout, kit KDF and implementation tests still OQ-005.
 - [ADR 0035 — Scoped containment of suspicious Owner actions](0035-scoped-human-incident-containment.md) — **Approved 2026-10-24**; protect compromised human credentials while preserving separately authorized safe worker execution.
 
 These are **Approved designs, not claims of implemented or production-verified software**. Detailed region/cost/adapter validation remains separate.
