@@ -125,6 +125,14 @@ These are approved requirements but remain unimplemented.
 
 **Approved design, no cipher or installation code implemented.**
 
+## Integrated UI Elements, motion and responsive design (ADR 0048)
+
+| ID | Requirement | Verification expectation |
+| --- | --- | --- |
+| PR-037 | Rolvya's five-section web UI **must be composed from a single coherent design system** with reusable UI Elements (tokens → primitives → Elements → orchestration patterns → screens), shared theme/status and task/project context, intentional accessible transitions and responsive layouts. Follow the [Connected Control design contract](connected-control-design-system.md) under [ADR 0048](../decisions/0048-owner-delegated-cohesive-ui-design.md), including dark/light/high contrast, reduced motion, modern CSS with tested fallbacks, external font/icon assets, strict one-app-JS/CSS packaging and measured rendering performance. Preserve original logo, security authority and budget confirmations. | Validate UI Elements gallery, five-screen consistency, responsive/mobile/RTL/400% zoom, keyboard/screen reader, reduced motion, native CSS progressive fallbacks, motion performance, React Flow accessibility, CSP/single JS artifact and actual measured performance. [AC-178–AC-184](acceptance-criteria.md) and UI-001–UI-015. |
+
+**Design direction approved under delegated Owner instruction; UI source, assets and browser tests have not been created or executed.**
+
 ## Non-functional constraints (targets; thresholds not yet approved)
 
 - Fast scheduling and state reads on constrained control hardware; minimize unnecessary polling and database scans.
