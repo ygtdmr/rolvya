@@ -12,6 +12,10 @@ rolvya-plan-validator.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 sha2.workspace = true
+hmac.workspace = true
+zeroize.workspace = true
+getrandom.workspace = true
+rustix.workspace = true
 sqlx.workspace = true
 
 [dev-dependencies]

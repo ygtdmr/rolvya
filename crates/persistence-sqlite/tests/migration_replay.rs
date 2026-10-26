@@ -45,7 +45,7 @@ async fn migrations_replay_reopen_and_consistent_snapshot_restore() {
             .fetch_one(&raw)
             .await
             .unwrap(),
-        5
+        6
     );
     assert_eq!(
         sqlx::query_scalar::<_, String>("SELECT sqlite_version()")
@@ -119,8 +119,8 @@ async fn failed_migration_rolls_back_ddl_and_data() {
     let f = Fixture::new().await;
     let raw = f.raw().await;
     let scripts = tempfile::tempdir().unwrap();
-    std::fs::write(scripts.path().join("0006_injected_failure.sql"),"CREATE TABLE should_rollback(value TEXT); INSERT INTO should_rollback VALUES ('temporary'); SELECT absent_column FROM absent_table;").unwrap();
-    // Replay real migrations, then verify failing v6 rolls back atomically.
+    std::fs::write(scripts.path().join("0007_injected_failure.sql"),"CREATE TABLE should_rollback(value TEXT); INSERT INTO should_rollback VALUES ('temporary'); SELECT absent_column FROM absent_table;").unwrap();
+    // Replay real migrations, then verify failing v7 executes and rolls back atomically.
     std::fs::write(
         scripts.path().join("0001_plan_store.sql"),
         include_str!("../migrations/0001_plan_store.sql"),
@@ -146,8 +146,17 @@ async fn failed_migration_rolls_back_ddl_and_data() {
         include_str!("../migrations/0005_synthetic_orchestration.sql"),
     )
     .unwrap();
+    std::fs::write(
+        scripts.path().join("0006_controller_key_bootstrap.sql"),
+        include_str!("../migrations/0006_controller_key_bootstrap.sql"),
+    )
+    .unwrap();
     let migrator = Migrator::new(scripts.path()).await.unwrap();
-    assert!(migrator.run(&raw).await.is_err());
+    let error = migrator.run(&raw).await.unwrap_err();
+    assert!(
+        matches!(error, sqlx::migrate::MigrateError::ExecuteMigration(_, 7)),
+        "must execute the injected next migration, not reject migration metadata"
+    );
     assert_eq!(
         sqlx::query_scalar::<_, i64>(
             "SELECT count(*) FROM sqlite_schema WHERE name='should_rollback'"
@@ -312,7 +321,7 @@ async fn real_v1_upgrade_preserves_projects_and_failed_v2_leaves_v1_intact() {
                 .fetch_one(&raw)
                 .await
                 .unwrap(),
-            5
+            6
         );
         assert_eq!(
             sqlx::query_scalar::<_, i64>("SELECT count(*) FROM financial_events")
