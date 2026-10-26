@@ -198,7 +198,7 @@ pub struct LedgerEvent {
     /// Versioned serialized request; includes evidence references, never proof tokens.
     pub request_json: String,
 }
-fn now() -> Result<i64, FinanceError> {
+pub(crate) fn now() -> Result<i64, FinanceError> {
     i64::try_from(
         SystemTime::now()
             .duration_since(UNIX_EPOCH)
@@ -265,7 +265,7 @@ async fn ceiling(
         .bind(project.as_str()).fetch_optional(c).await?;
     Ok(row.map(|r| (r.get(0), r.get(1))).unwrap_or((0, 0)))
 }
-async fn liability(
+pub(crate) async fn liability(
     c: &mut SqliteConnection,
     project: &ProjectId,
     id: &LiabilityId,
@@ -301,7 +301,7 @@ async fn liability(
     }))
 }
 const CURRENT: &str = "SELECT r.event_sequence FROM liability_revisions r WHERE r.project_id=? AND NOT EXISTS (SELECT 1 FROM liability_revisions newer WHERE newer.project_id=r.project_id AND newer.liability_id=r.liability_id AND newer.version>r.version)";
-async fn snapshot(
+pub(crate) async fn snapshot(
     c: &mut SqliteConnection,
     project: &ProjectId,
 ) -> Result<BudgetSnapshot, FinanceError> {
@@ -391,200 +391,204 @@ impl PlanStore {
     /// Commit an authorized financial operation. Identical deliveries return the
     /// original receipt only after current authorization is rechecked. Payload,
     /// actor, evidence and version changes under the same key are conflicts.
-    /// R06 must compose the hold logic in its own single admission transaction;
-    /// calling this API followed by a launch would NOT satisfy ADR 0031.
+    /// Atomic admission reuses the private transaction helper. Calling this
+    /// standalone API followed by a launch does NOT satisfy ADR 0031.
     pub async fn apply_financial(
         &self,
         request: &FinancialRequest,
         authorization: &dyn FinancialAuthorization,
     ) -> Result<FinancialReceipt, FinanceError> {
-        if request.reason.trim().is_empty()
-            || request.reason.len() > 512
-            || request.reason.chars().any(char::is_control)
-        {
-            return Err(FinanceError::InvalidInput);
-        }
-        let payload = serde_json::to_string(&serde_json::json!({"format":1,"request":request}))
-            .map_err(|_| FinanceError::InvalidInput)?;
-        if payload.len() > 16384 {
-            return Err(FinanceError::InvalidInput);
-        }
         let mut tx = self.pool.begin_with("BEGIN IMMEDIATE").await?;
-        let owner: String =
-            sqlx::query_scalar("SELECT owner_actor FROM projects WHERE project_id=?")
-                .bind(request.project.as_str())
-                .fetch_optional(&mut *tx)
-                .await?
-                .ok_or(StoreError::NotFound)?;
-        let owner = PrincipalId::new(owner)?;
-        let at = now()?;
-        if !authorization.permits(&owner, request, at)
-            || matches!(request.command, FinancialCommand::Approve { .. }) && owner != request.actor
-        {
-            return Err(StoreError::Forbidden.into());
-        }
-        if let Some(row) = sqlx::query(
-            "SELECT sequence,payload FROM financial_events WHERE project_id=? AND request_id=?",
-        )
+        let receipt = apply_in(&mut tx, request, authorization).await?;
+        tx.commit().await?;
+        Ok(receipt)
+    }
+}
+/// Compose existing financial rules inside a caller-owned BEGIN IMMEDIATE.
+/// Never commits; only trusted in-crate transaction coordinators may call this.
+pub(crate) async fn apply_in(
+    connection: &mut SqliteConnection,
+    request: &FinancialRequest,
+    authorization: &dyn FinancialAuthorization,
+) -> Result<FinancialReceipt, FinanceError> {
+    if request.reason.trim().is_empty()
+        || request.reason.len() > 512
+        || request.reason.chars().any(char::is_control)
+    {
+        return Err(FinanceError::InvalidInput);
+    }
+    let payload = serde_json::to_string(&serde_json::json!({"format":1,"request":request}))
+        .map_err(|_| FinanceError::InvalidInput)?;
+    if payload.len() > 16384 {
+        return Err(FinanceError::InvalidInput);
+    }
+    let owner: String = sqlx::query_scalar("SELECT owner_actor FROM projects WHERE project_id=?")
         .bind(request.project.as_str())
-        .bind(request.request_id.as_str())
-        .fetch_optional(&mut *tx)
+        .fetch_optional(&mut *connection)
         .await?
-        {
-            if row.get::<String, _>(1) != payload {
-                return Err(StoreError::IdempotencyConflict.into());
-            }
-            verify_application(&mut tx, row.get(0), request).await?;
-            let receipt = FinancialReceipt {
-                sequence: row.get(0),
-                request_id: request.request_id.clone(),
-            };
-            tx.commit().await?;
-            return Ok(receipt);
+        .ok_or(StoreError::NotFound)?;
+    let owner = PrincipalId::new(owner)?;
+    let at = now()?;
+    if !authorization.permits(&owner, request, at)
+        || matches!(request.command, FinancialCommand::Approve { .. }) && owner != request.actor
+    {
+        return Err(StoreError::Forbidden.into());
+    }
+    if let Some(row) = sqlx::query(
+        "SELECT sequence,payload FROM financial_events WHERE project_id=? AND request_id=?",
+    )
+    .bind(request.project.as_str())
+    .bind(request.request_id.as_str())
+    .fetch_optional(&mut *connection)
+    .await?
+    {
+        if row.get::<String, _>(1) != payload {
+            return Err(StoreError::IdempotencyConflict.into());
         }
-        let currency = match &request.command {
-            FinancialCommand::Approve { new_ceiling, .. } => {
-                let present: Option<String> = sqlx::query_scalar(
-                    "SELECT currency FROM financial_accounts WHERE project_id=?",
-                )
-                .bind(request.project.as_str())
-                .fetch_optional(&mut *tx)
-                .await?;
-                if let Some(value) = present {
-                    Currency::new(&value).map_err(|_| StoreError::Integrity)?
-                } else {
-                    require_one(
-                        sqlx::query(
-                            "INSERT INTO financial_accounts(project_id,currency) VALUES (?,?)",
-                        )
+        verify_application(&mut *connection, row.get(0), request).await?;
+        let receipt = FinancialReceipt {
+            sequence: row.get(0),
+            request_id: request.request_id.clone(),
+        };
+        return Ok(receipt);
+    }
+    let currency = match &request.command {
+        FinancialCommand::Approve { new_ceiling, .. } => {
+            let present: Option<String> =
+                sqlx::query_scalar("SELECT currency FROM financial_accounts WHERE project_id=?")
+                    .bind(request.project.as_str())
+                    .fetch_optional(&mut *connection)
+                    .await?;
+            if let Some(value) = present {
+                Currency::new(&value).map_err(|_| StoreError::Integrity)?
+            } else {
+                require_one(
+                    sqlx::query("INSERT INTO financial_accounts(project_id,currency) VALUES (?,?)")
                         .bind(request.project.as_str())
                         .bind(new_ceiling.currency().to_string())
-                        .execute(&mut *tx)
-                        .await?
-                        .rows_affected(),
-                    )?;
-                    new_ceiling.currency()
-                }
-            }
-            _ => account(&mut tx, &request.project).await?,
-        };
-        let billing_evidence = match &request.command {
-            FinancialCommand::Report { evidence, .. }
-            | FinancialCommand::Reconcile { evidence, .. } => Some(evidence.as_str()),
-            _ => None,
-        };
-        if let Some(evidence) = billing_evidence {
-            let used:bool=sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM financial_events WHERE project_id=? AND billing_evidence=?)").bind(request.project.as_str()).bind(evidence).fetch_one(&mut *tx).await?;
-            if used {
-                return Err(StoreError::IdempotencyConflict.into());
-            }
-        }
-        let next = prepare_position(&mut tx, request, currency).await?;
-        if let FinancialCommand::Approve {
-            expected_version,
-            new_ceiling,
-            proof,
-        } = &request.command
-        {
-            proof_current(proof, at)?;
-            if new_ceiling.currency() != currency {
-                return Err(FinanceError::CurrencyMismatch);
-            }
-            let (version, old) = ceiling(&mut tx, &request.project).await?;
-            if integer_version(*expected_version)? != version {
-                return Err(FinanceError::StaleVersion);
-            }
-            if version > 0 && new_ceiling.minor_units() <= old {
-                return Err(FinanceError::InvalidTransition);
-            }
-            let used: bool = sqlx::query_scalar(
-                "SELECT EXISTS(SELECT 1 FROM budget_approvals WHERE proof_id=?)",
-            )
-            .bind(proof.reference.as_str())
-            .fetch_one(&mut *tx)
-            .await?;
-            if used {
-                return Err(FinanceError::ProofConsumed);
-            }
-        }
-        let sequence:i64=sqlx::query_scalar("INSERT INTO financial_events(project_id,request_id,actor,recorded_at,kind,payload,billing_evidence) VALUES (?,?,?,?,?,?,?) RETURNING sequence")
-            .bind(request.project.as_str()).bind(request.request_id.as_str()).bind(request.actor.as_str()).bind(at).bind(request.command.kind()).bind(&payload).bind(billing_evidence).fetch_one(&mut *tx).await?;
-        if let FinancialCommand::Approve {
-            new_ceiling, proof, ..
-        } = &request.command
-        {
-            let (version, old) = ceiling(&mut tx, &request.project).await?;
-            let next_version = version.checked_add(1).ok_or(FinanceError::Arithmetic)?;
-            require_one(
-                sqlx::query("INSERT INTO budget_approvals VALUES (?,?,?,?,?,?,?)")
-                    .bind(sequence)
-                    .bind(request.project.as_str())
-                    .bind(next_version)
-                    .bind(old)
-                    .bind(new_ceiling.minor_units())
-                    .bind(proof.reference.as_str())
-                    .bind(proof.verified_at)
-                    .execute(&mut *tx)
-                    .await?
-                    .rows_affected(),
-            )?;
-        }
-        if let Some((id, balance)) = next {
-            require_one(
-                sqlx::query("INSERT INTO liability_revisions VALUES (?,?,?,?,?,?)")
-                    .bind(sequence)
-                    .bind(request.project.as_str())
-                    .bind(id.as_str())
-                    .bind(integer_version(balance.revision)?)
-                    .bind(balance.uncertain)
-                    .bind(balance.finalized)
-                    .execute(&mut *tx)
-                    .await?
-                    .rows_affected(),
-            )?;
-            let settled = amounts(balance.settled);
-            let held = amounts(balance.held);
-            let provisional = amounts(balance.provisional);
-            for (idx, category) in CATEGORIES.iter().enumerate() {
-                require_one(
-                    sqlx::query("INSERT INTO financial_positions VALUES (?,?,?,?,?)")
-                        .bind(sequence)
-                        .bind(category)
-                        .bind(settled[idx])
-                        .bind(held[idx])
-                        .bind(provisional[idx])
-                        .execute(&mut *tx)
+                        .execute(&mut *connection)
                         .await?
                         .rows_affected(),
                 )?;
-            }
-            // Verify the durable position, not just successful SQL completion.
-            if liability(&mut tx, &request.project, &id, currency)
-                .await?
-                .as_ref()
-                != Some(&balance)
-            {
-                return Err(StoreError::Integrity.into());
+                new_ceiling.currency()
             }
         }
-        verify_application(&mut tx, sequence, request).await?;
-        let commit_at = now()?;
-        if commit_at < at || !authorization.permits(&owner, request, commit_at) {
-            return Err(StoreError::Forbidden.into());
+        _ => account(&mut *connection, &request.project).await?,
+    };
+    let billing_evidence = match &request.command {
+        FinancialCommand::Report { evidence, .. }
+        | FinancialCommand::Reconcile { evidence, .. } => Some(evidence.as_str()),
+        _ => None,
+    };
+    if let Some(evidence) = billing_evidence {
+        let used:bool=sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM financial_events WHERE project_id=? AND billing_evidence=?)").bind(request.project.as_str()).bind(evidence).fetch_one(&mut *connection).await?;
+        if used {
+            return Err(StoreError::IdempotencyConflict.into());
         }
-        if let FinancialCommand::Approve { proof, .. } = &request.command {
-            proof_current(proof, commit_at)?;
-        }
-        tx.commit().await?;
-        Ok(FinancialReceipt {
-            sequence,
-            request_id: request.request_id.clone(),
-        })
     }
+    let next = prepare_position(&mut *connection, request, currency).await?;
+    if let FinancialCommand::Approve {
+        expected_version,
+        new_ceiling,
+        proof,
+    } = &request.command
+    {
+        proof_current(proof, at)?;
+        if new_ceiling.currency() != currency {
+            return Err(FinanceError::CurrencyMismatch);
+        }
+        let (version, old) = ceiling(&mut *connection, &request.project).await?;
+        if integer_version(*expected_version)? != version {
+            return Err(FinanceError::StaleVersion);
+        }
+        if version > 0 && new_ceiling.minor_units() <= old {
+            return Err(FinanceError::InvalidTransition);
+        }
+        let used: bool =
+            sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM budget_approvals WHERE proof_id=?)")
+                .bind(proof.reference.as_str())
+                .fetch_one(&mut *connection)
+                .await?;
+        if used {
+            return Err(FinanceError::ProofConsumed);
+        }
+    }
+    let sequence:i64=sqlx::query_scalar("INSERT INTO financial_events(project_id,request_id,actor,recorded_at,kind,payload,billing_evidence) VALUES (?,?,?,?,?,?,?) RETURNING sequence")
+            .bind(request.project.as_str()).bind(request.request_id.as_str()).bind(request.actor.as_str()).bind(at).bind(request.command.kind()).bind(&payload).bind(billing_evidence).fetch_one(&mut *connection).await?;
+    if let FinancialCommand::Approve {
+        new_ceiling, proof, ..
+    } = &request.command
+    {
+        let (version, old) = ceiling(&mut *connection, &request.project).await?;
+        let next_version = version.checked_add(1).ok_or(FinanceError::Arithmetic)?;
+        require_one(
+            sqlx::query("INSERT INTO budget_approvals VALUES (?,?,?,?,?,?,?)")
+                .bind(sequence)
+                .bind(request.project.as_str())
+                .bind(next_version)
+                .bind(old)
+                .bind(new_ceiling.minor_units())
+                .bind(proof.reference.as_str())
+                .bind(proof.verified_at)
+                .execute(&mut *connection)
+                .await?
+                .rows_affected(),
+        )?;
+    }
+    if let Some((id, balance)) = next {
+        require_one(
+            sqlx::query("INSERT INTO liability_revisions VALUES (?,?,?,?,?,?)")
+                .bind(sequence)
+                .bind(request.project.as_str())
+                .bind(id.as_str())
+                .bind(integer_version(balance.revision)?)
+                .bind(balance.uncertain)
+                .bind(balance.finalized)
+                .execute(&mut *connection)
+                .await?
+                .rows_affected(),
+        )?;
+        let settled = amounts(balance.settled);
+        let held = amounts(balance.held);
+        let provisional = amounts(balance.provisional);
+        for (idx, category) in CATEGORIES.iter().enumerate() {
+            require_one(
+                sqlx::query("INSERT INTO financial_positions VALUES (?,?,?,?,?)")
+                    .bind(sequence)
+                    .bind(category)
+                    .bind(settled[idx])
+                    .bind(held[idx])
+                    .bind(provisional[idx])
+                    .execute(&mut *connection)
+                    .await?
+                    .rows_affected(),
+            )?;
+        }
+        // Verify the durable position, not just successful SQL completion.
+        if liability(&mut *connection, &request.project, &id, currency)
+            .await?
+            .as_ref()
+            != Some(&balance)
+        {
+            return Err(StoreError::Integrity.into());
+        }
+    }
+    verify_application(&mut *connection, sequence, request).await?;
+    let commit_at = now()?;
+    if commit_at < at || !authorization.permits(&owner, request, commit_at) {
+        return Err(StoreError::Forbidden.into());
+    }
+    if let FinancialCommand::Approve { proof, .. } = &request.command {
+        proof_current(proof, commit_at)?;
+    }
+    Ok(FinancialReceipt {
+        sequence,
+        request_id: request.request_id.clone(),
+    })
 }
 /// Check the complete committed application on replay, including archived
 /// revisions. A matching event header by itself is never a success receipt.
-async fn verify_application(
+pub(crate) async fn verify_application(
     c: &mut SqliteConnection,
     sequence: i64,
     request: &FinancialRequest,

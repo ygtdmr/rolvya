@@ -45,7 +45,7 @@ async fn migrations_replay_reopen_and_consistent_snapshot_restore() {
             .fetch_one(&raw)
             .await
             .unwrap(),
-        2
+        3
     );
     assert_eq!(
         sqlx::query_scalar::<_, String>("SELECT sqlite_version()")
@@ -119,8 +119,8 @@ async fn failed_migration_rolls_back_ddl_and_data() {
     let f = Fixture::new().await;
     let raw = f.raw().await;
     let scripts = tempfile::tempdir().unwrap();
-    std::fs::write(scripts.path().join("0003_injected_failure.sql"),"CREATE TABLE should_rollback(value TEXT); INSERT INTO should_rollback VALUES ('temporary'); SELECT absent_column FROM absent_table;").unwrap();
-    // Replay real migrations, then verify failing v3 rolls back atomically.
+    std::fs::write(scripts.path().join("0004_injected_failure.sql"),"CREATE TABLE should_rollback(value TEXT); INSERT INTO should_rollback VALUES ('temporary'); SELECT absent_column FROM absent_table;").unwrap();
+    // Replay real migrations, then verify failing v4 rolls back atomically.
     std::fs::write(
         scripts.path().join("0001_plan_store.sql"),
         include_str!("../migrations/0001_plan_store.sql"),
@@ -129,6 +129,11 @@ async fn failed_migration_rolls_back_ddl_and_data() {
     std::fs::write(
         scripts.path().join("0002_financial_ledger.sql"),
         include_str!("../migrations/0002_financial_ledger.sql"),
+    )
+    .unwrap();
+    std::fs::write(
+        scripts.path().join("0003_scheduler_admission.sql"),
+        include_str!("../migrations/0003_scheduler_admission.sql"),
     )
     .unwrap();
     let migrator = Migrator::new(scripts.path()).await.unwrap();
@@ -297,7 +302,7 @@ async fn real_v1_upgrade_preserves_projects_and_failed_v2_leaves_v1_intact() {
                 .fetch_one(&raw)
                 .await
                 .unwrap(),
-            2
+            3
         );
         assert_eq!(
             sqlx::query_scalar::<_, i64>("SELECT count(*) FROM financial_events")
@@ -306,5 +311,126 @@ async fn real_v1_upgrade_preserves_projects_and_failed_v2_leaves_v1_intact() {
                 .unwrap(),
             0
         );
+    }
+}
+
+#[tokio::test]
+async fn v2_financial_data_survives_v3_and_failed_v3_rolls_back_before_repair() {
+    use rolvya_persistence_sqlite::finance::*;
+    use sqlx::sqlite::SqliteConnectOptions;
+    for failing in [false, true] {
+        let dir = tempfile::tempdir().unwrap();
+        let db = dir.path().join("v2.sqlite");
+        let mut file = std::fs::OpenOptions::new();
+        file.create_new(true).write(true);
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::OpenOptionsExt;
+            file.mode(0o600);
+        }
+        file.open(&db).unwrap();
+        let raw = sqlx::SqlitePool::connect_with(
+            SqliteConnectOptions::new().filename(&db).foreign_keys(true),
+        )
+        .await
+        .unwrap();
+        let scripts = tempfile::tempdir().unwrap();
+        for (name, sql) in [
+            (
+                "0001_plan_store.sql",
+                include_str!("../migrations/0001_plan_store.sql"),
+            ),
+            (
+                "0002_financial_ledger.sql",
+                include_str!("../migrations/0002_financial_ledger.sql"),
+            ),
+        ] {
+            std::fs::write(scripts.path().join(name), sql).unwrap();
+        }
+        Migrator::new(scripts.path())
+            .await
+            .unwrap()
+            .run(&raw)
+            .await
+            .unwrap();
+        sqlx::query("INSERT INTO projects(project_id,owner_actor) VALUES ('legacy','owner')")
+            .execute(&raw)
+            .await
+            .unwrap();
+        sqlx::query("INSERT INTO financial_accounts VALUES ('legacy','USD')")
+            .execute(&raw)
+            .await
+            .unwrap();
+        let event:i64=sqlx::query_scalar("INSERT INTO financial_events(project_id,request_id,actor,recorded_at,kind,payload) VALUES ('legacy','approval','owner',1,'approval','{}') RETURNING sequence").fetch_one(&raw).await.unwrap();
+        sqlx::query("INSERT INTO budget_approvals VALUES (?,'legacy',1,0,100,'legacy-proof',1)")
+            .bind(event)
+            .execute(&raw)
+            .await
+            .unwrap();
+        let event:i64=sqlx::query_scalar("INSERT INTO financial_events(project_id,request_id,actor,recorded_at,kind,payload) VALUES ('legacy','reserve','owner',1,'reserve','{}') RETURNING sequence").fetch_one(&raw).await.unwrap();
+        sqlx::query("INSERT INTO liability_revisions VALUES (?,'legacy','hold',1,0,0)")
+            .bind(event)
+            .execute(&raw)
+            .await
+            .unwrap();
+        for category in ["ai_api", "compute", "storage", "transfer"] {
+            sqlx::query("INSERT INTO financial_positions VALUES (?,?,0,10,0)")
+                .bind(event)
+                .bind(category)
+                .execute(&raw)
+                .await
+                .unwrap();
+        }
+        if failing {
+            std::fs::write(
+                scripts.path().join("0003_scheduler_admission.sql"),
+                format!(
+                    "{}\nSELECT missing FROM absent;",
+                    include_str!("../migrations/0003_scheduler_admission.sql")
+                ),
+            )
+            .unwrap();
+            assert!(
+                Migrator::new(scripts.path())
+                    .await
+                    .unwrap()
+                    .run(&raw)
+                    .await
+                    .is_err()
+            );
+            assert_eq!(
+                sqlx::query_scalar::<_, i64>(
+                    "SELECT count(*) FROM sqlite_schema WHERE name='task_attempts'"
+                )
+                .fetch_one(&raw)
+                .await
+                .unwrap(),
+                0
+            );
+            assert_eq!(
+                sqlx::query_scalar::<_, i64>("SELECT count(*) FROM _sqlx_migrations")
+                    .fetch_one(&raw)
+                    .await
+                    .unwrap(),
+                2
+            );
+        }
+        raw.close().await;
+        let store = PlanStore::open(&db).await.unwrap();
+        let project = rolvya_domain::ids::ProjectId::new("legacy").unwrap();
+        let balance = store.financial_snapshot(&project).await.unwrap();
+        assert_eq!(balance.ceiling.minor_units(), 100);
+        assert_eq!(balance.held.total().unwrap().minor_units(), 40);
+        assert_eq!(balance.headroom.minor_units(), 60);
+        assert_eq!(balance.version, 1);
+        assert_eq!(
+            store
+                .financial_liability(&project, &LiabilityId::new("hold").unwrap())
+                .await
+                .unwrap()
+                .revision,
+            1
+        );
+        store.check_integrity().await.unwrap();
     }
 }

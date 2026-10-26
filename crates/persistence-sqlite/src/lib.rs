@@ -103,11 +103,18 @@ macro_rules! identity {
                 &self.0
             }
         }
+        impl<'de> serde::Deserialize<'de> for $name {
+            fn deserialize<D: serde::Deserializer<'de>>(d: D) -> Result<Self, D::Error> {
+                let value = <String as serde::Deserialize>::deserialize(d)?;
+                Self::new(value).map_err(serde::de::Error::custom)
+            }
+        }
     };
 }
 identity!(PrincipalId);
 identity!(RequestId);
 
+pub mod admission;
 pub mod finance;
 
 #[derive(Debug, Clone, PartialEq, Eq)]

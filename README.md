@@ -5,7 +5,7 @@
 Open-source orchestration for AI coding agents, with dependency-aware task planning and parallel execution.
 
 > [!IMPORTANT]
-> **Project status: Rust foundation, durable plans and financial ledger.** Typed domain primitives, immutable-plan validation, SQLite activation and exact-budget accounting are implemented as libraries; see [foundation](docs/development/rust-core-foundation.md), [SQLite verification](docs/development/sqlite-plan-activation.md) and [financial ledger](docs/development/financial-ledger.md). Scheduler admission and dispatch are not implemented. The orchestration capabilities below remain **design goals**, not claims of a running product. There is no production-ready release or supported installation procedure yet.
+> **Project status: Rust core and atomic SQLite admission foundation.** Typed domain primitives, immutable-plan validation, SQLite activation and exact-budget accounting are implemented as libraries; see [foundation](docs/development/rust-core-foundation.md), [SQLite verification](docs/development/sqlite-plan-activation.md) and [financial ledger](docs/development/financial-ledger.md). [Atomic admission](docs/development/atomic-scheduler-admission.md), lease fencing, validated acceptance and committed dispatch intents are implemented as libraries with synthetic tests; worker execution and a live dispatcher remain unimplemented. The orchestration capabilities below remain **design goals**, not claims of a running product. There is no production-ready release or supported installation procedure yet.
 
 ## What is Rolvya?
 
