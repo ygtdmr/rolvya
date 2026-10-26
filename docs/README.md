@@ -117,6 +117,8 @@ The paths above are a **planned inventory**, not links to files that already exi
 
 ## Engineering and agent execution specifications
 
+- [R10 executable fault injection and resilience evidence](development/resilience-fault-injection.md)
+
 - [R09 synthetic DAG orchestration and independent artifact validation](development/synthetic-dag-orchestration.md)
 
 - [R08 durable synthetic dispatch, lease renewal and crash recovery](development/durable-worker-recovery.md)

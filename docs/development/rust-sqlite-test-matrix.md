@@ -78,6 +78,8 @@ These are **specified future tests, not executed evidence**. Cloud-provider stop
 
 ## Required fault-injection points
 
+[R10 executable evidence](resilience-fault-injection.md) and its [machine-readable inventory](../../crates/persistence-sqlite/tests/resilience/coverage.json) map the specified cases below to new versus existing tests and explicitly unverified production boundaries. The original matrix remains a requirements catalogue, not a blanket claim that every live-provider or security test has passed.
+
 For a future SQLite admission, inject crash or I/O error:
 1. Before transaction starts.
 2. After computing eligible prerequisites, before budget recheck.

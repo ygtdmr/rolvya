@@ -3,12 +3,20 @@
 Current authoritative decision cross-check: 2026-10-26 (see current ADRs; earlier sections are chronological historical checkpoints).
 
 ## Phase
-**R01–R09 Rust/SQLite foundation and end-to-end synthetic DAG orchestration.** Frozen plans execute through admission, durable dispatch, fake workers, independent artifact validation and verified group aggregation, including restart recovery. Production authentication/providers, real execution and deployment remain unimplemented.
+**R01–R10 Rust/SQLite foundation, synthetic DAG orchestration and resilience verification.** Frozen plans execute through admission, durable dispatch, fake workers, independent artifact validation and verified group aggregation. Test-only fault injection verifies crash recovery and conservative financial authority. Production authentication/providers, real execution and deployment remain unimplemented.
 
 ## Verified repository artifacts
 - `LICENSE` — MIT License text present on `main`.
 - Root `README.md` — introductory project description and explicitly pre-implementation status.
 - `AGENTS.md` and initial `docs/` foundation — repository guidance and planning documents, not implementation.
+
+## R10 fault injection and resilience verification (2026-10-26)
+
+[PR #19](https://github.com/ygtdmr/rolvya/pull/19) is confirmed merged at main `9d7ca7430e8a1143d3c72ef475da0ab42c97d3e3`, matching the verified R09 tree. Branch `codex/resilience-fault-injection` adds private test-only SQLx hooks, externally killed victims, an independent state oracle, safe page-capped storage failures, snapshot integrity/semantic checks and bounded adversarial sequences. No published migration, dependency, approved decision or architecture changes.
+
+**270 workspace Rust tests pass**, including **22 R10 tests** (21 behavioral plus one inventory consistency check). New evidence includes 20 actual SIGKILL boundaries, actual SQLite FULL/interruption, pinned-reader checkpoint contention, four seeds/192 operation prefixes, eight admission/charge races, eight heartbeat/fence races, delayed provider lookup, hidden native retry exposure, late duplicate cost reporting and preservation of accepted artifact bytes. A demonstrated ignored-delivery-write defect is fixed by rejecting a still-pending projection when its update affected no rows; racing committed projections and durable message replay remain supported. The [R10 guide](../development/resilience-fault-injection.md) and [fault inventory](../../crates/persistence-sqlite/tests/resilience/coverage.json) separate prior coverage, new evidence and production limits. Exact final-head CI evidence is recorded in the PR.
+
+Consistent SQLite restoration is tested, including exact worker receipts and independently reverified accepted artifacts. A stale restore needs an explicit operator pause and external reconciliation; automated restore activation, encrypted off-host recovery, real provider enforcement/billing/authentication and physical power-loss durability are not proven. Holds remain conservative and unknown exposure blocks unsafe work. No live providers, paid workers, issues, permission/protection changes, self-approval or merge. This sensitive PR remains for Owner review. **Next: R11 independent verification, release-gate evidence and core implementation handoff.** Historical milestone reports below describe their original scope.
 
 ## R09 synthetic DAG orchestration (2026-10-26)
 

@@ -653,3 +653,11 @@ async fn read_plan(
 
 #[cfg(test)]
 mod tests;
+
+// Private unit-test access allows connection-local SQLite fault injection without
+// adding production controls or weakening the public store boundary.
+#[cfg(test)]
+extern crate self as rolvya_persistence_sqlite;
+#[cfg(test)]
+#[path = "../tests/resilience/mod.rs"]
+mod resilience;
