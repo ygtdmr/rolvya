@@ -5,7 +5,7 @@
 Open-source orchestration for AI coding agents, with dependency-aware task planning and parallel execution.
 
 > [!IMPORTANT]
-> **Project status: Planning / pre-implementation.** Rolvya is at an early stage. The capabilities described below are **design goals**, not claims of working functionality. There is no production-ready release or supported installation procedure yet.
+> **Project status: Rust core foundation.** Typed domain primitives and a deterministic immutable-plan validator are implemented as libraries; see [implementation and verification](docs/development/rust-core-foundation.md). The orchestration capabilities below remain **design goals**, not claims of a running product. There is no production-ready release or supported installation procedure yet.
 
 ## What is Rolvya?
 
@@ -29,7 +29,7 @@ These are planned capabilities. Their interfaces and implementation details will
 - **Backend:** Rust only for Rolvya-owned services and backend logic ([ADR 0004](docs/decisions/0004-control-plane-language.md)).
 - **Authoritative database:** SQLite only, accessed through the Rust backend ([ADR 0005](docs/decisions/0005-authoritative-database.md)).
 
-Also **Approved**: worker-initiated HTTPS ([ADR 0006](docs/decisions/0006-worker-communication.md)), GitHub App authentication ([ADR 0008](docs/decisions/0008-github-authentication.md)) and extensible multi-provider remote workers ([ADR 0011](docs/decisions/0011-multi-provider-worker-infrastructure.md)). The **specific providers first shipped** ([ADR 0007](docs/decisions/0007-remote-worker-hosting.md)), Rust crates, HTTPS wire/auth settings, SQLite tuning and frontend stack remain under review. These architecture approvals are **not yet implemented functionality**.
+Also **Approved**: worker-initiated HTTPS ([ADR 0006](docs/decisions/0006-worker-communication.md)), GitHub App authentication ([ADR 0008](docs/decisions/0008-github-authentication.md)) and extensible multi-provider remote workers ([ADR 0011](docs/decisions/0011-multi-provider-worker-infrastructure.md)). The [approved first real worker is AWS Fargate](docs/decisions/0041-aws-fargate-first-real-worker.md); the Rust core libraries are now implemented. Worker HTTPS wire/auth and live integration remain future implementation work. These architecture approvals are **not yet implemented functionality**.
 
 ## Core concepts (planned)
 
