@@ -115,6 +115,7 @@ identity!(PrincipalId);
 identity!(RequestId);
 
 pub mod admission;
+pub mod controller_keys;
 pub mod finance;
 pub mod orchestration;
 pub mod worker_control;
@@ -177,7 +178,7 @@ pub struct PlanStore {
 fn version(key: &PlanKey) -> Result<i64, StoreError> {
     i64::try_from(key.version.get()).map_err(|_| StoreError::VersionOutOfRange)
 }
-fn create_private(path: &Path) -> Result<(), StoreError> {
+fn create_private(path: &Path) -> Result<Option<std::fs::File>, StoreError> {
     if let Ok(metadata) = std::fs::symlink_metadata(path) {
         if !metadata.is_file() || metadata.file_type().is_symlink() {
             return Err(StoreError::InvalidPath);
@@ -189,7 +190,7 @@ fn create_private(path: &Path) -> Result<(), StoreError> {
                 return Err(StoreError::InvalidPath);
             }
         }
-        return Ok(());
+        return Ok(None);
     }
     let mut options = OpenOptions::new();
     options.write(true).create_new(true);
@@ -200,7 +201,7 @@ fn create_private(path: &Path) -> Result<(), StoreError> {
     }
     options
         .open(path)
-        .map(|_| ())
+        .map(Some)
         .map_err(|_| StoreError::InvalidPath)
 }
 
@@ -254,10 +255,11 @@ async fn preflight_schema(path: &Path) -> Result<(), StoreError> {
 impl PlanStore {
     /// Local controller storage only. Existing unrecognized schemas are not adopted.
     pub async fn open(path: impl AsRef<Path>) -> Result<Self, StoreError> {
-        create_private(path.as_ref())?;
+        let newly_created = create_private(path.as_ref())?
+            .and_then(|file| controller_keys::new_database_guard(path.as_ref(), file));
         preflight_schema(path.as_ref()).await?;
         let options = SqliteConnectOptions::new()
-            .filename(path)
+            .filename(path.as_ref())
             .create_if_missing(false)
             .foreign_keys(true)
             .journal_mode(SqliteJournalMode::Wal)
@@ -290,6 +292,11 @@ impl PlanStore {
         if MIGRATOR.run(&store.pool).await.is_err() {
             store.pool.close().await;
             return Err(StoreError::Migration);
+        }
+        // Only the exclusive creator of this database can establish first-run eligibility.
+        // Upgrades, preexisting empty files and interrupted creation remain recovery-required.
+        if let Some(birth) = newly_created {
+            controller_keys::mark_new_database(&store, &birth).await?;
         }
         store.check_integrity().await?;
         Ok(store)

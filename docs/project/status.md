@@ -3,12 +3,20 @@
 Current authoritative decision cross-check: 2026-10-26 (see current ADRs; earlier sections are chronological historical checkpoints).
 
 ## Phase
-**R01–R11 synthetic Rust/SQLite core, independently reviewed and verified for Owner core review.** Frozen-plan execution, exact-budget authority, durable worker control, independent artifact/group acceptance and tested recovery are implemented as libraries. Production security, providers, application and operations remain incomplete. Next is Stage 2 P0 security integration, not deployment or paid execution.
+**R01–R11 synthetic Rust/SQLite core, independently reviewed and verified for Owner core review.** Frozen-plan execution, exact-budget authority, durable worker control, independent artifact/group acceptance and tested recovery are implemented as libraries. Production security, providers, application and operations remain incomplete. Stage 2 P0 security integration has begun with the S2-01 key-bootstrap library; deployment and paid execution remain unauthorized.
 
 ## Verified repository artifacts
 - `LICENSE` — MIT License text present on `main`.
 - Root `README.md` — introductory project description and explicitly pre-implementation status.
 - `AGENTS.md` and initial `docs/` foundation — repository guidance and planning documents, not implementation.
+
+## S2-01 guarded controller key initialization (2026-10-26)
+
+[PR #21](https://github.com/ygtdmr/rolvya/pull/21) is confirmed merged at main `c1227c15e6eb7f631a0bf08a3b53d63b1a01c2d9`, matching the verified R11 tree. Branch `codex/secure-first-run-bootstrap` adds an explicitly authorized Linux controller-host bootstrap and a separate existing-key loader. OS CSPRNG generates a 256-bit KEK into owner-only custody, outside SQLite and ordinary backups. Opaque zeroizing handles, versioned installation/HMAC binding, descriptor-based path checks, exclusive publication and immutable ready metadata fail closed on lost, corrupt, copied, insecure or interrupted state.
+
+Forward migration 0006 preserves migrations 0001–0005 and existing application data. Preexisting databases require controlled recovery; only the verified exclusive creator may record fresh eligibility. A reproduced pre-setup snapshot-copy defect is fixed by binding that eligibility to the original database file. Ready snapshots still load with the matching key. Actual subprocess tests cover twelve SIGKILL checkpoints and competing setup processes; focused negative tests cover permissions, symlinks/hardlinks, replacements, versions, authorization, entropy/storage failure, migration rollback and key absence from database backups. Fresh local verification passes **318 workspace Rust tests**, including **43 focused bootstrap unit tests** (one subprocess driver), one public integration test and two compile-fail tests; the migration suite has eight checks, Node has 203 and Python has 23. Exact commands and final-head CI evidence are recorded in the PR and the [implementation guide](../development/controller-key-bootstrap.md).
+
+The trusted local setup policy is **not human Owner authentication**. No production setup endpoint/CLI, full Secret Broker, live secret onboarding, rotation, emergency recovery, worker identity or provider integration is claimed. Existing synthetic admission/orchestration behavior is preserved. This is security-sensitive code for manual Owner review, without self-approval or merge. No live credentials, cloud resources or spending. **Next: S2-02 encrypted SQLite Secret Broker**, then the existing Stage 2 dependency sequence. Historical R11 and earlier reports below retain their original scope.
 
 ## R11 independent core verification and handoff (2026-10-26)
 
