@@ -45,7 +45,7 @@ async fn migrations_replay_reopen_and_consistent_snapshot_restore() {
             .fetch_one(&raw)
             .await
             .unwrap(),
-        3
+        4
     );
     assert_eq!(
         sqlx::query_scalar::<_, String>("SELECT sqlite_version()")
@@ -119,8 +119,8 @@ async fn failed_migration_rolls_back_ddl_and_data() {
     let f = Fixture::new().await;
     let raw = f.raw().await;
     let scripts = tempfile::tempdir().unwrap();
-    std::fs::write(scripts.path().join("0004_injected_failure.sql"),"CREATE TABLE should_rollback(value TEXT); INSERT INTO should_rollback VALUES ('temporary'); SELECT absent_column FROM absent_table;").unwrap();
-    // Replay real migrations, then verify failing v4 rolls back atomically.
+    std::fs::write(scripts.path().join("0005_injected_failure.sql"),"CREATE TABLE should_rollback(value TEXT); INSERT INTO should_rollback VALUES ('temporary'); SELECT absent_column FROM absent_table;").unwrap();
+    // Replay real migrations, then verify failing v5 rolls back atomically.
     std::fs::write(
         scripts.path().join("0001_plan_store.sql"),
         include_str!("../migrations/0001_plan_store.sql"),
@@ -134,6 +134,11 @@ async fn failed_migration_rolls_back_ddl_and_data() {
     std::fs::write(
         scripts.path().join("0003_scheduler_admission.sql"),
         include_str!("../migrations/0003_scheduler_admission.sql"),
+    )
+    .unwrap();
+    std::fs::write(
+        scripts.path().join("0004_durable_worker_control.sql"),
+        include_str!("../migrations/0004_durable_worker_control.sql"),
     )
     .unwrap();
     let migrator = Migrator::new(scripts.path()).await.unwrap();
@@ -302,7 +307,7 @@ async fn real_v1_upgrade_preserves_projects_and_failed_v2_leaves_v1_intact() {
                 .fetch_one(&raw)
                 .await
                 .unwrap(),
-            3
+            4
         );
         assert_eq!(
             sqlx::query_scalar::<_, i64>("SELECT count(*) FROM financial_events")
