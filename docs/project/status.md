@@ -3,12 +3,20 @@
 Current authoritative decision cross-check: 2026-10-26 (see current ADRs; earlier sections are chronological historical checkpoints).
 
 ## Phase
-**Rust foundation and durable plan storage (R01/R02 + R03/R05 plan-store boundary).** Domain, validation and SQLite plan activation are implemented and tested. No scheduler, financial admission, worker execution or production deployment is verified.
+**Rust foundation, durable plans and R04 financial ledger.** Domain/validation, SQLite activation and append-only financial accounting are implemented as tested libraries. R06 scheduler admission, attempts/leases/fencing, dispatch outbox, worker execution and production deployment remain unimplemented.
 
 ## Verified repository artifacts
 - `LICENSE` — MIT License text present on `main`.
 - Root `README.md` — introductory project description and explicitly pre-implementation status.
 - `AGENTS.md` and initial `docs/` foundation — repository guidance and planning documents, not implementation.
+
+## R04 financial ledger (2026-10-26)
+
+The existing SQLite crate now implements append-only ordered approvals, four-category liability revisions and billing history using exact integer money. `BEGIN IMMEDIATE` serializes conservative financial holds against the latest approved ceiling, settled/held/provisional exposure and unknown liabilities. There is no percentage overrun. Expected versions and stable request/billing-evidence identities prevent duplicate or stale effects. Ceiling changes require the stored Owner and a mandatory trusted exact-action authorization policy; proof references are five-minute bounded and consumed once. Strings/references alone are not human authentication.
+
+**106 workspace Rust tests pass**, including 33 financial integration tests, one proof-window unit test and one added migration-upgrade test; the existing replay gate separately repeats seven migration tests. Negative/concurrent/fault tests cover denied spending and release, revoked policy, currencies/project isolation, late/unknown/over-ceiling billing, checked overflow, consumed holds, immutable SQL history, ignored/aborted writes, 32 concurrent holds, abrupt subprocess exit before/after commit, bounded busy failure and snapshot restoration. [The financial implementation guide](../development/financial-ledger.md) records exact commands, authority boundaries and deferred acceptance cases.
+
+Based on verified main `07f8aefae1fe089d9359c7f65379220a7d633189`, the Owner-merged [PR #14](https://github.com/ygtdmr/rolvya/pull/14), on `codex/financial-ledger`. R04 is intentionally separate from R06 for reviewability. No production authentication or provider evidence verifier, refund/FX policy, multi-Owner notifications, live billing/cancellation, authenticated audit checkpoints or encrypted off-host backup is claimed. No paid provider operations, infrastructure, issues, approvals, merges or repository settings were created or changed. **Next: R06**, composing eligibility, these financial rules, attempt/lease/fence, audit and durable dispatch intent in one transaction before any external launch. A financial hold alone never authorizes execution.
 
 ## SQLite persistence and durable activation (2026-10-26)
 
