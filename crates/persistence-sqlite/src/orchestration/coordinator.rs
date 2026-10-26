@@ -449,7 +449,16 @@ impl SyntheticCoordinator {
                 Err(error) => ("rejected", Some(error.to_string())),
             };
             // Message journal is authority; projection update is replayable after a crash.
-            sqlx::query("UPDATE synthetic_worker_events SET delivery=?,rejection=? WHERE project_id=? AND attempt_id=? AND ordinal=? AND delivery='pending'").bind(delivery).bind(rejection).bind(k.project_id.as_str()).bind(lease.attempt_id.as_str()).bind(row.get::<i64,_>(1)).execute(&self.store.pool).await?;
+            let changed=sqlx::query("UPDATE synthetic_worker_events SET delivery=?,rejection=? WHERE project_id=? AND attempt_id=? AND ordinal=? AND delivery='pending'").bind(delivery).bind(rejection).bind(k.project_id.as_str()).bind(lease.attempt_id.as_str()).bind(row.get::<i64,_>(1)).execute(&self.store.pool).await?.rows_affected();
+            if changed == 0 {
+                // A racing coordinator may already have committed this projection.
+                // An ignored write that leaves it pending must not count as work.
+                let saved:String=sqlx::query_scalar("SELECT delivery FROM synthetic_worker_events WHERE project_id=? AND attempt_id=? AND ordinal=?")
+                    .bind(k.project_id.as_str()).bind(lease.attempt_id.as_str()).bind(row.get::<i64,_>(1)).fetch_one(&self.store.pool).await?;
+                if saved == "pending" {
+                    return Err(StoreError::Integrity.into());
+                }
+            }
             report.delivered += 1;
             if let Err(reason) = result {
                 report.blocked.push(TaskBlock {

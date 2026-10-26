@@ -35,7 +35,7 @@ This is a **proposed engineering work breakdown** for future AI coding agents de
 | R07 | R01, R03 | Fake worker and fake provider state contracts with deterministic clock | Proposed `worker-contracts` / test harness |
 | R08 | R06, R07 | Outbox replay/idempotency, duplicate result and stale lease handling in fake mode | [Implemented SQLite synthetic control](durable-worker-recovery.md) |
 | R09 | R02, R05, R08 | End-to-end synthetic dependency execution/validation with persisted artifacts | [Implemented bounded Rust coordinator](synthetic-dag-orchestration.md) |
-| R10 | R04, R06, R08 | Crash/locking/ledger/unknown-billing fault tests | Fault-injection test harness |
+| R10 | R04, R06, R08 | Crash/locking/ledger/unknown-billing fault tests | [Implemented private fault-injection harness](resilience-fault-injection.md) |
 | R11 | R09, R10 | Review evidence, benchmark report, documentation/status and next-stage gate | Review/handoff artifacts |
 
 **Important:** these are **engineering packages** for Rolvya's own implementation. Their names, lengths, and dependencies are not the runtime user's activated task graph. The main planner must fully validate and freeze actual implementation assignments before beginning a chosen run. A single package can be further decomposed by that planner **before** plan activation; workers cannot decompose it after.
@@ -137,6 +137,8 @@ The graph is an **illustrative future development sequence**, not a Rolvya runni
 **Goal:** intentionally simulate SQLite lock conflict, process kill after each transaction stage, low disk, delayed invoice, duplicate callback, fake worker loss and canceled/expired lease.
 
 **Accept:** no unauthorized paid admission, no duplicate effective Git/job action, no lost approvals/artifacts and clear `unknown` exposure on missing billing. Tests must not use live providers without separate spending authorization.
+
+**Implemented synthetic evidence:** [R10](resilience-fault-injection.md) adds 20 SIGKILL boundaries, real SQLite size-limit/interruption failures, consistent restore and artifact attacks, repeated races and 192 seeded operation prefixes. Git/provider/authentication/hardware guarantees remain outside this test evidence; the machine-readable inventory separates existing tests and unverified boundaries.
 
 ### R11 — Review and release handoff
 
