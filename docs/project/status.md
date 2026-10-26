@@ -3,12 +3,20 @@
 Current authoritative decision cross-check: 2026-10-26 (see current ADRs; earlier sections are chronological historical checkpoints).
 
 ## Phase
-**R01–R06 Rust/SQLite library foundation.** Immutable plans, financial accounting and atomic scheduler admission/lease fencing/audit/outbox intents are implemented and synthetically tested. Worker authentication/execution, a live dispatcher and production deployment remain unimplemented.
+**R01–R07 Rust/SQLite foundation and deterministic in-process worker simulation.** Immutable plans, budgets, atomic admission/fencing/outbox and versioned fake-worker lifecycle contracts are implemented and tested. Production worker authentication/execution, durable dispatcher/message replay, renewal and deployment remain unimplemented.
 
 ## Verified repository artifacts
 - `LICENSE` — MIT License text present on `main`.
 - Root `README.md` — introductory project description and explicitly pre-implementation status.
 - `AGENTS.md` and initial `docs/` foundation — repository guidance and planning documents, not implementation.
+
+## R07 deterministic fake worker contracts (2026-10-26)
+
+PR #16 is confirmed merged on main `52f11c8d983e0177888b860d7de764b2190e740f`, matching verified R06 tree `c87018a`. Branch `codex/fake-worker-contracts` adds provider-neutral versioned domain contracts and an executable, bounded in-process controller/fake-worker harness. Sessions bind consumed R06 dispatch permits, original plan/context hashes, exact task/attempt/worker/epoch and real reservations. Separate identity/capability verification is mandatory and unimplemented production authentication fails closed. Worker messages never approve spend, mutate a graph, publish Git or accept results independently.
+
+**175 workspace Rust tests pass**, including eight protocol tests and 32 simulation tests. Cases cover lifecycle, valid/invalid declarations, deterministic seeds/artifact hashes, duplicate/out-of-order messages, stale/expired leases, cancellation through R06 fencing, disconnect/failure, malformed and forbidden inputs, identity/context/scope attacks, unknown financial exposure and preservation of independently verified siblings. A 24-worker/144-event workload produces received results without automatically completing any task. [The implementation guide](../development/fake-worker-contracts.md) records limits, exact commands, the measured synthetic observation and partial T-013/019/020/021/025/026 coverage.
+
+R06 source/schema required no fix. The only dependency edge reuses pinned `sha2` for real synthetic artifact hashing; no package versions change. There is no public endpoint, real authentication/token issuance, Secret Broker access, paid model/provider call, infrastructure, new issue, merge or repository-permission change. Heartbeats are observations and do not renew the existing 90-second lease. Journals are memory-only and restart fails closed. **Next: R08 durable outbox/message replay, idempotent receipt/state persistence, lease renewal, stale-worker recovery and crash-safe reconciliation**, then R09. Sensitive PR remains for Owner manual review.
 
 ## R06 atomic admission and durable dispatch authority (2026-10-26)
 

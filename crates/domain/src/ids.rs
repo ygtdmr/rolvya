@@ -75,6 +75,9 @@ identifier!(ProjectId);
 identifier!(PlanId);
 identifier!(TaskId);
 identifier!(AttemptId);
+identifier!(WorkerId);
+identifier!(MessageId);
+identifier!(CapabilityRef);
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct InvalidPlanVersion;
