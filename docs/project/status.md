@@ -3,12 +3,20 @@
 Current authoritative decision cross-check: 2026-10-26 (see current ADRs; earlier sections are chronological historical checkpoints).
 
 ## Phase
-**Rust foundation, durable plans and R04 financial ledger.** Domain/validation, SQLite activation and append-only financial accounting are implemented as tested libraries. R06 scheduler admission, attempts/leases/fencing, dispatch outbox, worker execution and production deployment remain unimplemented.
+**R01–R06 Rust/SQLite library foundation.** Immutable plans, financial accounting and atomic scheduler admission/lease fencing/audit/outbox intents are implemented and synthetically tested. Worker authentication/execution, a live dispatcher and production deployment remain unimplemented.
 
 ## Verified repository artifacts
 - `LICENSE` — MIT License text present on `main`.
 - Root `README.md` — introductory project description and explicitly pre-implementation status.
 - `AGENTS.md` and initial `docs/` foundation — repository guidance and planning documents, not implementation.
+
+## R06 atomic admission and durable dispatch authority (2026-10-26)
+
+PR #15 is confirmed merged at main `7922f32278a84e3d711e45a41b550977964aaf77`, whose tree matches its verified PR head. Work on `codex/atomic-admission` adds `BEGIN IMMEDIATE` admission using the existing plan/ledger interfaces: current active immutable leaf/dependencies, scoped authorization/capability, budget and unknown exposure are rechecked; reservation, attempt, incremented fence, audit, runtime and outbox commit or roll back together. Validated acceptance is separate from raw task status; groups require accepted children plus group acceptance and never receive attempts. A one-time dispatch claim returns a permit only after commit. Stable external operation identity includes both project and attempt.
+
+**135 workspace Rust tests pass**, including 27 R06 integration tests and eight migration replay tests. Real API subprocess exits before/after commit prove no partial billable intent or one persistent receipt/outbox. A fake launch/lost acknowledgement is looked up without a second claim. Tests also cover separate scheduler pools racing for budget, duplicate admission, every admission write failing/being ignored, stale/cross-scope fencing, unknown exposure, incomplete/group dependencies, precommit expiry/revocation, retries requiring external and financial reconciliation, bounded contention and preserved completed work. [The R06 guide](../development/atomic-scheduler-admission.md) maps T-010–015, applicable T-018/025/026/028 and their integration limits.
+
+Mandatory trusted policies and synthetic capabilities are not real authentication or verified provider limits. No worker enrollment/token/heartbeat implementation, live provider lookup/cancellation, global capacity allocator, production deployment, cryptographic audit checkpoints or off-host backup is claimed. No dependencies, approved architecture, workflow permissions, merge policy, infrastructure, issues or paid provider operations change. **Next: R07 fake remote-worker contracts, then R08 dispatcher/message replay and lease renewal.** Sensitive PR remains for Owner manual review; no agent merge is authorized.
 
 ## R04 financial ledger (2026-10-26)
 

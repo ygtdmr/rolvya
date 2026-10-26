@@ -10,7 +10,7 @@ tags: [testing, ci, reliability, security]
 
 ## Status and quality gate
 
-**Rust core, plan persistence and financial-ledger library tests are implemented; full application/worker/browser tests remain future work.** A [repository CI and integration foundation](pull-request-integration.md) now provides documentation, secret scanning and merge-policy tests, with explicit activation contracts for future Rust/frontend checks. Its local tests and GitHub activation evidence are distinct from the future product tests below. Test requirements derive from [product acceptance criteria](../product/acceptance-criteria.md), [execution](../architecture/execution.md), [budget](../architecture/budget-costs.md) and [security](../architecture/security.md).
+**Rust core, plan persistence, financial-ledger and atomic admission library tests are implemented; full application/worker/browser tests remain future work.** A [repository CI and integration foundation](pull-request-integration.md) now provides documentation, secret scanning and merge-policy tests, with explicit activation contracts for future Rust/frontend checks. Its local tests and GitHub activation evidence are distinct from the future product tests below. Test requirements derive from [product acceptance criteria](../product/acceptance-criteria.md), [execution](../architecture/execution.md), [budget](../architecture/budget-costs.md) and [security](../architecture/security.md).
 
 The [initial Rust/SQLite verification matrix](rust-sqlite-test-matrix.md) catalogs detailed future fixtures, concurrency tests and fault-injection points; [engineering task packages](initial-implementation-task-packages.md) assign candidate ownership and dependencies. These are planning artifacts, **not tests that have already run**.
 
@@ -32,6 +32,10 @@ R03/R05 tests under `crates/persistence-sqlite` cover scoped/per-connection fore
 ## Executed R04 financial boundary
 
 The [financial ledger guide](financial-ledger.md) records 34 financial integration tests, one proof-window unit test and an additional v1/v2 migration test (107 workspace Rust tests; seven migration replay tests also run through the existing CI gate). These prove four-category exact accounting, serialized conservative holds, explicit versioned Owner approvals, one-use proof references, denied authority, idempotent/stale billing, uncertainty and late charges, no double counting, integer overflow rejection, rollback, abrupt-process recovery and local snapshot restore. R04 is separate from R06: no attempts, lease/fencing, dependency admission or dispatch outbox is implemented or claimed tested.
+
+## Executed R06 admission boundary
+
+[Atomic admission verification](atomic-scheduler-admission.md) adds 27 integration tests plus a v2/v3 migration test (135 workspace Rust tests; eight migration tests repeated by the existing replay gate). Tests use actual SQLite transactions, separate scheduler pools, scoped synthetic capability/validation policies, fake clocks and real subprocess exits through the actual API. They cover atomic attempt/reservation/fence/audit/outbox, no partial intent on failure, duplicate/stale claims, project isolation, accepted/group dependencies, preserved completed work and retry reconciliation. T-014/015 real-provider recovery and T-028 running-worker enforcement remain partial; no authenticated worker, network dispatcher or live provider result is implied.
 
 ## Test layers
 
