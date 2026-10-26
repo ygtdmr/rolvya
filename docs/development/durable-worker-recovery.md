@@ -2,6 +2,8 @@
 
 Status: **Implemented Rust/SQLite synthetic foundation; no live provider or authenticated service.** Based on main `5155acb73afc4b229eb84882840227445fc96e67`, confirmed merged [PR #17](https://github.com/ygtdmr/rolvya/pull/17), with R01–R07 present. Branch: `codex/durable-worker-recovery`.
 
+[R09 synthetic orchestration](synthetic-dag-orchestration.md) now drives these interfaces end to end and persists/verifies artifact evidence. The R08 scope and historical limitations below describe the original slice.
+
 This extends [R06 admission](atomic-scheduler-admission.md), the [R07 protocol/fake worker](fake-worker-contracts.md), [ADR 0031](../decisions/0031-atomic-task-budget-admission.md), [bounded spending ADR 0010](../decisions/0010-inflight-budget.md), [retry defaults](../project/implementation-defaults-and-release-gates.md) and [worker timing policy](../architecture/worker-authentication-policy.md). Approved architecture, frozen DAGs, financial ledger, dependencies and provider rollout are preserved. R09 orchestration is separate.
 
 ## Executable interfaces

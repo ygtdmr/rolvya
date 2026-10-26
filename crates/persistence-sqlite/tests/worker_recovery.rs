@@ -1699,6 +1699,29 @@ async fn v3_upgrade_backfills_leases_preserves_claims_and_failed_v4_is_atomic() 
         )
         .await
         .unwrap();
+        for table in [
+            "synthetic_worker_events",
+            "synthetic_artifacts",
+            "synthetic_jobs",
+            "synthetic_validations",
+        ] {
+            sqlx::query(&format!("DROP TABLE {table}"))
+                .execute(&raw)
+                .await
+                .unwrap();
+        }
+        sqlx::query("DROP INDEX orchestration_runtime_state")
+            .execute(&raw)
+            .await
+            .unwrap();
+        sqlx::query("DROP INDEX orchestration_task_kind")
+            .execute(&raw)
+            .await
+            .unwrap();
+        sqlx::query("DELETE FROM _sqlx_migrations WHERE version=5")
+            .execute(&raw)
+            .await
+            .unwrap();
         sqlx::query("DROP TRIGGER initialize_worker_lease")
             .execute(&raw)
             .await

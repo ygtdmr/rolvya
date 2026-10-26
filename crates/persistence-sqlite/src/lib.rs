@@ -116,6 +116,7 @@ identity!(RequestId);
 
 pub mod admission;
 pub mod finance;
+pub mod orchestration;
 pub mod worker_control;
 pub mod worker_simulation;
 

@@ -34,9 +34,12 @@ impl Clock for DeterministicClock {
         Ok(self.0.load(Ordering::SeqCst))
     }
 }
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum FakeBehavior {
     Success,
+    InvalidArtifact,
+    ForgedArtifactDigest,
+    MissingInputs,
     ControlledFailure,
     TransientFailure,
     PermanentFailure,
@@ -105,6 +108,7 @@ pub struct FakeWorker {
     binding: WorkerBinding,
     capabilities: DeclaredCapabilities,
     seed: u64,
+    inputs: Vec<SyntheticInput>,
 }
 impl FakeWorker {
     pub fn new(
@@ -118,7 +122,20 @@ impl FakeWorker {
             binding,
             capabilities,
             seed,
+            inputs: Vec::new(),
         })
+    }
+    /// Untrusted upstream references for synthetic integration output, not grants.
+    pub fn with_inputs(mut self, inputs: Vec<SyntheticInput>) -> Result<Self, WorkerError> {
+        if inputs.len() > 64 || inputs.iter().any(|i| i.task.plan != self.binding.task.plan) {
+            return Err(WorkerError::ResourceLimit);
+        }
+        let unique: std::collections::BTreeSet<_> = inputs.iter().map(|i| &i.task).collect();
+        if unique.len() != inputs.len() {
+            return Err(WorkerError::ScopeMismatch);
+        }
+        self.inputs = inputs;
+        Ok(self)
     }
     fn id(&self, sequence: u64) -> Result<MessageId, WorkerError> {
         MessageId::new(format!("m-{:x}-{sequence}", self.seed))
@@ -149,14 +166,32 @@ impl FakeWorker {
                     .map_err(|_| ProtocolError::InvalidCapabilities)?,
             )
         }
-        let bytes=serde_json::to_vec(&serde_json::json!({"format":"rolvya-synthetic-artifact-v1","binding":self.binding,"seed":self.seed})).map_err(|_|ProtocolError::Malformed)?;
+        let mut content = serde_json::json!({"format":"rolvya-synthetic-artifact-v1","binding":self.binding,"seed":self.seed});
+        if !self.inputs.is_empty() {
+            content["inputs"] =
+                serde_json::to_value(&self.inputs).map_err(|_| ProtocolError::Malformed)?;
+            let encoded = serde_json::to_vec(&self.inputs).map_err(|_| ProtocolError::Malformed)?;
+            content["input_digest"] = serde_json::json!(format!("{:x}", Sha256::digest(encoded)));
+        }
+        if behavior == FakeBehavior::InvalidArtifact {
+            content["seed"] = serde_json::json!(self.seed.wrapping_add(1));
+        }
+        if behavior == FakeBehavior::MissingInputs
+            && let Some(object) = content.as_object_mut()
+        {
+            object.remove("inputs");
+        }
+        let bytes = serde_json::to_vec(&content).map_err(|_| ProtocolError::Malformed)?;
         if bytes.len() > MAX_MESSAGE_BYTES {
             return Err(WorkerError::ResourceLimit);
         }
-        let artifact = SyntheticArtifact {
+        let mut artifact = SyntheticArtifact {
             sha256: Digest::new(format!("{:x}", Sha256::digest(&bytes)))?,
             bytes,
         };
+        if behavior == FakeBehavior::ForgedArtifactDigest {
+            artifact.sha256 = Digest::new("f".repeat(64))?;
+        }
         let failure = match behavior {
             FakeBehavior::ControlledFailure => Some(FailureClass::Controlled),
             FakeBehavior::TransientFailure => Some(FailureClass::Transient),
@@ -366,4 +401,11 @@ impl EventQueue {
         }
         Ok(observed)
     }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct SyntheticInput {
+    pub task: rolvya_domain::plan::TaskRef,
+    pub manifest_sha256: Digest,
 }
