@@ -3,12 +3,20 @@
 Current authoritative decision cross-check: 2026-10-26 (see current ADRs; earlier sections are chronological historical checkpoints).
 
 ## Phase
-**Rust core foundation (R01/R02).** Domain and pure plan-validation libraries are implemented and tested. No orchestration service, persistence, worker execution or production deployment is verified.
+**Rust foundation and durable plan storage (R01/R02 + R03/R05 plan-store boundary).** Domain, validation and SQLite plan activation are implemented and tested. No scheduler, financial admission, worker execution or production deployment is verified.
 
 ## Verified repository artifacts
 - `LICENSE` — MIT License text present on `main`.
 - Root `README.md` — introductory project description and explicitly pre-implementation status.
 - `AGENTS.md` and initial `docs/` foundation — repository guidance and planning documents, not implementation.
+
+## SQLite persistence and durable activation (2026-10-26)
+
+`rolvya-persistence-sqlite` adds SQLx/SQLite plan snapshots, expected-revision draft writes, scoped task/dependency foreign keys, current Owner-policy checks and transactional activation. WAL, FULL synchronization, at most four pooled connections and the approved 5,000 ms busy timeout are verified on every pooled connection. Active static content and activation receipts are protected against ordinary SQL mutation/replacement; runtime identity/state is separated. Activation commits its active state, complete initial runtime and idempotent audit receipt together. Schema recognition is read-only before settings change; version/checksum mismatches fail without reset. A SQLite-supported local snapshot is reopened and verified independently.
+
+**71 workspace Rust tests pass, including 25 new persistence tests**, including concurrent activation/duplicate delivery/stale drafts, incomplete-receipt rejection, raw SQL guards, cross-scope FKs, statement failure rollback, real subprocess exit before/after commit, bounded busy-writer behavior, migration failure/replay/checksum rejection and snapshot restore. [The implementation guide](../development/sqlite-plan-activation.md) defines exact commands, trust boundaries and partial acceptance coverage. The R03 financial/attempt tables and their uniqueness tests remain with R04/R06; no financial authority is claimed by this plan-store milestone. The mandatory migration replay script integrates into existing Rust CI without changing workflow permissions, branch protections or merge eligibility.
+
+Work is based on verified main `d6eb95dc2e4923f543f698b2c676b0e195d22e4e` (merged [PR #13](https://github.com/ygtdmr/rolvya/pull/13)) on `codex/sqlite-plan-activation`, pending a focused Owner-reviewed PR. Authorization uses an explicit trusted-caller policy; actual authentication/fresh human proof is not implemented. Snapshots are local and unencrypted; scheduled encrypted off-host backup, real power-loss/disk-full behavior and production rollout remain unverified. No production DB, external integration, paid worker/API or cloud infrastructure was touched. **Next: R04/R06 financial ledger and atomic budget/attempt/outbox admission.**
 
 ## Rust domain and immutable-plan validation (2026-10-26)
 

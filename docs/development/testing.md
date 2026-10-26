@@ -25,6 +25,10 @@ The [conversation coverage audit](../project/two-conversation-coverage-audit.md)
 
 R01/R02 now have executable tests under `crates/domain/tests` and `crates/plan-validator/tests`, plus typed-ID unit/compile-fail tests. [The implementation guide](rust-core-foundation.md) lists commands, deterministic fixtures, limits and the v1 fingerprint contract. T-001–004, PA-01–02 and structural PA-07 are covered here; T-005/PA-05 remain partial until persisted attempts and activation exist. Later transaction, worker, browser and cloud cases below remain specified future checks.
 
+## Executed SQLite plan-store boundary
+
+R03/R05 tests under `crates/persistence-sqlite` cover scoped/per-connection foreign keys, immutable active structure, concurrent/idempotent activation, stale revision rejection, SQL rollback, process-exit recovery, local snapshot restore and migration replay/checksums. [The storage guide](sqlite-plan-activation.md) maps the applicable T/PA cases and distinguishes them from deferred financial admission, attempts/fencing, remote backups and production failure testing. The CI migration replay script executes real disposable-database tests.
+
 ## Test layers
 
 | Layer | Focus | Examples |
