@@ -3,12 +3,20 @@
 Current authoritative decision cross-check: 2026-10-26 (see current ADRs; earlier sections are chronological historical checkpoints).
 
 ## Phase
-**R01–R08 Rust/SQLite foundation with durable synthetic worker control.** Immutable plans, budgets, atomic admission, versioned worker contracts, dispatch replay, durable receipts, lease renewal and crash recovery are implemented as tested libraries. Production authentication/providers, complete DAG orchestration and deployment remain unimplemented.
+**R01–R09 Rust/SQLite foundation and end-to-end synthetic DAG orchestration.** Frozen plans execute through admission, durable dispatch, fake workers, independent artifact validation and verified group aggregation, including restart recovery. Production authentication/providers, real execution and deployment remain unimplemented.
 
 ## Verified repository artifacts
 - `LICENSE` — MIT License text present on `main`.
 - Root `README.md` — introductory project description and explicitly pre-implementation status.
 - `AGENTS.md` and initial `docs/` foundation — repository guidance and planning documents, not implementation.
+
+## R09 synthetic DAG orchestration (2026-10-26)
+
+[PR #18](https://github.com/ygtdmr/rolvya/pull/18) is confirmed merged at main `1004a4cc1aa8161cd55cb95df3bfbaae471a341c`, matching the verified R08 tree. Branch `codex/synthetic-dag-orchestration` adds bounded Rust coordination over the existing R06–R08 interfaces, immutable synthetic job/event/artifact/evaluation records, independent hash/input/scope validation, bottom-up group acceptance and redacted state views. The real fixture activates G with independent A/B and an explicit G → C edge, admits A/B simultaneously, verifies actual durable bytes, accepts G separately, then executes/validates C. There are three attempts/effective operations and four acceptance records; plan identity, nodes and edges remain unchanged.
+
+**248 workspace Rust tests**, including **34 R09 tests**, pass locally. They include actual subprocess exits at five orchestration boundaries (including C's effective launch before local acknowledgement), restart/replay/concurrent callbacks, invalid artifacts/input commitments, forged hashes/context/identity, missing group evidence/criteria, nested groups, declared expectation mismatch, insufficient/unknown budget, revoked admission, expiry, separately reconciled transient retry, the three-attempt cap, migration upgrade/failure and atomic evidence storage. A measured 18-task/17-worker workload keeps 16 leaves active together and processes 102 messages. [The implementation guide](../development/synthetic-dag-orchestration.md) records commands, actual measurements, coverage and limits; final-head local/GitHub CI evidence is recorded in the PR.
+
+Reservations remain held until separate valid financial reconciliation; task completion never invents real billing finality. Unknown financial exposure blocks the run while preserving accepted artifacts. No production authentication/HTTPS gateway, provider attestation/enforcement/cancellation, real Git/model/CLI execution, frontend, infrastructure, issue creation, permissions/protection changes or approved ADR changes. Zero live providers or paid workers. This sensitive PR remains for Owner review, without self-approval or merge. **Next: R10 comprehensive fault injection and resilience evidence.** Historical milestone reports below describe their original scope.
 
 ## R08 durable dispatch, message replay and recovery (2026-10-26)
 

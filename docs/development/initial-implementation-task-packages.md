@@ -34,7 +34,7 @@ This is a **proposed engineering work breakdown** for future AI coding agents de
 | R06 | R03, R04, R05 | Atomic task admission, fencing epoch, reservation and outbox in one SQLite transaction | Proposed scheduler admission module |
 | R07 | R01, R03 | Fake worker and fake provider state contracts with deterministic clock | Proposed `worker-contracts` / test harness |
 | R08 | R06, R07 | Outbox replay/idempotency, duplicate result and stale lease handling in fake mode | [Implemented SQLite synthetic control](durable-worker-recovery.md) |
-| R09 | R02, R05, R08 | End-to-end synthetic dependency execution/validation with persisted artifacts | Integration test harness |
+| R09 | R02, R05, R08 | End-to-end synthetic dependency execution/validation with persisted artifacts | [Implemented bounded Rust coordinator](synthetic-dag-orchestration.md) |
 | R10 | R04, R06, R08 | Crash/locking/ledger/unknown-billing fault tests | Fault-injection test harness |
 | R11 | R09, R10 | Review evidence, benchmark report, documentation/status and next-stage gate | Review/handoff artifacts |
 
