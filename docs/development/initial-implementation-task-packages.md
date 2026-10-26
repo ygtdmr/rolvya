@@ -36,7 +36,7 @@ This is a **proposed engineering work breakdown** for future AI coding agents de
 | R08 | R06, R07 | Outbox replay/idempotency, duplicate result and stale lease handling in fake mode | [Implemented SQLite synthetic control](durable-worker-recovery.md) |
 | R09 | R02, R05, R08 | End-to-end synthetic dependency execution/validation with persisted artifacts | [Implemented bounded Rust coordinator](synthetic-dag-orchestration.md) |
 | R10 | R04, R06, R08 | Crash/locking/ledger/unknown-billing fault tests | [Implemented private fault-injection harness](resilience-fault-injection.md) |
-| R11 | R09, R10 | Review evidence, benchmark report, documentation/status and next-stage gate | Review/handoff artifacts |
+| R11 | R09, R10 | Review evidence, benchmark report, documentation/status and next-stage gate | [Independent verification and Stage 2 handoff](core-verification-handoff.md) |
 
 **Important:** these are **engineering packages** for Rolvya's own implementation. Their names, lengths, and dependencies are not the runtime user's activated task graph. The main planner must fully validate and freeze actual implementation assignments before beginning a chosen run. A single package can be further decomposed by that planner **before** plan activation; workers cannot decompose it after.
 
@@ -145,6 +145,8 @@ The graph is an **illustrative future development sequence**, not a Rolvya runni
 **Goal:** collect real commit refs, exact commands, test results, simulated vs measured costs, redacted logs and unresolved decisions, then update affected docs.
 
 **Accept:** independent review, no claims of shipped/live product from a fake-only demo; describe not-run tests explicitly; preserve open transport, cloud and GitHub auth ADR status.
+
+**Implemented evidence:** [R11](core-verification-handoff.md) records fresh-context agent review, reproduced uncertainty/CI corrections, checked R01–R10 traceability and synthetic-core Owner-review recommendation. Production security/external gates remain incomplete; approved HTTPS, Fargate and GitHub App selections are not reopened. Stage 2 begins with guarded key/bootstrap security, not paid deployment.
 
 ## Agent handoff template for every package
 

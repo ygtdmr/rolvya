@@ -6,6 +6,8 @@ use rolvya_persistence_sqlite::{
 };
 use rolvya_plan_validator::{AssignmentDenial, AssignmentPolicy, Limits};
 use std::collections::BTreeMap;
+#[path = "common/observation_regressions.rs"]
+mod observation_regressions;
 const T: i64 = 1_800_000_000;
 fn money(n: i64) -> Money {
     Money::new(n, Currency::new("USD").unwrap()).unwrap()
@@ -162,6 +164,9 @@ async fn admitted() -> (Fixture, DeterministicClock, LeaseRef) {
 }
 async fn admitted_until(deadline: i64) -> (Fixture, DeterministicClock, LeaseRef) {
     let f = base(false).await;
+    admitted_in(f, deadline).await
+}
+async fn admitted_in(f: Fixture, deadline: i64) -> (Fixture, DeterministicClock, LeaseRef) {
     let clock = DeterministicClock::new(T).unwrap();
     let receipt = f
         .store
@@ -197,7 +202,9 @@ async fn setup() -> Setup {
     setup_until(T + 3600).await
 }
 async fn setup_until(deadline: i64) -> Setup {
-    let (f, clock, lease) = admitted_until(deadline).await;
+    setup_admitted(admitted_until(deadline).await).await
+}
+async fn setup_admitted((f, clock, lease): (Fixture, DeterministicClock, LeaseRef)) -> Setup {
     let dispatcher = OutboxDispatcher::new(f.store.clone());
     let provider = SyntheticProvider::new(f.store.clone());
     let ticket = dispatcher

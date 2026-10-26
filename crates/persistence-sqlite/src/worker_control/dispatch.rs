@@ -221,7 +221,7 @@ impl OutboxDispatcher {
         {
             return Err(WorkerError::ReplayConflict);
         }
-        if observation.state != ProviderState::Absent {
+        if observation.state != ProviderState::Absent || observation.unknown_exposure {
             return self
                 .record_observation(l, &observation, policy, clock, limits)
                 .await;
@@ -317,6 +317,7 @@ impl OutboxDispatcher {
             return Err(WorkerError::ReplayConflict);
         }
         if o.state == ProviderState::Absent
+            && !o.unknown_exposure
             && state == DispatchState::Launching
             && current(&mut tx, &cmd, policy, t).await.is_ok()
         {

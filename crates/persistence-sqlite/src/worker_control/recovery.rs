@@ -1,5 +1,4 @@
 use super::*;
-use rolvya_domain::money::{CostBreakdown, Money};
 struct RiskOnly;
 impl FinancialAuthorization for RiskOnly {
     fn permits(&self, _: &PrincipalId, r: &FinancialRequest, _: i64) -> bool {
@@ -30,7 +29,6 @@ pub(super) async fn mark_unknown(
     if balance.uncertain {
         return Ok(());
     }
-    let zero = Money::new(0, budget.ceiling.currency()).map_err(|_| StoreError::Integrity)?;
     let request = FinancialRequest {
         project: p.clone(),
         request_id: RequestId::new(format!("risk-{}", &hash(&json(o)?)[..48]))?,
@@ -39,12 +37,9 @@ pub(super) async fn mark_unknown(
         command: FinancialCommand::Report {
             liability,
             expected_revision: balance.revision,
-            unreserved: CostBreakdown {
-                ai_api: zero,
-                compute: zero,
-                storage: zero,
-                transfer: zero,
-            },
+            // Report is cumulative: adding uncertainty must retain every known
+            // provisional category, never attempt an implicit cost reduction.
+            unreserved: balance.provisional,
             uncertain: true,
             evidence: o.evidence.clone(),
         },

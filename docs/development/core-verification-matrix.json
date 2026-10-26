@@ -1,0 +1,235 @@
+{
+  "schema_version": 1,
+  "review_base_sha": "624ed0df7a71364d88017c85fcae32ebb30581f8",
+  "scope": "synthetic_core_only",
+  "verification_rule": "References are checked in repository tests; executed results and exact final-head GitHub CI are recorded in the handoff PR. Agent review is not human authorization.",
+  "milestones": [
+    {
+      "id": "R01",
+      "status": "implemented_verified",
+      "behavior": "Typed identities, exact integer money and immutable/static versus runtime contracts",
+      "sources": [
+        "crates/domain/src/ids.rs#ProjectId",
+        "crates/domain/src/money.rs#checked_add"
+      ],
+      "adrs": [
+        "0004",
+        "0002"
+      ],
+      "tests": [
+        "crates/domain/tests/money.rs#category_identity_is_preserved_and_totals_are_checked",
+        "crates/domain/tests/money.rs#currency_mismatch_never_silently_combines_values"
+      ],
+      "schema": 0,
+      "boundary": "No currency conversion, secret authority or authenticated public API."
+    },
+    {
+      "id": "R02",
+      "status": "implemented_verified",
+      "behavior": "Bounded DAG/hierarchy validation and canonical SHA-256 plan fingerprint",
+      "sources": [
+        "crates/plan-validator/src/lib.rs#validate",
+        "crates/plan-validator/src/lib.rs#fingerprint"
+      ],
+      "adrs": [
+        "0001",
+        "0009"
+      ],
+      "tests": [
+        "crates/plan-validator/tests/fingerprint.rs#canonical_format_v1_golden_vector",
+        "crates/plan-validator/tests/validation.rs#exact_cycle_members_exclude_merely_blocked_successors"
+      ],
+      "schema": 0,
+      "boundary": "Explicit dependencies remain separate from hierarchy; hashes do not authenticate callers."
+    },
+    {
+      "id": "R03",
+      "status": "implemented_verified",
+      "behavior": "Private SQLite store, scoped FKs, checked migrations and durability configuration",
+      "sources": [
+        "crates/persistence-sqlite/src/lib.rs#open",
+        "crates/persistence-sqlite/src/lib.rs#check_integrity"
+      ],
+      "adrs": [
+        "0005",
+        "0013",
+        "0014"
+      ],
+      "tests": [
+        "crates/persistence-sqlite/tests/migration_replay.rs#checksum_mismatch_and_unknown_migration_versions_fail_without_resetting_data",
+        "crates/persistence-sqlite/tests/migration_replay.rs#failed_migration_rolls_back_ddl_and_data"
+      ],
+      "schema": 1,
+      "boundary": "Trusted OS/schema custody; process crashes do not establish physical power-loss safety."
+    },
+    {
+      "id": "R04",
+      "status": "implemented_verified",
+      "behavior": "Append-only four-category ledger, approvals, reservations and reconciliation",
+      "sources": [
+        "crates/persistence-sqlite/src/finance.rs#apply_financial",
+        "crates/persistence-sqlite/src/finance.rs#financial_snapshot"
+      ],
+      "adrs": [
+        "0002",
+        "0010",
+        "0034"
+      ],
+      "tests": [
+        "crates/persistence-sqlite/tests/finance.rs#worker_cannot_approve_even_when_caller_policy_is_permissive",
+        "crates/persistence-sqlite/tests/finance.rs#concurrent_invoices_are_revision_fenced_and_duplicate_delivery_is_idempotent"
+      ],
+      "schema": 2,
+      "boundary": "Human/session proof verification and external billing truth remain mandatory caller integrations."
+    },
+    {
+      "id": "R05",
+      "status": "implemented_verified",
+      "behavior": "CAS draft persistence, atomic activation and immutable activated-plan storage",
+      "sources": [
+        "crates/persistence-sqlite/src/lib.rs#save_draft",
+        "crates/persistence-sqlite/src/lib.rs#activate"
+      ],
+      "adrs": [
+        "0001",
+        "0005"
+      ],
+      "tests": [
+        "crates/persistence-sqlite/tests/activation.rs#activation_is_durable_idempotent_and_separate_from_runtime",
+        "crates/persistence-sqlite/tests/activation.rs#raw_sql_cannot_change_activated_structure_or_audit"
+      ],
+      "schema": 1,
+      "boundary": "No activation UX, authenticated HTTP service or post-activation DAG extension."
+    },
+    {
+      "id": "R06",
+      "status": "implemented_verified",
+      "behavior": "BEGIN IMMEDIATE admission, hold/attempt/fence/audit/outbox and trusted acceptance",
+      "sources": [
+        "crates/persistence-sqlite/src/admission.rs#admit",
+        "crates/persistence-sqlite/src/admission.rs#accept_task"
+      ],
+      "adrs": [
+        "0031",
+        "0010",
+        "0009"
+      ],
+      "tests": [
+        "crates/persistence-sqlite/tests/admission.rs#admission_commits_attempt_fence_finance_audit_and_durable_intent_together",
+        "crates/persistence-sqlite/tests/admission.rs#independent_concurrent_schedulers_cannot_reserve_the_same_last_headroom"
+      ],
+      "schema": 3,
+      "boundary": "Permits require trusted scope/entitlement/enforceable bounds; holds are not provider caps."
+    },
+    {
+      "id": "R07",
+      "status": "implemented_verified",
+      "behavior": "Versioned bounded worker lifecycle and deterministic fake-worker simulation",
+      "sources": [
+        "crates/domain/src/worker.rs#WorkerMessage",
+        "crates/persistence-sqlite/src/worker_simulation/controller.rs#SimulationController"
+      ],
+      "adrs": [
+        "0006",
+        "0011"
+      ],
+      "tests": [
+        "crates/persistence-sqlite/tests/worker_simulation.rs#unimplemented_authentication_and_guessed_worker_id_cannot_register",
+        "crates/persistence-sqlite/tests/worker_simulation.rs#successful_fake_execution_links_real_reservation_but_never_self_accepts_result"
+      ],
+      "schema": 3,
+      "boundary": "Production authentication denies; synthetic grants do not attest real workers or issue tokens."
+    },
+    {
+      "id": "R08",
+      "status": "implemented_verified",
+      "behavior": "Durable stable-key dispatch, receipts, renewal, fencing and conservative reconciliation",
+      "sources": [
+        "crates/persistence-sqlite/src/worker_control/dispatch.rs#dispatch",
+        "crates/persistence-sqlite/src/worker_control/messages.rs#receive"
+      ],
+      "adrs": [
+        "0031",
+        "0010"
+      ],
+      "tests": [
+        "crates/persistence-sqlite/tests/common/observation_regressions.rs#uncertain_absence_before_or_after_launch_marker_blocks_and_survives_restart",
+        "crates/persistence-sqlite/tests/common/observation_regressions.rs#later_uncertainty_preserves_all_provisional_categories_and_blocks_sibling_admission",
+        "crates/persistence-sqlite/tests/worker_recovery.rs#replay_rechecks_revocation_expiry_and_financial_safety"
+      ],
+      "schema": 4,
+      "boundary": "No exactly-once remote execution/billing, production tokens, cancellation or spending enforcement."
+    },
+    {
+      "id": "R09",
+      "status": "implemented_verified",
+      "behavior": "Concurrent A/B, independently verified bytes, group G acceptance then dependent C",
+      "sources": [
+        "crates/persistence-sqlite/src/orchestration/coordinator.rs#pass_with_adapter",
+        "crates/persistence-sqlite/src/orchestration/artifacts.rs#validate_leaf",
+        "crates/persistence-sqlite/src/orchestration/artifacts.rs#aggregate"
+      ],
+      "adrs": [
+        "0001",
+        "0009",
+        "0031"
+      ],
+      "tests": [
+        "crates/persistence-sqlite/tests/orchestration.rs#independent_leaves_run_before_group_and_integration_acceptance",
+        "crates/persistence-sqlite/tests/orchestration.rs#actual_artifact_bytes_and_integration_provenance_are_independently_verified",
+        "crates/persistence-sqlite/tests/orchestration.rs#subprocess_restart_at_each_orchestration_boundary_recovers_without_relaunch"
+      ],
+      "schema": 5,
+      "boundary": "Named synthetic predicates/read-only scope only; blocked leading candidates may monopolize a bounded batch."
+    },
+    {
+      "id": "R10",
+      "status": "implemented_verified",
+      "behavior": "Deterministic crash, busy/full/interrupt, financial race, artifact and snapshot fault campaigns",
+      "sources": [
+        "crates/persistence-sqlite/tests/resilience/faults.rs#FaultPoint",
+        "crates/persistence-sqlite/tests/resilience/oracle.rs#AuthorityImage"
+      ],
+      "adrs": [
+        "0031",
+        "0015"
+      ],
+      "tests": [
+        "crates/persistence-sqlite/tests/resilience/crashes.rs#sigkill_at_admission_write_boundaries_has_no_partial_authority",
+        "crates/persistence-sqlite/tests/resilience/backup.rs#consistent_snapshot_restores_full_dag_ledger_messages_and_accepted_bytes",
+        "crates/persistence-sqlite/tests/resilience/mod.rs#ignored_delivery_update_is_not_reported_as_progress"
+      ],
+      "schema": 5,
+      "boundary": "Disposable synthetic resources; restored snapshots need operator pause/external reconciliation; no hardware or off-host DR proof."
+    }
+  ],
+  "production_gates": [
+    {
+      "id": "B",
+      "status": "specified_not_implemented",
+      "scope": "Human authentication/sessions/step-up, Secret Broker/bootstrap/recovery, worker attestation/scoped tokens/revocation"
+    },
+    {
+      "id": "C",
+      "status": "externally_blocked",
+      "scope": "Live model/API/CLI entitlement, authorized account connections, AWS enforced limits/inspection/cancellation/billing and GitHub App publishing; adapters remain unimplemented"
+    },
+    {
+      "id": "D",
+      "status": "specified_not_implemented",
+      "scope": "Authenticated REST/SSE/worker HTTPS, frontend, alerts, encrypted operational recovery, deployment/observability, qualified performance and real release operations"
+    },
+    {
+      "id": "SUPPLY_CHAIN",
+      "status": "partially_verified",
+      "scope": "Pinned toolchain/lock checksums and declared licenses inspected; cargo-audit unavailable, no current vulnerability database check, signed SBOM/provenance and distribution notices incomplete"
+    }
+  ],
+  "published_migrations": {
+    "crates/persistence-sqlite/migrations/0001_plan_store.sql": "e67c23720a49104c8f1cb4397318b410f768a29cde2405114fd46a10014d805d",
+    "crates/persistence-sqlite/migrations/0002_financial_ledger.sql": "bbdc7db102bdbf7516e851549aadbd3909a479a6196d3043234e88d02b08b6e2",
+    "crates/persistence-sqlite/migrations/0003_scheduler_admission.sql": "faaf00bcf9d8ec6d2919898fa00625fecefa4e1a61ce11129b1b96c1220113f1",
+    "crates/persistence-sqlite/migrations/0004_durable_worker_control.sql": "ac71fb0a0a7a08a94800f7f723d0138d14f1c6ea3992aa1e6f8f85fd2e081deb",
+    "crates/persistence-sqlite/migrations/0005_synthetic_orchestration.sql": "e78122f508b0c099d6299eefd6999c58ab47b99e06cfb150d123fe4e4789fe10"
+  }
+}

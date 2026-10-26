@@ -3,12 +3,22 @@
 Current authoritative decision cross-check: 2026-10-26 (see current ADRs; earlier sections are chronological historical checkpoints).
 
 ## Phase
-**R01–R10 Rust/SQLite foundation, synthetic DAG orchestration and resilience verification.** Frozen plans execute through admission, durable dispatch, fake workers, independent artifact validation and verified group aggregation. Test-only fault injection verifies crash recovery and conservative financial authority. Production authentication/providers, real execution and deployment remain unimplemented.
+**R01–R11 synthetic Rust/SQLite core, independently reviewed and verified for Owner core review.** Frozen-plan execution, exact-budget authority, durable worker control, independent artifact/group acceptance and tested recovery are implemented as libraries. Production security, providers, application and operations remain incomplete. Next is Stage 2 P0 security integration, not deployment or paid execution.
 
 ## Verified repository artifacts
 - `LICENSE` — MIT License text present on `main`.
 - Root `README.md` — introductory project description and explicitly pre-implementation status.
 - `AGENTS.md` and initial `docs/` foundation — repository guidance and planning documents, not implementation.
+
+## R11 independent core verification and handoff (2026-10-26)
+
+[PR #20](https://github.com/ygtdmr/rolvya/pull/20) is confirmed merged at main `624ed0df7a71364d88017c85fcae32ebb30581f8`, matching its verified R10 tree. Branch `codex/core-verification-handoff` starts there. Five fresh-context read-only reviewers inspected domain/SQLite, financial/admission, worker recovery, orchestration/fault evidence and CI/policy; four used detached worktrees. This scrutiny does not grant independent human authorization.
+
+Two reproduced high-severity uncertainty defects are corrected: `Absent` provider observations may not discard explicit unknown exposure, and risk recording must retain all existing provisional cost categories. Independent original probes now block launch/heartbeat/sibling admission and retain uncertainty. A medium CI discovery gap now rejects unchecked/excluded/symlinked Rust manifests before build/test commands. R10 restart flags/references were corrected without duplicating tests. Published migrations, dependency versions, approved decisions, workflow privileges and automatic-merge policy are unchanged.
+
+Fresh verification has **272 passing workspace Rust tests**, including two new cross-layer worker regressions, all 34 orchestration tests and all 22 resilience tests. Python has three new manifest-coverage regressions and one matrix-reference check. The [R11 report](../development/core-verification-handoff.md) and [checked R01–R10 matrix](../development/core-verification-matrix.json) identify source/test/ADR/schema relationships, actual commands, review findings, production blockers and dependency-ready Stage 2 packages. Final-head GitHub CI/commit evidence is recorded in the PR. Recommendation: **`READY_FOR_OWNER_CORE_REVIEW`**, not product release approval.
+
+Real authentication/step-up, encrypted Secret Broker/master-key recovery, worker bootstrap/tokens, entitlement enforcement, authenticated HTTPS, paid provider/GitHub App integration, frontend and production operations remain unimplemented. Dependency vulnerability auditing is unverified because cargo-audit is unavailable; license metadata inspection is not complete binary notice/SBOM/provenance certification. The unsupported mixed-predicate batch liveness limit and manual stale-restore pause/reconciliation remain explicit boundaries. No live providers, paid work, credentials, deployment, issues, protection changes, approval or merge. **Next: S2-01 guarded first-run key initialization**, then the dependency sequence in the R11 handoff. Historical milestone reports below retain their original scope.
 
 ## R10 fault injection and resilience verification (2026-10-26)
 

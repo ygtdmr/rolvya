@@ -148,7 +148,7 @@
         "F8"
       ],
       "kill_points": [],
-      "restart": true,
+      "restart": false,
       "origin": "R10",
       "outcome": "local_pass",
       "boundary_limit": "Synthetic SQLite/controller evidence; no live provider, physical power loss or production authentication proof."
@@ -315,7 +315,7 @@
         "F9"
       ],
       "kill_points": [],
-      "restart": true,
+      "restart": false,
       "origin": "R10",
       "outcome": "local_pass",
       "boundary_limit": "Synthetic SQLite/controller evidence; no live provider, physical power loss or production authentication proof."
@@ -359,7 +359,7 @@
         "F9"
       ],
       "kill_points": [],
-      "restart": true,
+      "restart": false,
       "origin": "R10",
       "outcome": "local_pass",
       "boundary_limit": "Synthetic SQLite/controller evidence; no live provider, physical power loss or production authentication proof."
@@ -379,7 +379,7 @@
         "F1"
       ],
       "kill_points": [],
-      "restart": true,
+      "restart": false,
       "origin": "R10",
       "outcome": "local_pass",
       "boundary_limit": "Synthetic SQLite/controller evidence; no live provider, physical power loss or production authentication proof."
@@ -396,7 +396,9 @@
         "finance.rs#concurrent_invoices_are_revision_fenced_and_duplicate_delivery_is_idempotent",
         "finance.rs#aggregate_integer_overflow_preserves_reported_charges_and_blocks_holds",
         "finance.rs#project_currency_and_owner_scope_are_enforced",
-        "finance.rs#reconciliation_faults_preserve_all_old_balances"
+        "finance.rs#reconciliation_faults_preserve_all_old_balances",
+        "finance.rs#ledger_history_is_append_only_including_sql_replace",
+        "finance.rs#bounded_history_pagination_and_snapshot_restore_preserve_receipts"
       ],
       "tests": [
         "T-010",
@@ -459,7 +461,9 @@
         "worker_recovery.rs#reordered_provider_observations_cannot_resurrect_old_execution_state",
         "worker_recovery.rs#terminal_provider_contradiction_blocks_and_records_unknown_exposure",
         "worker_recovery.rs#cancellation_ack_is_not_termination_or_billing_finality",
-        "worker_recovery.rs#provider_digest_conflict_cannot_become_a_second_launch"
+        "worker_recovery.rs#provider_digest_conflict_cannot_become_a_second_launch",
+        "worker_recovery.rs#subprocess_dispatch_crashes_recover_committed_identity_without_duplicate_launch",
+        "worker_recovery.rs#subprocess_result_crash_before_and_after_commit_preserves_exact_receipt"
       ],
       "tests": [
         "T-013",
