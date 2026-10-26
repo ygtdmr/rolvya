@@ -13,6 +13,10 @@ serde.workspace = true
 serde_json.workspace = true
 sha2.workspace = true
 hmac.workspace = true
+subtle.workspace = true
+# Feature-unify wiping of the AEAD Poly1305 state.
+poly1305.workspace = true
+chacha20poly1305.workspace = true
 zeroize.workspace = true
 getrandom.workspace = true
 rustix.workspace = true

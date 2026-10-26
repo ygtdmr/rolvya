@@ -116,6 +116,7 @@ identity!(RequestId);
 
 pub mod admission;
 pub mod controller_keys;
+pub use controller_keys::secret_broker;
 pub mod finance;
 pub mod orchestration;
 pub mod worker_control;

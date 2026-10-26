@@ -223,7 +223,7 @@ async fn financial_guard(c: &mut SqliteConnection, cmd: &LaunchCommand) -> Resul
     }
     Ok(())
 }
-async fn current<P: SchedulerPolicy>(
+async fn current<P: SchedulerPolicy + ?Sized>(
     c: &mut SqliteConnection,
     cmd: &LaunchCommand,
     policy: &P,
@@ -299,4 +299,53 @@ fn affected(n: u64) -> Result<(), WorkerError> {
     } else {
         Err(StoreError::Integrity.into())
     }
+}
+
+/// Reuse current R06/R08 authority inside the broker's existing write transaction.
+/// This returns no credential or fabricated authentication evidence.
+#[allow(clippy::too_many_arguments)]
+pub(crate) async fn broker_guard(
+    c: &mut SqliteConnection,
+    binding: &WorkerBinding,
+    peer: &PeerEvidence,
+    authority: &dyn WorkerAuthority,
+    policy: &dyn SchedulerPolicy,
+    now: i64,
+    connection: &str,
+    account: &str,
+    provider: &str,
+    mode: &str,
+) -> Result<(), WorkerError> {
+    let lease = LeaseRef {
+        task: binding.task.clone(),
+        attempt_id: binding.attempt_id.clone(),
+        epoch: binding.epoch,
+    };
+    let (cmd, state, _) = command(c, &lease).await?;
+    let session = session(c, &lease, &cmd).await?;
+    if state != DispatchState::Active
+        || session.phase != SimulatedPhase::Executing
+        || session.binding != *binding
+        || !authority.permits(
+            peer,
+            binding,
+            WorkerOperation::UseCredential,
+            session.capabilities.as_ref(),
+            now,
+        )
+    {
+        return Err(WorkerError::Unauthorized);
+    }
+    let actual_mode = match cmd.assignment.access_mode {
+        rolvya_domain::plan::AccessMode::ApiKey => "api_key",
+        rolvya_domain::plan::AccessMode::CliSession => "cli_subscription",
+    };
+    if cmd.assignment.connection_ref != connection
+        || cmd.admission.permit.account.as_str() != account
+        || cmd.admission.permit.provider.as_str() != provider
+        || actual_mode != mode
+    {
+        return Err(WorkerError::ScopeMismatch);
+    }
+    current(c, &cmd, policy, now).await
 }
