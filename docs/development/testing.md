@@ -31,7 +31,7 @@ R03/R05 tests under `crates/persistence-sqlite` cover scoped/per-connection fore
 
 ## Executed R04 financial boundary
 
-The [financial ledger guide](financial-ledger.md) records 33 financial integration tests, one proof-window unit test and an additional v1/v2 migration test (106 workspace Rust tests; seven migration replay tests also run through the existing CI gate). These prove four-category exact accounting, serialized conservative holds, explicit versioned Owner approvals, one-use proof references, denied authority, idempotent/stale billing, uncertainty and late charges, no double counting, integer overflow rejection, rollback, abrupt-process recovery and local snapshot restore. R04 is separate from R06: no attempts, lease/fencing, dependency admission or dispatch outbox is implemented or claimed tested.
+The [financial ledger guide](financial-ledger.md) records 34 financial integration tests, one proof-window unit test and an additional v1/v2 migration test (107 workspace Rust tests; seven migration replay tests also run through the existing CI gate). These prove four-category exact accounting, serialized conservative holds, explicit versioned Owner approvals, one-use proof references, denied authority, idempotent/stale billing, uncertainty and late charges, no double counting, integer overflow rejection, rollback, abrupt-process recovery and local snapshot restore. R04 is separate from R06: no attempts, lease/fencing, dependency admission or dispatch outbox is implemented or claimed tested.
 
 ## Test layers
 

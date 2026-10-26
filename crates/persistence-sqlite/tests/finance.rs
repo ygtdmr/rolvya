@@ -1372,3 +1372,57 @@ async fn many_concurrent_sendable_requests_never_exceed_the_exact_ceiling() {
     assert!(!snapshot.over_ceiling);
     assert_eq!(count(&f, "financial_events").await, 15);
 }
+
+#[tokio::test]
+async fn unknown_zero_usage_after_finalization_reopens_risk_and_blocks_holds() {
+    let f = funded(100).await;
+    f.store
+        .apply_financial(&reserve(&f, "hold", [50, 0, 0, 0]), &Verified)
+        .await
+        .unwrap();
+    f.store
+        .apply_financial(
+            &reconcile(
+                &f,
+                "final",
+                "hold",
+                1,
+                [[10, 0, 0, 0], [0; 4], [0; 4]],
+                ReconciliationState::Final,
+            ),
+            &Verified,
+        )
+        .await
+        .unwrap();
+    f.store
+        .apply_financial(
+            &report(&f, "unknown-zero", "hold", 2, [0; 4], true),
+            &Verified,
+        )
+        .await
+        .unwrap();
+    let balance = f
+        .store
+        .financial_liability(&f.content.key.project_id, &id("hold"))
+        .await
+        .unwrap();
+    assert!(balance.uncertain);
+    assert!(!balance.finalized);
+    assert_eq!(
+        f.store
+            .apply_financial(&reserve(&f, "blocked", [1, 0, 0, 0]), &Verified)
+            .await
+            .unwrap_err(),
+        FinanceError::UncertainExposure
+    );
+    assert_eq!(
+        f.store
+            .financial_snapshot(&f.content.key.project_id)
+            .await
+            .unwrap()
+            .settled
+            .total()
+            .unwrap(),
+        usd(10)
+    );
+}

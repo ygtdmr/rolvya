@@ -738,6 +738,7 @@ async fn prepare_position(
                 return Err(FinanceError::InvalidTransition);
             }
             let changed = *unreserved != old.provisional;
+            let uncertain = *uncertain || old.uncertain || old.finalized && changed;
             Ok(Some((
                 id.clone(),
                 LiabilityBalance {
@@ -746,8 +747,8 @@ async fn prepare_position(
                         .checked_add(1)
                         .ok_or(FinanceError::Arithmetic)?,
                     provisional: *unreserved,
-                    uncertain: *uncertain || old.uncertain || old.finalized && changed,
-                    finalized: old.finalized && !changed,
+                    uncertain,
+                    finalized: old.finalized && !changed && !uncertain,
                     ..old
                 },
             )))
