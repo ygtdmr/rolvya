@@ -116,6 +116,7 @@ identity!(RequestId);
 
 pub mod admission;
 pub mod finance;
+pub mod worker_simulation;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Revision {

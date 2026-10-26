@@ -10,7 +10,7 @@ tags: [testing, ci, reliability, security]
 
 ## Status and quality gate
 
-**Rust core, plan persistence, financial-ledger and atomic admission library tests are implemented; full application/worker/browser tests remain future work.** A [repository CI and integration foundation](pull-request-integration.md) now provides documentation, secret scanning and merge-policy tests, with explicit activation contracts for future Rust/frontend checks. Its local tests and GitHub activation evidence are distinct from the future product tests below. Test requirements derive from [product acceptance criteria](../product/acceptance-criteria.md), [execution](../architecture/execution.md), [budget](../architecture/budget-costs.md) and [security](../architecture/security.md).
+**Rust core, persistence, financial/admission and deterministic fake-worker tests are implemented; authenticated remote workers, durable recovery and full application/browser tests remain future work.** A [repository CI and integration foundation](pull-request-integration.md) now provides documentation, secret scanning and merge-policy tests, with explicit activation contracts for future Rust/frontend checks. Its local tests and GitHub activation evidence are distinct from the future product tests below. Test requirements derive from [product acceptance criteria](../product/acceptance-criteria.md), [execution](../architecture/execution.md), [budget](../architecture/budget-costs.md) and [security](../architecture/security.md).
 
 The [initial Rust/SQLite verification matrix](rust-sqlite-test-matrix.md) catalogs detailed future fixtures, concurrency tests and fault-injection points; [engineering task packages](initial-implementation-task-packages.md) assign candidate ownership and dependencies. These are planning artifacts, **not tests that have already run**.
 
@@ -36,6 +36,10 @@ The [financial ledger guide](financial-ledger.md) records 34 financial integrati
 ## Executed R06 admission boundary
 
 [Atomic admission verification](atomic-scheduler-admission.md) adds 27 integration tests plus a v2/v3 migration test (135 workspace Rust tests; eight migration tests repeated by the existing replay gate). Tests use actual SQLite transactions, separate scheduler pools, scoped synthetic capability/validation policies, fake clocks and real subprocess exits through the actual API. They cover atomic attempt/reservation/fence/audit/outbox, no partial intent on failure, duplicate/stale claims, project isolation, accepted/group dependencies, preserved completed work and retry reconciliation. T-014/015 real-provider recovery and T-028 running-worker enforcement remain partial; no authenticated worker, network dispatcher or live provider result is implied.
+
+## Executed R07 fake-worker boundary
+
+[The R07 guide](fake-worker-contracts.md) records eight domain protocol tests and 32 SQLite-integrated simulation tests (175 workspace Rust tests). Real R06 permits/fences and R04 holds back the in-process harness; worker success only produces an untrusted receipt. Tests use deterministic clocks/seeds, actual synthetic artifact hashes, bounded event scheduling and scoped synthetic capability/identity verifiers, with no sleeps or network in R07. Coverage includes duplicates, reordering, malformed/forbidden inputs, identity/scope/context/fencing attacks, cancellation and preserved verified siblings. Heartbeats do not renew; receipt journals are not durable. R08/R09, production authentication, real provider cancellation/billing and OS worker isolation are explicitly outside this evidence.
 
 ## Test layers
 
