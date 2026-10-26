@@ -1,4 +1,4 @@
-//! SQLx/SQLite plan persistence and durable activation. No dispatch or budget authority.
+//! SQLx/SQLite immutable plans and append-only finance. No execution dispatch.
 #![forbid(unsafe_code)]
 use rolvya_domain::{
     ids::ProjectId,
@@ -82,7 +82,7 @@ impl From<sqlx::Error> for StoreError {
 }
 macro_rules! identity {
     ($name:ident) => {
-        #[derive(Debug, Clone, PartialEq, Eq)]
+        #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
         pub struct $name(String);
         impl $name {
             pub fn new(value: impl Into<String>) -> Result<Self, StoreError> {
@@ -107,6 +107,8 @@ macro_rules! identity {
 }
 identity!(PrincipalId);
 identity!(RequestId);
+
+pub mod finance;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Revision {

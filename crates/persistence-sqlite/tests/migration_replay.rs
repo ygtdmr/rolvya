@@ -45,7 +45,7 @@ async fn migrations_replay_reopen_and_consistent_snapshot_restore() {
             .fetch_one(&raw)
             .await
             .unwrap(),
-        1
+        2
     );
     assert_eq!(
         sqlx::query_scalar::<_, String>("SELECT sqlite_version()")
@@ -61,7 +61,7 @@ async fn migrations_replay_reopen_and_consistent_snapshot_restore() {
 async fn checksum_mismatch_and_unknown_migration_versions_fail_without_resetting_data() {
     for alteration in [
         "UPDATE _sqlx_migrations SET checksum=X'00'",
-        "UPDATE _sqlx_migrations SET version=999",
+        "UPDATE _sqlx_migrations SET version=999 WHERE version=1",
     ] {
         let f = Fixture::new().await;
         let raw = f.raw().await;
@@ -119,11 +119,16 @@ async fn failed_migration_rolls_back_ddl_and_data() {
     let f = Fixture::new().await;
     let raw = f.raw().await;
     let scripts = tempfile::tempdir().unwrap();
-    std::fs::write(scripts.path().join("0002_injected_failure.sql"),"CREATE TABLE should_rollback(value TEXT); INSERT INTO should_rollback VALUES ('temporary'); SELECT absent_column FROM absent_table;").unwrap();
-    // This fixture intentionally includes the real v1, then a failing v2.
+    std::fs::write(scripts.path().join("0003_injected_failure.sql"),"CREATE TABLE should_rollback(value TEXT); INSERT INTO should_rollback VALUES ('temporary'); SELECT absent_column FROM absent_table;").unwrap();
+    // Replay real migrations, then verify failing v3 rolls back atomically.
     std::fs::write(
         scripts.path().join("0001_plan_store.sql"),
         include_str!("../migrations/0001_plan_store.sql"),
+    )
+    .unwrap();
+    std::fs::write(
+        scripts.path().join("0002_financial_ledger.sql"),
+        include_str!("../migrations/0002_financial_ledger.sql"),
     )
     .unwrap();
     let migrator = Migrator::new(scripts.path()).await.unwrap();
@@ -192,6 +197,114 @@ async fn private_paths_and_snapshot_non_overwrite_are_enforced() {
         assert_eq!(
             PlanStore::open(&f.path).await.unwrap_err(),
             StoreError::InvalidPath
+        );
+    }
+}
+
+#[tokio::test]
+async fn real_v1_upgrade_preserves_projects_and_failed_v2_leaves_v1_intact() {
+    use sqlx::sqlite::SqliteConnectOptions;
+    for inject_failure in [false, true] {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("upgrade.sqlite");
+        let mut options = std::fs::OpenOptions::new();
+        options.create_new(true).write(true);
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::OpenOptionsExt;
+            options.mode(0o600);
+        }
+        options.open(&path).unwrap();
+        let raw = sqlx::SqlitePool::connect_with(
+            SqliteConnectOptions::new()
+                .filename(&path)
+                .foreign_keys(true),
+        )
+        .await
+        .unwrap();
+        let scripts = tempfile::tempdir().unwrap();
+        std::fs::write(
+            scripts.path().join("0001_plan_store.sql"),
+            include_str!("../migrations/0001_plan_store.sql"),
+        )
+        .unwrap();
+        Migrator::new(scripts.path())
+            .await
+            .unwrap()
+            .run(&raw)
+            .await
+            .unwrap();
+        sqlx::query("INSERT INTO projects(project_id,owner_actor) VALUES ('legacy','owner')")
+            .execute(&raw)
+            .await
+            .unwrap();
+        if inject_failure {
+            std::fs::write(
+                scripts.path().join("0002_financial_ledger.sql"),
+                format!(
+                    "{}\nSELECT absent_column FROM absent_table;",
+                    include_str!("../migrations/0002_financial_ledger.sql")
+                ),
+            )
+            .unwrap();
+            assert!(
+                Migrator::new(scripts.path())
+                    .await
+                    .unwrap()
+                    .run(&raw)
+                    .await
+                    .is_err()
+            );
+            assert_eq!(
+                sqlx::query_scalar::<_, i64>(
+                    "SELECT count(*) FROM sqlite_schema WHERE name='financial_events'"
+                )
+                .fetch_one(&raw)
+                .await
+                .unwrap(),
+                0
+            );
+            assert_eq!(
+                sqlx::query_scalar::<_, i64>("SELECT count(*) FROM _sqlx_migrations")
+                    .fetch_one(&raw)
+                    .await
+                    .unwrap(),
+                1
+            );
+        }
+        raw.close().await;
+        let upgraded = PlanStore::open(&path).await.unwrap();
+        upgraded.check_integrity().await.unwrap();
+        upgraded.close().await;
+        let raw = sqlx::SqlitePool::connect_with(
+            SqliteConnectOptions::new()
+                .filename(&path)
+                .foreign_keys(true),
+        )
+        .await
+        .unwrap();
+        assert_eq!(
+            sqlx::query_scalar::<_, String>(
+                "SELECT owner_actor FROM projects WHERE project_id='legacy'"
+            )
+            .fetch_one(&raw)
+            .await
+            .unwrap(),
+            "owner"
+        );
+        assert_eq!(
+            sqlx::query_scalar::<_, i64>("SELECT count(*) FROM _sqlx_migrations WHERE success=1")
+                .fetch_one(&raw)
+                .await
+                .unwrap(),
+            2
+        );
+        assert_eq!(
+            sqlx::query_scalar::<_, i64>("SELECT count(*) FROM financial_events")
+                .fetch_one(&raw)
+                .await
+                .unwrap(),
+            0
         );
     }
 }

@@ -10,7 +10,7 @@ tags: [testing, ci, reliability, security]
 
 ## Status and quality gate
 
-**Application tests remain unimplemented.** A [repository CI and integration foundation](pull-request-integration.md) now provides documentation, secret scanning and merge-policy tests, with explicit activation contracts for future Rust/frontend checks. Its local tests and GitHub activation evidence are distinct from the future product tests below. Test requirements derive from [product acceptance criteria](../product/acceptance-criteria.md), [execution](../architecture/execution.md), [budget](../architecture/budget-costs.md) and [security](../architecture/security.md).
+**Rust core, plan persistence and financial-ledger library tests are implemented; full application/worker/browser tests remain future work.** A [repository CI and integration foundation](pull-request-integration.md) now provides documentation, secret scanning and merge-policy tests, with explicit activation contracts for future Rust/frontend checks. Its local tests and GitHub activation evidence are distinct from the future product tests below. Test requirements derive from [product acceptance criteria](../product/acceptance-criteria.md), [execution](../architecture/execution.md), [budget](../architecture/budget-costs.md) and [security](../architecture/security.md).
 
 The [initial Rust/SQLite verification matrix](rust-sqlite-test-matrix.md) catalogs detailed future fixtures, concurrency tests and fault-injection points; [engineering task packages](initial-implementation-task-packages.md) assign candidate ownership and dependencies. These are planning artifacts, **not tests that have already run**.
 
@@ -28,6 +28,10 @@ R01/R02 now have executable tests under `crates/domain/tests` and `crates/plan-v
 ## Executed SQLite plan-store boundary
 
 R03/R05 tests under `crates/persistence-sqlite` cover scoped/per-connection foreign keys, immutable active structure, concurrent/idempotent activation, stale revision rejection, SQL rollback, process-exit recovery, local snapshot restore and migration replay/checksums. [The storage guide](sqlite-plan-activation.md) maps the applicable T/PA cases and distinguishes them from deferred financial admission, attempts/fencing, remote backups and production failure testing. The CI migration replay script executes real disposable-database tests.
+
+## Executed R04 financial boundary
+
+The [financial ledger guide](financial-ledger.md) records 34 financial integration tests, one proof-window unit test and an additional v1/v2 migration test (107 workspace Rust tests; seven migration replay tests also run through the existing CI gate). These prove four-category exact accounting, serialized conservative holds, explicit versioned Owner approvals, one-use proof references, denied authority, idempotent/stale billing, uncertainty and late charges, no double counting, integer overflow rejection, rollback, abrupt-process recovery and local snapshot restore. R04 is separate from R06: no attempts, lease/fencing, dependency admission or dispatch outbox is implemented or claimed tested.
 
 ## Test layers
 
