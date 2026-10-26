@@ -1,5 +1,5 @@
 //! R07 in-process simulation, not authenticated remote execution or durable R08 replay.
-mod controller;
+pub(crate) mod controller;
 mod fake;
 use crate::{StoreError, admission::AdmissionError};
 pub use controller::*;

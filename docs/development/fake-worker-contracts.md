@@ -2,6 +2,8 @@
 
 Status: **Implemented and tested in-process simulation, not an authenticated remote service.** Started from confirmed merged [PR #16](https://github.com/ygtdmr/rolvya/pull/16), main `52f11c8d983e0177888b860d7de764b2190e740f`; its tree matches verified R06 head `c87018a`. R01–R06 remain the existing authority. Branch: `codex/fake-worker-contracts`.
 
+The R07 `SimulationController` remains an ephemeral simulation. [R08 durable worker control](durable-worker-recovery.md) now supplies the SQLite journal, dispatcher, authoritative renewal and recovery using its shared transition logic; the R07 limitations below describe the original slice.
+
 Binding direction: [worker-initiated HTTPS ADR 0006](../decisions/0006-worker-communication.md), [group-only ADR 0009](../decisions/0009-parent-aggregation.md), [hard budget ADR 0002](../decisions/0002-hard-budget-approval.md), [bounded-or-stop ADR 0010](../decisions/0010-inflight-budget.md), [atomic admission ADR 0031](../decisions/0031-atomic-task-budget-admission.md) and [worker timing policy](../architecture/worker-authentication-policy.md). See [task packages](initial-implementation-task-packages.md), [engineering defaults](../project/implementation-defaults-and-release-gates.md) and [R06 implementation](atomic-scheduler-admission.md). No architecture choice is reopened.
 
 ## Modules and executable interfaces

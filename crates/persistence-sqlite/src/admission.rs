@@ -219,7 +219,7 @@ fn one(n: u64) -> Result<(), AdmissionError> {
         Err(StoreError::Integrity.into())
     }
 }
-fn at(clock: &impl Clock) -> Result<i64, AdmissionError> {
+pub(crate) fn at(clock: &impl Clock) -> Result<i64, AdmissionError> {
     let t = clock.now()?;
     if t < 0 {
         Err(AdmissionError::InvalidInput)
@@ -235,7 +235,10 @@ fn payload(kind: &str, request: &impl Serialize) -> Result<String, AdmissionErro
     }
     Ok(s)
 }
-async fn owner(c: &mut SqliteConnection, p: &ProjectId) -> Result<PrincipalId, AdmissionError> {
+pub(crate) async fn owner(
+    c: &mut SqliteConnection,
+    p: &ProjectId,
+) -> Result<PrincipalId, AdmissionError> {
     let s: Option<String> =
         sqlx::query_scalar("SELECT owner_actor FROM projects WHERE project_id=?")
             .bind(p.as_str())
@@ -243,7 +246,7 @@ async fn owner(c: &mut SqliteConnection, p: &ProjectId) -> Result<PrincipalId, A
             .await?;
     Ok(PrincipalId::new(s.ok_or(StoreError::NotFound)?)?)
 }
-async fn existing(
+pub(crate) async fn existing(
     c: &mut SqliteConnection,
     p: &ProjectId,
     key: &RequestId,
@@ -265,7 +268,7 @@ async fn existing(
     })
     .transpose()
 }
-async fn event(
+pub(crate) async fn event(
     c: &mut SqliteConnection,
     p: &ProjectId,
     key: &RequestId,
@@ -298,7 +301,7 @@ async fn recheck(
     }
     Ok(())
 }
-fn task_in<'a>(
+pub(crate) fn task_in<'a>(
     plan: &'a StoredPlan,
     reference: &TaskRef,
     fingerprint: &str,
@@ -332,8 +335,23 @@ async fn dependencies(
     t: &PlannedTask,
     hash: &str,
 ) -> Result<(), AdmissionError> {
+    validated_dependencies(
+        c,
+        &TaskRef {
+            plan: t.plan.clone(),
+            task_id: t.id.clone(),
+        },
+        hash,
+    )
+    .await
+}
+pub(crate) async fn validated_dependencies(
+    c: &mut SqliteConnection,
+    t: &TaskRef,
+    hash: &str,
+) -> Result<(), AdmissionError> {
     let missing:bool=sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM task_dependencies d LEFT JOIN task_acceptances a ON a.project_id=d.project_id AND a.plan_id=d.plan_id AND a.version=d.version AND a.task_id=d.predecessor_id AND a.fingerprint=? LEFT JOIN task_runtime r ON r.project_id=d.project_id AND r.plan_id=d.plan_id AND r.version=d.version AND r.task_id=d.predecessor_id WHERE d.project_id=? AND d.plan_id=? AND d.version=? AND d.successor_id=? AND (a.task_id IS NULL OR r.task_id IS NULL OR r.state<>'succeeded'))")
-        .bind(hash).bind(t.plan.project_id.as_str()).bind(t.plan.plan_id.as_str()).bind(version(&t.plan)?).bind(t.id.as_str()).fetch_one(c).await?;
+        .bind(hash).bind(t.plan.project_id.as_str()).bind(t.plan.plan_id.as_str()).bind(version(&t.plan)?).bind(t.task_id.as_str()).fetch_one(c).await?;
     if missing {
         Err(AdmissionError::DependencyIncomplete)
     } else {
@@ -357,11 +375,11 @@ async fn fence_value(
         .bind(t.plan.project_id.as_str()).bind(t.plan.plan_id.as_str()).bind(version(&t.plan)?).bind(t.task_id.as_str()).fetch_optional(c).await?;
     Ok(r.map(|r| (r.get(0), r.get(1))).unwrap_or((0, None)))
 }
-async fn stored_admission(
+pub(crate) async fn stored_admission(
     c: &mut SqliteConnection,
     lease: &LeaseRef,
 ) -> Result<(AdmissionRequest, i64, String), AdmissionError> {
-    let r=sqlx::query("SELECT e.payload,a.lease_until,s.state,a.plan_id,a.version,a.task_id,a.epoch FROM task_attempts a JOIN scheduler_events e ON e.sequence=a.admission_event JOIN attempt_states s USING(project_id,attempt_id) WHERE a.project_id=? AND a.attempt_id=?")
+    let r=sqlx::query("SELECT e.payload,l.lease_until,s.state,a.plan_id,a.version,a.task_id,a.epoch FROM task_attempts a JOIN scheduler_events e ON e.sequence=a.admission_event JOIN attempt_states s USING(project_id,attempt_id) JOIN worker_leases l USING(project_id,attempt_id) WHERE a.project_id=? AND a.attempt_id=?")
         .bind(lease.task.plan.project_id.as_str()).bind(lease.attempt_id.as_str()).fetch_optional(c).await?.ok_or(AdmissionError::StaleFence)?;
     if r.get::<String, _>(3) != lease.task.plan.plan_id.as_str()
         || r.get::<i64, _>(4) != version(&lease.task.plan)?
@@ -389,7 +407,7 @@ async fn stored_admission(
     }
     Ok((record.request, r.get(1), r.get(2)))
 }
-async fn live(
+pub(crate) async fn live(
     c: &mut SqliteConnection,
     l: &LeaseRef,
     t: i64,
@@ -524,7 +542,7 @@ impl PlanStore {
             return Err(AdmissionError::Conflict);
         }
         let next = epoch.checked_add(1).ok_or(AdmissionError::InvalidInput)?;
-        let prior=sqlx::query("SELECT a.attempt_id,s.state,recovery.not_before FROM task_attempts a JOIN attempt_states s USING(project_id,attempt_id) LEFT JOIN attempt_recovery recovery USING(project_id,attempt_id) WHERE a.project_id=? AND a.plan_id=? AND a.version=? AND a.task_id=? ORDER BY a.epoch")
+        let prior=sqlx::query("SELECT a.attempt_id,s.state,recovery.not_before,dispatch.state AS dispatch_state FROM task_attempts a JOIN attempt_states s USING(project_id,attempt_id) LEFT JOIN attempt_recovery recovery USING(project_id,attempt_id) LEFT JOIN dispatch_operations dispatch USING(project_id,attempt_id) WHERE a.project_id=? AND a.plan_id=? AND a.version=? AND a.task_id=? ORDER BY a.epoch")
             .bind(r.task.plan.project_id.as_str()).bind(r.task.plan.plan_id.as_str()).bind(version(&r.task.plan)?).bind(r.task.task_id.as_str()).fetch_all(&mut *tx).await?;
         if prior.len() >= 3 {
             return Err(AdmissionError::RetryBlocked);
@@ -532,6 +550,8 @@ impl PlanStore {
         for p in &prior {
             if p.get::<String, _>(1) != "fenced"
                 || p.get::<Option<i64>, _>(2).is_none_or(|after| t < after)
+                || p.get::<Option<String>, _>(3)
+                    .is_some_and(|s| !matches!(s.as_str(), "finished" | "no_effect"))
             {
                 return Err(AdmissionError::RetryBlocked);
             }
@@ -957,47 +977,18 @@ impl PlanStore {
     ) -> Result<u64, AdmissionError> {
         let mut tx = self.pool.begin_with("BEGIN IMMEDIATE").await?;
         let t = at(clock)?;
-        let p = &r.lease.task.plan.project_id;
-        let owner = owner(&mut tx, p).await?;
-        if !policy.permits(&owner, SchedulerAction::Fence(r), t) {
-            return Err(AdmissionError::Forbidden);
-        }
-        let body = payload("fence", r)?;
-        let (_, _, status) = stored_admission(&mut tx, &r.lease).await?;
-        if existing(&mut tx, p, &r.request_id, &body).await?.is_some() {
-            if status != "fenced" {
-                return Err(StoreError::Integrity.into());
-            }
-            tx.commit().await?;
-            return r
-                .lease
-                .epoch
-                .checked_add(1)
-                .ok_or(AdmissionError::InvalidInput);
-        }
-        let (epoch, current) = fence_value(&mut tx, &r.lease.task).await?;
-        if epoch != number(r.lease.epoch)?
-            || current.as_deref() != Some(r.lease.attempt_id.as_str())
-            || status != "admitted"
-        {
-            return Err(AdmissionError::StaleFence);
-        }
-        let next = epoch.checked_add(1).ok_or(AdmissionError::InvalidInput)?;
-        event(&mut tx, p, &r.request_id, "fence", &r.actor, t, &body).await?;
-        one(sqlx::query("UPDATE task_fences SET epoch=?,current_attempt=NULL WHERE project_id=? AND plan_id=? AND version=? AND task_id=? AND epoch=? AND current_attempt=?")
-            .bind(next).bind(p.as_str()).bind(r.lease.task.plan.plan_id.as_str()).bind(version(&r.lease.task.plan)?).bind(r.lease.task.task_id.as_str()).bind(epoch).bind(r.lease.attempt_id.as_str()).execute(&mut *tx).await?.rows_affected())?;
-        one(sqlx::query("UPDATE attempt_states SET state='fenced',fenced_at=? WHERE project_id=? AND attempt_id=? AND state='admitted'").bind(t).bind(p.as_str()).bind(r.lease.attempt_id.as_str()).execute(&mut *tx).await?.rows_affected())?;
-        set_runtime(&mut tx, &r.lease.task, "waiting").await?;
+        let owner = owner(&mut tx, &r.lease.task.plan.project_id).await?;
+        let (next, replay) = fence_in(&mut tx, r, policy, t).await?;
         let end = at(clock)?;
         if end < t || !policy.permits(&owner, SchedulerAction::Fence(r), end) {
             return Err(AdmissionError::Forbidden);
         }
         let (stored, current) = fence_value(&mut tx, &r.lease.task).await?;
-        if stored != next || current.is_some() {
+        if !replay && (stored != number(next)? || current.is_some()) {
             return Err(StoreError::Integrity.into());
         }
         tx.commit().await?;
-        Ok(next as u64)
+        Ok(next)
     }
     /// Record independently verified external/Git reconciliation and classified
     /// transient retry eligibility. Financial finalization remains separately
@@ -1083,4 +1074,45 @@ impl PlanStore {
         tx.commit().await?;
         Ok(())
     }
+}
+
+pub(crate) async fn fence_in<P: SchedulerPolicy>(
+    c: &mut SqliteConnection,
+    r: &FenceRequest,
+    policy: &P,
+    t: i64,
+) -> Result<(u64, bool), AdmissionError> {
+    let p = &r.lease.task.plan.project_id;
+    let owner = owner(&mut *c, p).await?;
+    if !policy.permits(&owner, SchedulerAction::Fence(r), t) {
+        return Err(AdmissionError::Forbidden);
+    }
+    let body = payload("fence", r)?;
+    let (_, _, status) = stored_admission(&mut *c, &r.lease).await?;
+    if existing(&mut *c, p, &r.request_id, &body).await?.is_some() {
+        if status != "fenced" {
+            return Err(StoreError::Integrity.into());
+        }
+        return Ok((
+            r.lease
+                .epoch
+                .checked_add(1)
+                .ok_or(AdmissionError::InvalidInput)?,
+            true,
+        ));
+    }
+    let (epoch, current) = fence_value(&mut *c, &r.lease.task).await?;
+    if epoch != number(r.lease.epoch)?
+        || current.as_deref() != Some(r.lease.attempt_id.as_str())
+        || status != "admitted"
+    {
+        return Err(AdmissionError::StaleFence);
+    }
+    let next = epoch.checked_add(1).ok_or(AdmissionError::InvalidInput)?;
+    event(&mut *c, p, &r.request_id, "fence", &r.actor, t, &body).await?;
+    one(sqlx::query("UPDATE task_fences SET epoch=?,current_attempt=NULL WHERE project_id=? AND plan_id=? AND version=? AND task_id=? AND epoch=? AND current_attempt=?")
+            .bind(next).bind(p.as_str()).bind(r.lease.task.plan.plan_id.as_str()).bind(version(&r.lease.task.plan)?).bind(r.lease.task.task_id.as_str()).bind(epoch).bind(r.lease.attempt_id.as_str()).execute(&mut *c).await?.rows_affected())?;
+    one(sqlx::query("UPDATE attempt_states SET state='fenced',fenced_at=? WHERE project_id=? AND attempt_id=? AND state='admitted'").bind(t).bind(p.as_str()).bind(r.lease.attempt_id.as_str()).execute(&mut *c).await?.rows_affected())?;
+    set_runtime(&mut *c, &r.lease.task, "waiting").await?;
+    Ok((next as u64, false))
 }

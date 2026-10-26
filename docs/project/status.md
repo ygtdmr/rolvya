@@ -3,12 +3,20 @@
 Current authoritative decision cross-check: 2026-10-26 (see current ADRs; earlier sections are chronological historical checkpoints).
 
 ## Phase
-**R01–R07 Rust/SQLite foundation and deterministic in-process worker simulation.** Immutable plans, budgets, atomic admission/fencing/outbox and versioned fake-worker lifecycle contracts are implemented and tested. Production worker authentication/execution, durable dispatcher/message replay, renewal and deployment remain unimplemented.
+**R01–R08 Rust/SQLite foundation with durable synthetic worker control.** Immutable plans, budgets, atomic admission, versioned worker contracts, dispatch replay, durable receipts, lease renewal and crash recovery are implemented as tested libraries. Production authentication/providers, complete DAG orchestration and deployment remain unimplemented.
 
 ## Verified repository artifacts
 - `LICENSE` — MIT License text present on `main`.
 - Root `README.md` — introductory project description and explicitly pre-implementation status.
 - `AGENTS.md` and initial `docs/` foundation — repository guidance and planning documents, not implementation.
+
+## R08 durable dispatch, message replay and recovery (2026-10-26)
+
+[PR #17](https://github.com/ygtdmr/rolvya/pull/17) is confirmed merged at main `5155acb73afc4b229eb84882840227445fc96e67`, with R01–R07 present. Branch `codex/durable-worker-recovery` extends the existing SQLite authority and shared R07 lifecycle: atomic outbox claims/launch markers, stable-key synthetic-provider lookup, durable message identity/receipts/results, current authorization on replay, bounded heartbeat renewal, fencing/recovery and conservative unknown-exposure handling. Forward migration 0004 preserves existing attempts/claims. No provider calls run inside controller write transactions. R06 additionally blocks retries with unresolved R08 dispatch; original published migrations and financial business rules are unchanged.
+
+**214 workspace Rust tests**, including **39 R08 tests**, cover actual subprocess crashes, lost acknowledgements, concurrent dispatchers, reordered observations, stale/revoked scopes, financial uncertainty, cancellation without termination, heartbeat/fence and result/cancel races, migration failure/upgrade, ignored/aborted writes, SQLite contention, bounded retention and preserved verified siblings. An eight-worker/48-message deterministic workload reopens the controller midway. [The R08 guide](../development/durable-worker-recovery.md) records commands, measured synthetic behavior, coverage and limits. Exact final-head local and GitHub CI results are recorded in the PR.
+
+No production authentication/token issuance, real provider/cost enforcement/cancellation, paid APIs, infrastructure, Git publication, frontend, issues, permissions, protection or ADR changes. Results remain untrusted until separate validation; recovery never releases holds or creates tasks/attempts. **Next: R09 dependency-aware synthetic DAG orchestration and independent group/result validation.** This sensitive PR requires Owner manual review and is not agent-approved or merged. Historical milestone reports below describe their original boundaries.
 
 ## R07 deterministic fake worker contracts (2026-10-26)
 

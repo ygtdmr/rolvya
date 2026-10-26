@@ -1,4 +1,4 @@
-//! SQLx/SQLite immutable plans and append-only finance. No execution dispatch.
+//! SQLx/SQLite plan, budget, admission and durable synthetic worker authority.
 #![forbid(unsafe_code)]
 use rolvya_domain::{
     ids::ProjectId,
@@ -116,6 +116,7 @@ identity!(RequestId);
 
 pub mod admission;
 pub mod finance;
+pub mod worker_control;
 pub mod worker_simulation;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
