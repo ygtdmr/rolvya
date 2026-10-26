@@ -117,6 +117,8 @@ The paths above are a **planned inventory**, not links to files that already exi
 
 ## Engineering and agent execution specifications
 
+- [R11 independent core verification, release gates and Stage 2 handoff](development/core-verification-handoff.md)
+
 - [R10 executable fault injection and resilience evidence](development/resilience-fault-injection.md)
 
 - [R09 synthetic DAG orchestration and independent artifact validation](development/synthetic-dag-orchestration.md)

@@ -104,6 +104,53 @@ class RepositoryChecks(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'Unreviewed Node'):
             ci.inventory()
 
+    def test_excluded_or_nested_unchecked_rust_manifest_cannot_escape_checks(self):
+        self.write('Cargo.toml', '[workspace]\nmembers=["crates/checked"]\nexclude=["tools/unchecked"]')
+        self.write('crates/checked/Cargo.toml', '[package]\nname="checked"\nversion="0.1.0"')
+        self.write('tools/unchecked/Cargo.toml', '[workspace]\n[package]\nname="unchecked"\nversion="0.1.0"')
+        self.write('Cargo.lock', '')
+        self.write('rust-toolchain.toml', '[toolchain]\nchannel="1.99.1"')
+        metadata = {'workspace_roots': [str(ci.ROOT)], 'packages': [
+            {'id': 'checked', 'manifest_path': str(ci.ROOT / 'crates/checked/Cargo.toml')},
+            # Being a dependency is insufficient: workspace tests do not test it.
+            {'id': 'unchecked', 'manifest_path': str(ci.ROOT / 'tools/unchecked/Cargo.toml')},
+        ], 'workspace_members': ['checked']}
+        data = ci.inventory()
+        files = ci.tracked_files()
+        self.assertEqual(data['rust_manifests'], ['Cargo.toml'])
+        with patch.object(ci, 'inventory', return_value=data), \
+                patch.object(ci, 'tracked_files', return_value=files), \
+                patch.object(ci.subprocess, 'check_output', return_value=json.dumps({
+                    **metadata, 'workspace_root': str(ci.ROOT)}).encode()), \
+                patch.object(ci.subprocess, 'run') as commands:
+            with self.assertRaisesRegex(ValueError, 'Unchecked Rust manifest.*tools/unchecked'):
+                ci.rust_check()
+            commands.assert_not_called()
+
+    def test_manifest_coverage_accepts_verified_roots_and_members_only(self):
+        self.write('Cargo.toml', '[workspace]')
+        self.write('crates/checked/Cargo.toml', '[package]')
+        self.write('tools/independent/Cargo.toml', '[package]')
+        ci.verify_rust_manifest_coverage({
+            'workspace_roots': [str(ci.ROOT), str(ci.ROOT / 'tools/independent')],
+            'packages': [
+                {'id': 'checked', 'manifest_path': str(ci.ROOT / 'crates/checked/Cargo.toml')},
+                {'id': 'independent', 'manifest_path': str(ci.ROOT / 'tools/independent/Cargo.toml')},
+            ], 'workspace_members': ['checked', 'independent']})
+
+    def test_manifest_symlink_cannot_alias_unchecked_package_sources(self):
+        self.write('Cargo.toml', '[workspace]')
+        self.write('crates/checked/Cargo.toml', '[package]')
+        alias = ci.ROOT / 'tools/unchecked/Cargo.toml'
+        alias.parent.mkdir(parents=True)
+        alias.symlink_to('../../crates/checked/Cargo.toml')
+        subprocess.run(['git', 'add', 'tools/unchecked/Cargo.toml'], cwd=ci.ROOT, check=True)
+        with self.assertRaisesRegex(ValueError, 'Unchecked Rust manifest'):
+            ci.verify_rust_manifest_coverage({
+                'workspace_roots': [str(ci.ROOT)],
+                'packages': [{'id': 'checked', 'manifest_path': str(ci.ROOT / 'crates/checked/Cargo.toml')}],
+                'workspace_members': ['checked']})
+
     def test_frontend_cannot_silently_skip_scripts_or_lockfile(self):
         self.write('apps/web/package.json', '{}')
         with self.assertRaisesRegex(ValueError, 'Frontend requires scripts'):

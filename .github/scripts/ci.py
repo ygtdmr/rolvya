@@ -134,16 +134,34 @@ def verify_rust_registration(metadata):
             raise ValueError('Registered Rust test evidence is not an executed Cargo test target')
 
 
+def verify_rust_manifest_coverage(metadata):
+    members = set(metadata['workspace_members'])
+    covered = {str((Path(root) / 'Cargo.toml').resolve()) for root in metadata['workspace_roots']}
+    covered.update(str(Path(package['manifest_path']).resolve())
+                   for package in metadata['packages'] if package['id'] in members)
+    # Cargo resolves package sources relative to the manifest's location, even
+    # when the manifest itself aliases another file. Canonical identity alone
+    # therefore cannot certify a symlinked package's targets.
+    unchecked = sorted(str(path) for path in tracked_files() if path.name == 'Cargo.toml'
+                       and (any((ROOT / part).is_symlink() for part in (path, *path.parents))
+                            or str((ROOT / path).resolve()) not in covered))
+    if unchecked:
+        raise ValueError(f'Unchecked Rust manifest(s) outside verified workspaces: {unchecked}')
+
+
 def rust_check():
     data = inventory()
     if not data['rust']:
         raise ValueError('Rust job invoked without a Rust manifest')
-    packages, members = [], []
+    packages, members, roots = [], [], []
     for manifest in data['rust_manifests']:
         metadata = json.loads(subprocess.check_output(['cargo', 'metadata', '--format-version', '1',
             '--no-deps', '--locked', '--manifest-path', manifest], cwd=ROOT, text=True))
         packages.extend(metadata['packages'])
         members.extend(metadata['workspace_members'])
+        roots.append(metadata['workspace_root'])
+    verify_rust_manifest_coverage({'packages': packages, 'workspace_members': members,
+                                  'workspace_roots': roots})
     verify_rust_registration({'packages': packages, 'workspace_members': members})
     for manifest in data['rust_manifests']:
         commands = [
