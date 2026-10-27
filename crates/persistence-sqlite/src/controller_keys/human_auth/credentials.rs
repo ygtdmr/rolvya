@@ -154,7 +154,7 @@ impl HumanAuth {
             .verify(client, TransportOperation::Password, now)?;
         let mut tx = self.store.pool.begin_with("BEGIN IMMEDIATE").await?;
         let login_policy = policy(&mut tx).await?;
-        if !login_policy.1.password {
+        if !login_policy.1.local_method {
             return Ok(AuthenticationOutcome::Denied);
         }
         let account = self.mac(b"account", &[email.0.as_bytes()]);

@@ -7,7 +7,7 @@ impl HumanAuth {
     ) -> [u8; 32] {
         let methods = r
             .initial_policy
-            .map(|p| [u8::from(p.password), u8::from(p.verified_email)])
+            .map(|p| [u8::from(p.local_method), u8::from(p.verified_email)])
             .unwrap_or([0, 0]);
         self.mac(
             b"enrollment-request",
@@ -125,7 +125,7 @@ impl HumanAuth {
             let p = r.initial_policy.ok_or(AuthError::InvalidPolicy)?;
             self.validate_route(p, password.is_some(), r.email_login, evidence)?;
             sqlx::query("INSERT INTO human_login_policy VALUES(1,1,?,?)")
-                .bind(p.password)
+                .bind(p.local_method)
                 .bind(p.verified_email)
                 .execute(&mut *tx)
                 .await?;
@@ -196,13 +196,14 @@ impl HumanAuth {
     fn validate_route(
         &self,
         p: LoginPolicy,
-        password: bool,
+        has_local_credential: bool,
         email_login: bool,
         evidence: EmailEvidence,
     ) -> Result<(), AuthError> {
-        if (!p.password && !p.verified_email)
-            || (!p.password && !self.mail_ready())
-            || !(p.password && password || p.verified_email && email_login && self.mail_ready())
+        if (!p.local_method && !p.verified_email)
+            || (!p.local_method && !self.mail_ready())
+            || !(p.local_method && has_local_credential
+                || p.verified_email && email_login && self.mail_ready())
         {
             return Err(AuthError::InvalidPolicy);
         }
@@ -355,7 +356,7 @@ impl HumanAuth {
         {
             return Err(AuthError::Denied);
         }
-        if !enabled && !(p.password && self.has_password(&mut tx, &user.0).await?) {
+        if !enabled && !(p.local_method && self.has_password(&mut tx, &user.0).await?) {
             return Err(AuthError::InvalidPolicy);
         }
         sqlx::query("UPDATE human_emails SET email_login=?,version=version+1 WHERE user_id=?")
@@ -410,7 +411,7 @@ impl HumanAuth {
             b"policy-change",
             &[
                 &expected.to_be_bytes(),
-                &[u8::from(p.password), u8::from(p.verified_email)],
+                &[u8::from(p.local_method), u8::from(p.verified_email)],
             ],
         );
         let c = AdminContext {
@@ -421,7 +422,7 @@ impl HumanAuth {
             now: self.now()?,
         };
         self.authority.check(&c)?;
-        if !p.password && !self.mail_ready() {
+        if !p.local_method && !self.mail_ready() {
             return Err(AuthError::InvalidPolicy);
         }
         let mut tx = self.store.pool.begin_with("BEGIN IMMEDIATE").await?;
@@ -438,7 +439,7 @@ impl HumanAuth {
             for u in users {
                 after = u.get("user_id");
                 if u.get::<i64, _>("verified") != 1
-                    || !(p.password && self.has_password(&mut tx, &after).await?
+                    || !(p.local_method && self.has_password(&mut tx, &after).await?
                         || p.verified_email
                             && self.mail_ready()
                             && u.get::<i64, _>("email_login") == 1)
@@ -447,7 +448,7 @@ impl HumanAuth {
                 }
             }
         }
-        sqlx::query("UPDATE human_login_policy SET version=version+1,password=?,verified_email=? WHERE singleton=1").bind(p.password).bind(p.verified_email).execute(&mut *tx).await?;
+        sqlx::query("UPDATE human_login_policy SET version=version+1,password=?,verified_email=? WHERE singleton=1").bind(p.local_method).bind(p.verified_email).execute(&mut *tx).await?;
         audit(&mut tx, None, &a.request_id, "policy_changed", self.now()?).await?;
         self.authority.check(&AdminContext {
             now: self.now()?,

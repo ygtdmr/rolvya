@@ -127,16 +127,18 @@ impl fmt::Debug for ChallengeSecret {
 }
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct LoginPolicy {
-    password: bool,
+    local_method: bool,
     verified_email: bool,
 }
 impl LoginPolicy {
-    pub fn new(password: bool, verified_email: bool) -> Result<Self, AuthError> {
-        if !password && !verified_email {
+    /// Enablement flags only: `allow_local_method` enables password login.
+    /// Neither flag is credential material or enrollment/administration authority.
+    pub fn new(allow_local_method: bool, verified_email: bool) -> Result<Self, AuthError> {
+        if !allow_local_method && !verified_email {
             Err(AuthError::InvalidPolicy)
         } else {
             Ok(Self {
-                password,
+                local_method: allow_local_method,
                 verified_email,
             })
         }
@@ -154,7 +156,7 @@ impl LoginPolicy {
         Self::new(p, e)
     }
     pub fn password_enabled(self) -> bool {
-        self.password
+        self.local_method
     }
     pub fn email_enabled(self) -> bool {
         self.verified_email
