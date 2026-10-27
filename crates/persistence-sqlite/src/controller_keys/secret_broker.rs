@@ -283,6 +283,14 @@ impl WorkerAuthority for Unimplemented {
 }
 #[cfg(test)]
 type TestEntropy = Box<dyn Fn(&mut [u8]) -> Result<(), BrokerError> + Send + Sync>;
+fn os_random<const N: usize>() -> Result<Zeroizing<[u8; N]>, BrokerError> {
+    // The vetted safe API exposes initialized bytes only after OS randomness
+    // succeeds. Wipe even partially filled scratch on error.
+    let mut scratch = Zeroizing::new([std::mem::MaybeUninit::uninit(); N]);
+    let bytes = getrandom::fill_uninit(scratch.as_mut()).map_err(|_| BrokerError::Randomness)?;
+    let bytes = (&*bytes).try_into().map_err(|_| BrokerError::Randomness)?;
+    Ok(Zeroizing::new(bytes))
+}
 pub struct SecretBroker {
     store: PlanStore,
     key: ControllerKey,
@@ -320,14 +328,16 @@ impl SecretBroker {
             hook: Box::new(|_| Ok(())),
         })
     }
-    fn random(&self, bytes: &mut [u8]) -> Result<(), BrokerError> {
+    fn random<const N: usize>(&self) -> Result<Zeroizing<[u8; N]>, BrokerError> {
         #[cfg(test)]
         {
-            (self.entropy)(bytes)
+            let mut bytes = Zeroizing::new([0u8; N]);
+            (self.entropy)(bytes.as_mut())?;
+            Ok(bytes)
         }
         #[cfg(not(test))]
         {
-            getrandom::fill(bytes).map_err(|_| BrokerError::Randomness)
+            os_random()
         }
     }
     fn checkpoint(&self, p: Checkpoint) -> Result<(), BrokerError> {

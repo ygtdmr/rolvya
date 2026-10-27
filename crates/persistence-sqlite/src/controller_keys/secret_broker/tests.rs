@@ -432,6 +432,32 @@ async fn distinct_records_get_independent_deks_nonces_and_ciphertext() {
     assert!(da.as_ref() != dz.as_ref());
 }
 #[tokio::test]
+async fn production_os_randomness_protects_complete_independent_envelopes() {
+    let f = Fixture::new().await;
+    let b = ready(&f).await;
+    let seal = || {
+        crypto::seal(
+            &b.key,
+            &record("project-a"),
+            SecretVersion(1),
+            &value(),
+            os_random()?,
+            *os_random()?,
+            *os_random()?,
+        )
+    };
+    let a = seal().unwrap();
+    let z = seal().unwrap();
+    assert!(a.data_nonce != z.data_nonce && a.wrap_nonce != z.wrap_nonce);
+    assert!(a.ciphertext != z.ciphertext && a.wrapped != z.wrapped);
+    assert!(
+        crypto::unwrap(&b.key, &a).unwrap().as_ref()
+            != crypto::unwrap(&b.key, &z).unwrap().as_ref()
+    );
+    assert!(crypto::open(&b.key, &a).unwrap().0 == value().0);
+    assert!(crypto::open(&b.key, &z).unwrap().0 == value().0);
+}
+#[tokio::test]
 async fn every_authenticated_identity_and_version_rejects_substitution() {
     let f = Fixture::new().await;
     let b = ready(&f).await;
@@ -562,6 +588,9 @@ async fn entropy_failure_at_every_draw_persists_no_partial_secret() {
         let n = AtomicUsize::new(0);
         b.entropy = Box::new(move |bytes| {
             if n.fetch_add(1, Ordering::SeqCst) == failed {
+                // Even a partially written buffer must never become usable material.
+                let partial = bytes.len() / 2;
+                bytes[..partial].fill(0xa5);
                 Err(BrokerError::Randomness)
             } else {
                 getrandom::fill(bytes).map_err(|_| BrokerError::Randomness)

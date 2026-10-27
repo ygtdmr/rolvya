@@ -207,7 +207,15 @@ impl SecretBroker {
             return Err(BrokerError::StaleVersion);
         }
         self.checkpoint(Checkpoint::BeforeEncryption)?;
-        let envelope = crypto::seal(&self.key, &r.scope, version, &value, |b| self.random(b))?;
+        let envelope = crypto::seal(
+            &self.key,
+            &r.scope,
+            version,
+            &value,
+            self.random()?,
+            *self.random()?,
+            *self.random()?,
+        )?;
         self.checkpoint(Checkpoint::AfterEncryption)?;
         if r.expected.is_none() {
             sqlx::query("INSERT INTO secret_records VALUES(?,?,?,?,?)")

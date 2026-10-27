@@ -118,14 +118,10 @@ pub(super) fn seal(
     scope: &RecordScope,
     version: SecretVersion,
     value: &SecretValue,
-    random: impl Fn(&mut [u8]) -> Result<(), BrokerError>,
+    dek: Zeroizing<[u8; 32]>,
+    dn: [u8; 24],
+    wn: [u8; 24],
 ) -> Result<Envelope, BrokerError> {
-    let mut dek = Zeroizing::new([0u8; 32]);
-    let mut dn = [0u8; 24];
-    let mut wn = [0u8; 24];
-    random(dek.as_mut())?;
-    random(&mut dn)?;
-    random(&mut wn)?;
     if dn == wn {
         return Err(BrokerError::Randomness);
     }

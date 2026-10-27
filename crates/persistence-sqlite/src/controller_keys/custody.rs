@@ -94,10 +94,12 @@ fn walk(path: &Path, owner: ServiceIdentity) -> Result<OwnedFd, Error> {
     local_filesystem(fs::fstatfs(&fd).map_err(io_error)?.f_type as u64)?;
     Ok(fd)
 }
-fn exists(fd: &OwnedFd, name: &str) -> Result<bool, Error> {
+// Return the actual OS metadata rather than a synthetic presence value. These
+// probes enforce repository exclusion; their result is never key material.
+fn stat_optional(fd: &OwnedFd, name: &str) -> Result<Option<Stat>, Error> {
     match fs::statat(fd, name, AtFlags::SYMLINK_NOFOLLOW) {
-        Ok(_) => Ok(true),
-        Err(rustix::io::Errno::NOENT) => Ok(false),
+        Ok(stat) => Ok(Some(stat)),
+        Err(rustix::io::Errno::NOENT) => Ok(None),
         Err(e) => Err(io_error(e)),
     }
 }
@@ -109,17 +111,34 @@ fn check_repository(fd: &OwnedFd) -> Result<(), Error> {
             }
             let git = fs::openat(fd, ".git", DIRECTORY_FLAGS, Mode::empty()).map_err(io_error)?;
             // Empty read-only sandbox placeholders are not Git repositories.
-            if exists(&git, "HEAD")? || exists(&git, "config")? || exists(&git, "objects")? {
+            if stat_optional(&git, "HEAD")?.is_some()
+                || stat_optional(&git, "config")?.is_some()
+                || stat_optional(&git, "objects")?.is_some()
+            {
                 return Err(Error::UnsafePath);
             }
         }
         Err(rustix::io::Errno::NOENT) => {}
         Err(e) => return Err(io_error(e)),
     }
-    if exists(fd, "HEAD")? && exists(fd, "objects")? {
+    if stat_optional(fd, "HEAD")?.is_some() && stat_optional(fd, "objects")?.is_some() {
         return Err(Error::UnsafePath);
     }
     Ok(())
+}
+
+#[cfg(test)]
+#[test]
+fn repository_probe_distinguishes_presence_absence_and_errors() {
+    let directory = tempfile::tempdir().unwrap();
+    std::fs::write(directory.path().join("present"), b"nonsecret probe").unwrap();
+    let fd = fs::open(directory.path(), DIRECTORY_FLAGS, Mode::empty()).unwrap();
+    assert!(stat_optional(&fd, "present").unwrap().is_some());
+    assert!(stat_optional(&fd, "missing").unwrap().is_none());
+    assert_eq!(
+        stat_optional(&fd, "present/child").unwrap_err(),
+        Error::UnsafePath
+    );
 }
 // Linux statfs magic values (statfs(2)): only explicitly supported local
 // filesystems. Remote/FUSE/unknown filesystems cannot establish local custody.
