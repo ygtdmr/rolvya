@@ -283,7 +283,7 @@ impl WorkerAuthority for Unimplemented {
 }
 #[cfg(test)]
 type TestEntropy = Box<dyn Fn(&mut [u8]) -> Result<(), BrokerError> + Send + Sync>;
-fn os_random<const N: usize>() -> Result<Zeroizing<[u8; N]>, BrokerError> {
+pub(super) fn os_random<const N: usize>() -> Result<Zeroizing<[u8; N]>, BrokerError> {
     // The vetted safe API exposes initialized bytes only after OS randomness
     // succeeds. Wipe even partially filled scratch on error.
     let mut scratch = Zeroizing::new([std::mem::MaybeUninit::uninit(); N]);
