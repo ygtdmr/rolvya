@@ -9,10 +9,10 @@ use crate::{
 use rolvya_domain::{ids::ProjectId, worker::WorkerBinding};
 use std::{fmt, sync::Arc};
 use zeroize::Zeroizing;
-mod crypto;
+pub(in crate::controller_keys) mod crypto;
 mod store;
 #[cfg(test)]
-mod tests;
+pub(in crate::controller_keys) mod tests;
 pub const MAX_SECRET_BYTES: usize = 65536;
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum BrokerError {

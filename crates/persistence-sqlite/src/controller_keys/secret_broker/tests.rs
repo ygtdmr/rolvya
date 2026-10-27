@@ -1847,3 +1847,33 @@ async fn lease_expiring_during_replay_cannot_return_old_success() {
         );
     }
 }
+
+// Reuses real admission, reservation, dispatch, lease and broker guards in a shared
+// disposable controller database. No provider or real entitlement is fabricated.
+pub(in crate::controller_keys) async fn admitted_for_session_tests(
+    store: PlanStore,
+    path: PathBuf,
+    keys: PathBuf,
+) -> (
+    SecretBroker,
+    SecretUseRequest,
+    crate::admission::LeaseRef,
+    Arc<crate::worker_simulation::DeterministicClock>,
+) {
+    let bootstrap = ControllerBootstrap::open(
+        store.clone(),
+        &keys,
+        super::super::ServiceIdentity::current(),
+        &[],
+    )
+    .await
+    .unwrap();
+    let fixture = Fixture {
+        root: temporary(),
+        path,
+        keys,
+        store,
+        bootstrap,
+    };
+    admitted_worker(&fixture).await
+}

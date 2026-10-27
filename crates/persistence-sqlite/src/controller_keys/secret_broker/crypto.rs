@@ -83,7 +83,7 @@ impl Envelope {
         Ok(())
     }
 }
-fn encrypt(
+pub(in crate::controller_keys) fn encrypt(
     key: &[u8; 32],
     nonce: &[u8; 24],
     aad: &[u8],
@@ -97,7 +97,7 @@ fn encrypt(
     b.extend_from_slice(&tag);
     Ok(std::mem::take(&mut *b))
 }
-fn decrypt(
+pub(in crate::controller_keys) fn decrypt(
     key: &[u8; 32],
     nonce: &[u8; 24],
     aad: &[u8],

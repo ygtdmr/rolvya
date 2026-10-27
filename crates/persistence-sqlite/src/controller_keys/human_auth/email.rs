@@ -348,6 +348,8 @@ impl HumanAuth {
                             policy: row.get("policy_version"),
                             factor,
                             source: &receipt.reference,
+                            email_version: row.get("email_version"),
+                            context: &peer,
                             now,
                         },
                         &client.request_id,

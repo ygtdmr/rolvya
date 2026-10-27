@@ -229,6 +229,8 @@ impl HumanAuth {
                         policy: login_policy.0,
                         factor: row.try_get("factor_required")?,
                         source: &attempt,
+                        email_version: row.try_get("email_version")?,
+                        context: &peer,
                         now: end,
                     },
                     &client.request_id,

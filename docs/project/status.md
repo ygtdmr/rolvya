@@ -3,12 +3,18 @@
 Current authoritative decision cross-check: 2026-10-26 (see current ADRs; earlier sections are chronological historical checkpoints).
 
 ## Phase
-**R01–R11 synthetic Rust/SQLite core, independently reviewed and verified for Owner core review.** Frozen-plan execution, exact-budget authority, durable worker control, independent artifact/group acceptance and tested recovery are implemented as libraries. Production security, providers, application and operations remain incomplete. Stage 2 P0 security integration now includes S2-01 key bootstrap, the S2-02 encrypted Secret Broker and the S2-03A primary-authentication foundation; deployment and paid execution remain unauthorized.
+**R01–R11 synthetic Rust/SQLite core, independently reviewed and verified for Owner core review.** Frozen-plan execution, exact-budget authority, durable worker control, independent artifact/group acceptance and tested recovery are implemented as libraries. Production security, providers, application and operations remain incomplete. Stage 2 P0 security integration now includes S2-01 key bootstrap, the S2-02 encrypted Secret Broker and the S2-03A primary-authentication foundation and the S2-03B session/factor library; deployment and paid execution remain unauthorized.
 
 ## Verified repository artifacts
 - `LICENSE` — MIT License text present on `main`.
 - Root `README.md` — introductory project description and explicitly pre-implementation status.
 - `AGENTS.md` and initial `docs/` foundation — repository guidance and planning documents, not implementation.
+
+## S2-03B secure sessions and voluntary TOTP (2026-10-27)
+
+[PR #24](https://github.com/ygtdmr/rolvya/pull/24) is confirmed merged as main `9710ff492e94605ac7d9fbc393347918d143a5b2`, with the expected S2-03A source and migration 0008. Branch `codex/human-session-totp` implements atomic primary-proof consumption, revocable per-device SQLite sessions, generation rotation, seven-day real-human inactivity, secure cookie/CSRF contracts, voluntary encrypted TOTP and one-use recovery credentials. Forward migration 0009 leaves 0001–0008 unchanged. See [implementation and verification boundaries](../development/human-sessions-totp.md). Fresh local verification passes **468 workspace Rust tests**, **47 focused session/factor tests** (one subprocess driver and ten SIGKILL cases), **nine migration checks**, **203 controller tests** and **23 Python checks**. Formatting, Clippy with warnings denied, locked compilation, the Rust CI wrapper, repository/inventory checks, workflow linting and staged-source secret scanning pass. Final-head GitHub CI/CodeQL and the PR-range scan are recorded in the PR; `cargo audit` remains unavailable. Earlier milestone counts below remain historical.
+
+Private production transport/incident/enrollment adapters remain default-deny. No project roles or budget approvals arise from a session. TOTP removal/exceptional recovery require later reviewed authorization; encrypted off-host recovery, real browser/SMTP behavior and production deployment remain unimplemented. Two independent read-only reviews prompted reproduced session-deadline, usable-family-cap and recovery-delivery regressions. No live credentials, emails, paid operations, issues, approvals, merges or protection changes. **Next: S2-03C**, project roles and atomic exact-action Owner authorization, after manual Owner review/merge.
 
 ## S2-03A human identity and primary authentication (2026-10-27)
 
