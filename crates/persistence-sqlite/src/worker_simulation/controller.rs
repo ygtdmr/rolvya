@@ -22,6 +22,8 @@ pub enum WorkerOperation {
     StopQuery,
     StopAck,
     Disconnect,
+    /// Separate broker authority; heartbeat permission never implies credential use.
+    UseCredential,
 }
 pub(crate) fn operation(body: &WorkerBody) -> WorkerOperation {
     match body {

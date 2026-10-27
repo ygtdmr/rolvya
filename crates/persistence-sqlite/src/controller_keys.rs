@@ -14,6 +14,8 @@ mod custody;
 #[cfg(test)]
 mod tests;
 
+pub mod secret_broker;
+
 const FORMAT: u32 = 1;
 const KEY_VERSION: u64 = 1;
 const HEADER: usize = 52;

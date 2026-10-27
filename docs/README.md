@@ -117,6 +117,7 @@ The paths above are a **planned inventory**, not links to files that already exi
 
 ## Engineering and agent execution specifications
 
+- [S2-02 encrypted SQLite Secret Broker](development/encrypted-secret-broker.md)
 - [S2-01 guarded controller key initialization](development/controller-key-bootstrap.md)
 - [R11 independent core verification, release gates and Stage 2 handoff](development/core-verification-handoff.md)
 

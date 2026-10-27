@@ -3,12 +3,22 @@
 Current authoritative decision cross-check: 2026-10-26 (see current ADRs; earlier sections are chronological historical checkpoints).
 
 ## Phase
-**R01–R11 synthetic Rust/SQLite core, independently reviewed and verified for Owner core review.** Frozen-plan execution, exact-budget authority, durable worker control, independent artifact/group acceptance and tested recovery are implemented as libraries. Production security, providers, application and operations remain incomplete. Stage 2 P0 security integration has begun with the S2-01 key-bootstrap library; deployment and paid execution remain unauthorized.
+**R01–R11 synthetic Rust/SQLite core, independently reviewed and verified for Owner core review.** Frozen-plan execution, exact-budget authority, durable worker control, independent artifact/group acceptance and tested recovery are implemented as libraries. Production security, providers, application and operations remain incomplete. Stage 2 P0 security integration now includes S2-01 key bootstrap and the S2-02 encrypted Secret Broker library; deployment and paid execution remain unauthorized.
 
 ## Verified repository artifacts
 - `LICENSE` — MIT License text present on `main`.
 - Root `README.md` — introductory project description and explicitly pre-implementation status.
 - `AGENTS.md` and initial `docs/` foundation — repository guidance and planning documents, not implementation.
+
+## S2-02 encrypted SQLite Secret Broker (2026-10-26)
+
+[PR #22](https://github.com/ygtdmr/rolvya/pull/22) is confirmed merged at main `043372bac1b84a6950faf5847115f578df2bef33`, matching the verified S2-01 tree. Branch `codex/encrypted-secret-broker` implements RustCrypto XChaCha20-Poly1305 with independent OS-random 256-bit per-record DEKs and 24-byte data/wrapping nonces. Canonical versioned AAD binds installation, project, account, connection, provider/mode, record, purpose and key/version identities. Existing opaque KEK custody is reused without an export or replacement-key path.
+
+Forward migration 0007 preserves 0001–0006 and adds scoped immutable envelopes, versioned replacement, one-way connection revocation and redacted append-only request/audit evidence. Public construction **denies all privileged operations** while production authentication/entitlement are unavailable. No public plaintext getter or consumer override exists. Synthetic tests exercise real encrypted storage/use, cross-account/project rejection, adversarial tampering, actual admitted-worker financial/fencing guards, four SIGKILL/reopen points, concurrent operations and isolated matching-key snapshot restoration. Two independent reviewers inspected actual source; reproduced scope/replay/audit and malformed-metadata defects were corrected with regression tests. Fresh local gates pass **366 workspace Rust tests**, including 45 broker unit tests (one subprocess driver), the public broker test and three persistence compile-fail tests, plus eight migration checks, 203 controller tests and 23 Python checks. Exact commands and final-head CI are recorded in the PR and [implementation notes](../development/encrypted-secret-broker.md).
+
+CodeQL follow-up makes OS-generated random arrays and filesystem-metadata provenance explicit without changing cryptographic or custody policy. Two added regressions and partial-entropy failure coverage accompany the correction; the separate CodeQL result and mergeability are verified in PR #23, not inferred from repository CI.
+
+Real human/worker authentication, provider entitlement, live credential consumption, KEK rotation and encrypted off-host recovery remain unimplemented and blocked. Application-layer encryption protects designated values, not the whole SQLite file or a compromised controller. HMAC internal memory wiping, vulnerability auditing and production qualification remain explicit limitations. Existing synthetic core behavior and architecture are preserved. No live credentials, paid providers, infrastructure, issues, settings changes, self-approval or merge. **Next: S2-03 human authentication and action-bound Owner reauthentication.** Historical S2-01/R11 reports below retain their original scope.
 
 ## S2-01 guarded controller key initialization (2026-10-26)
 

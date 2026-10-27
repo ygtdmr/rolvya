@@ -3,9 +3,9 @@ use crate::{admission::*, finance::*, orchestration::*, worker_control::*, worke
 use rolvya_domain::{ids::*, money::*, plan::*, worker::*};
 use rolvya_plan_validator::{AssignmentDenial, AssignmentPolicy, Limits};
 #[path = "../common/mod.rs"]
-mod common;
+pub(crate) mod common;
 #[path = "../common/synthetic.rs"]
-mod synthetic;
+pub(crate) mod synthetic;
 use common::*;
 use synthetic::*;
 mod adversarial;
