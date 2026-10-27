@@ -3,12 +3,18 @@
 Current authoritative decision cross-check: 2026-10-26 (see current ADRs; earlier sections are chronological historical checkpoints).
 
 ## Phase
-**R01–R11 synthetic Rust/SQLite core, independently reviewed and verified for Owner core review.** Frozen-plan execution, exact-budget authority, durable worker control, independent artifact/group acceptance and tested recovery are implemented as libraries. Production security, providers, application and operations remain incomplete. Stage 2 P0 security integration now includes S2-01 key bootstrap and the S2-02 encrypted Secret Broker library; deployment and paid execution remain unauthorized.
+**R01–R11 synthetic Rust/SQLite core, independently reviewed and verified for Owner core review.** Frozen-plan execution, exact-budget authority, durable worker control, independent artifact/group acceptance and tested recovery are implemented as libraries. Production security, providers, application and operations remain incomplete. Stage 2 P0 security integration now includes S2-01 key bootstrap, the S2-02 encrypted Secret Broker and the S2-03A primary-authentication foundation; deployment and paid execution remain unauthorized.
 
 ## Verified repository artifacts
 - `LICENSE` — MIT License text present on `main`.
 - Root `README.md` — introductory project description and explicitly pre-implementation status.
 - `AGENTS.md` and initial `docs/` foundation — repository guidance and planning documents, not implementation.
+
+## S2-03A human identity and primary authentication (2026-10-27)
+
+PR #23 is confirmed merged at main `9d7c2e449ed6981618cf5aade709edd87fe4e27a`. The interrupted uncommitted workspace was lost; `codex/human-auth-foundation` reconstructs the scoped implementation. Rust now provides stable human identities, guarded one-use enrollment, Argon2id password verifiers, durable throttles, configurable primary-method policy, keyed Magic Link/OTP challenges and transactional primary evidence. Forward migration 0008 preserves 0001–0007. See [implementation and verification boundaries](../development/human-primary-authentication.md); fresh local gates pass 419 workspace Rust tests (52 focused authentication tests, including one subprocess driver), eight migration checks, 203 controller tests and 23 Python tests. Formatting, Clippy with warnings denied, locked compilation, the Rust CI wrapper, workflow linting and tracked-source secret scanning pass. Final-head CI/CodeQL are recorded in the PR; vulnerability auditing was unavailable because `cargo audit` is not installed.
+
+Production enrollment/administration, trusted browser transport and operational mail/delivery remain default-deny. Synthetic tests grant no Owner, financial, worker or Secret Broker authority. Sessions, voluntary TOTP and Owner-action authorization are deliberately separate future slices. Independent read-only review produced four reproduced medium defects that were corrected with regressions. No production authentication, real email delivery, credentials or spending is claimed. **Next: S2-03B revocable sessions and voluntary TOTP**, after Owner review/merge of S2-03A.
 
 ## S2-02 encrypted SQLite Secret Broker (2026-10-26)
 

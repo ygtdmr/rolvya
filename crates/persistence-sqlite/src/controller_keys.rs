@@ -14,6 +14,7 @@ mod custody;
 #[cfg(test)]
 mod tests;
 
+pub mod human_auth;
 pub mod secret_broker;
 
 const FORMAT: u32 = 1;
