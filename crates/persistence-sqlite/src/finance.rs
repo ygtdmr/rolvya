@@ -1,8 +1,10 @@
 //! R04 accounting on the existing SQLite authority. Holds never admit execution.
 //!
-//! All mutations serialize with BEGIN IMMEDIATE. Authentication, verified human
-//! consent and provider evidence belong to a trusted caller policy, not IDs in a
-//! request. Only references to that evidence are stored here, never bearer proofs.
+//! All mutations serialize with BEGIN IMMEDIATE. Human approvals enter through
+//! the sealed session/membership/exact-action adapter in `human_auth::sessions::owner`.
+//! The legacy approval seam is restricted to pre-human installations; machine
+//! reservation/report/reconciliation evidence still requires a trusted policy.
+//! IDs and evidence references alone never establish human consent.
 //! No financial operation invokes providers, creates attempts or dispatches work.
 use crate::*;
 use rolvya_domain::money::{CostBreakdown, Currency, Money, MoneyError};
@@ -69,7 +71,8 @@ impl From<MoneyError> for FinanceError {
 }
 
 /// Non-secret reference to a freshly verified, explicitly confirmed exact action.
-/// Authenticity, actor/session binding and revocation must be checked by the policy.
+/// This DTO does not establish human authority. Human-enabled installations require
+/// the sealed Owner-action adapter; the legacy policy seam cannot approve for them.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct OwnerProof {
     pub reference: EvidenceRef,
@@ -411,6 +414,46 @@ pub(crate) async fn apply_in(
     request: &FinancialRequest,
     authorization: &dyn FinancialAuthorization,
 ) -> Result<FinancialReceipt, FinanceError> {
+    apply_authorized(connection, request, FinanceGate::Legacy(authorization)).await
+}
+// Only the human coordinator can construct this guard; no public approval callback.
+pub(crate) async fn apply_human_approval_in(
+    connection: &mut SqliteConnection,
+    guard: &crate::controller_keys::human_auth::sessions::owner::VerifiedBudgetApproval,
+) -> Result<FinancialReceipt, FinanceError> {
+    apply_authorized(connection, guard.request(), FinanceGate::Human(guard)).await
+}
+enum FinanceGate<'a> {
+    Legacy(&'a dyn FinancialAuthorization),
+    Human(&'a crate::controller_keys::human_auth::sessions::owner::VerifiedBudgetApproval),
+}
+impl FinanceGate<'_> {
+    fn time(&self) -> Result<i64, FinanceError> {
+        match self {
+            Self::Legacy(_) => now(),
+            Self::Human(g) => Ok(g.at()),
+        }
+    }
+    fn permitted(&self, owner: &PrincipalId, request: &FinancialRequest, at: i64) -> bool {
+        match self {
+            Self::Legacy(a) => {
+                a.permits(owner, request, at)
+                    && (!matches!(request.command, FinancialCommand::Approve { .. })
+                        || owner == &request.actor)
+            }
+            Self::Human(g) => {
+                g.request() == request
+                    && g.at() == at
+                    && matches!(request.command, FinancialCommand::Approve { .. })
+            }
+        }
+    }
+}
+async fn apply_authorized(
+    connection: &mut SqliteConnection,
+    request: &FinancialRequest,
+    gate: FinanceGate<'_>,
+) -> Result<FinancialReceipt, FinanceError> {
     if request.reason.trim().is_empty()
         || request.reason.len() > 512
         || request.reason.chars().any(char::is_control)
@@ -428,10 +471,35 @@ pub(crate) async fn apply_in(
         .await?
         .ok_or(StoreError::NotFound)?;
     let owner = PrincipalId::new(owner)?;
-    let at = now()?;
-    if !authorization.permits(&owner, request, at)
-        || matches!(request.command, FinancialCommand::Approve { .. }) && owner != request.actor
-    {
+    let at = gate.time()?;
+    if matches!(request.command, FinancialCommand::Approve { .. }) {
+        match &gate {
+            FinanceGate::Legacy(_) => {
+                // Isolated pre-human compatibility for R01–R11 fixtures/history.
+                // Human installations cannot approve through owner_actor or callbacks,
+                // including unbound legacy projects awaiting an explicit ceremony.
+                let human:bool=sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM human_project_bindings WHERE project_id=?) OR EXISTS(SELECT 1 FROM human_enrollment WHERE state='ready')").bind(request.project.as_str()).fetch_one(&mut *connection).await?;
+                if human {
+                    return Err(StoreError::Forbidden.into());
+                }
+            }
+            FinanceGate::Human(_) => {
+                let FinancialCommand::Approve {
+                    proof,
+                    new_ceiling,
+                    expected_version,
+                } = &request.command
+                else {
+                    return Err(FinanceError::InvalidInput);
+                };
+                let valid:bool=sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM human_owner_actions a JOIN human_owner_proofs p USING(action_id) JOIN human_memberships m ON m.project_id=a.project_id AND m.user_id=a.actor JOIN human_sessions s ON s.session_id=a.session_id JOIN human_users u ON u.user_id=a.actor WHERE a.action_id=? AND a.project_id=? AND a.actor=? AND a.state='pending' AND m.role='owner' AND m.state='active' AND m.version=a.role_version AND s.revoked_at IS NULL AND s.generation=a.generation AND s.security_epoch=a.security_epoch AND u.state='active' AND u.security_epoch=a.security_epoch AND p.verified_at=? AND p.expires_at>? AND json_extract(a.payload,'$.proposed')=? AND json_extract(a.payload,'$.currency')=? AND json_extract(a.payload,'$.expected_version')=?)").bind(proof.reference.as_str()).bind(request.project.as_str()).bind(request.actor.as_str()).bind(proof.verified_at).bind(at).bind(new_ceiling.minor_units()).bind(new_ceiling.currency().to_string()).bind(integer_version(*expected_version)?).fetch_one(&mut *connection).await?;
+                if !valid {
+                    return Err(StoreError::Forbidden.into());
+                }
+            }
+        }
+    }
+    if !gate.permitted(&owner, request, at) {
         return Err(StoreError::Forbidden.into());
     }
     if let Some(row) = sqlx::query(
@@ -574,8 +642,8 @@ pub(crate) async fn apply_in(
         }
     }
     verify_application(&mut *connection, sequence, request).await?;
-    let commit_at = now()?;
-    if commit_at < at || !authorization.permits(&owner, request, commit_at) {
+    let commit_at = gate.time()?;
+    if commit_at < at || !gate.permitted(&owner, request, commit_at) {
         return Err(StoreError::Forbidden.into());
     }
     if let FinancialCommand::Approve { proof, .. } = &request.command {

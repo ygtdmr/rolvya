@@ -85,6 +85,16 @@ impl EmailAddress {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct HumanId(String);
 impl HumanId {
+    pub fn parse(value: String) -> Result<Self, AuthError> {
+        if value.len() != 32
+            || !value
+                .bytes()
+                .all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b))
+        {
+            return Err(AuthError::InvalidInput);
+        }
+        Ok(Self(value))
+    }
     pub fn as_str(&self) -> &str {
         &self.0
     }
@@ -268,12 +278,14 @@ impl ChallengeKind {
 pub enum ChallengePurpose {
     Login,
     VerifyEmail,
+    OwnerAction,
 }
 impl ChallengePurpose {
     fn name(self) -> &'static str {
         match self {
             Self::Login => "login",
             Self::VerifyEmail => "verify_email",
+            Self::OwnerAction => "owner_action",
         }
     }
 }
@@ -482,6 +494,8 @@ enum Checkpoint {
     AfterSessionCommit,
     BeforeFactorCommit,
     AfterFactorCommit,
+    BeforeOwnerCommit,
+    AfterOwnerCommit,
 }
 /// No override/allow-all constructor. Production enrollment, transport and mail are
 /// blocked until independent trusted integrations have been implemented and reviewed.
@@ -496,6 +510,7 @@ pub struct HumanAuth {
     clock: Arc<dyn Clock>,
     browser_authority: Arc<dyn sessions::BrowserAuthority>,
     incident_authority: Arc<dyn sessions::IncidentAuthority>,
+    project_binding: Arc<dyn sessions::owner::ProjectBindingAuthority>,
     #[cfg(test)]
     hook: Box<dyn Fn(Checkpoint) -> Result<(), AuthError> + Send + Sync>,
 }
@@ -522,6 +537,7 @@ impl HumanAuth {
             clock: Arc::new(SystemClock),
             browser_authority: Arc::new(Unimplemented),
             incident_authority: Arc::new(Unimplemented),
+            project_binding: Arc::new(Unimplemented),
             #[cfg(test)]
             hook: Box::new(|_| Ok(())),
         })

@@ -117,6 +117,7 @@ The paths above are a **planned inventory**, not links to files that already exi
 
 ## Engineering and agent execution specifications
 
+- [S2-03C project authorization and exact-action Owner approvals](development/human-owner-authorization.md)
 - [S2-03B human sessions and voluntary TOTP](development/human-sessions-totp.md)
 - [S2-02 encrypted SQLite Secret Broker](development/encrypted-secret-broker.md)
 - [S2-01 guarded controller key initialization](development/controller-key-bootstrap.md)

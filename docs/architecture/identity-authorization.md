@@ -10,6 +10,8 @@ tags: [identity, rbac, authorization, approvals, security]
 
 ## Status and scope
 
+**Implemented library boundary:** [S2-03C implementation notes](../development/human-owner-authorization.md) identify the current Rust/SQLite roles, invitations, independent recipient acceptance and transaction-bound budget/governance effects. The broader deployment/UX design below remains a specification. Production human enrollment, legacy-project ownership binding, browser and mail adapters are unavailable by default; no deployed authentication or permission service is claimed.
+
 **Proposed security architecture, not deployed authentication.** The user approved a **hard human approval gate for budget increases**, a fixed DAG, remote workers only and remote Git providers only. **ADR 0024 approved three project-scoped human roles: Owner, Editor and Viewer.** **Conditional federated OIDC/passkey safeguards remain in ADR 0025; secure recovery is Approved ADR 0026; low-friction risk-based web session management is Approved ADR 0027.** **ADR 0033 approves password or verified-email primary login (Magic Link/OTP), plus optional authenticator-app TOTP 2FA; no SMS. Owner selects at least one primary method initially and can later enable more.** Trusted broker/provider protocol, email delivery, assurance mapping, secure token/renewal implementation, concrete tenancy topology and remaining fine-grained authorization rules are still unselected. Rust is the approved backend; SQLite is authoritative state. The implementation **must not infer authority** from possession of a task lease, a webhook, an LLM message, an API callback or UI notification acknowledgement.
 
 ## Approved human roles and separate system principals

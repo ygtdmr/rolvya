@@ -1,5 +1,9 @@
 mod common;
 use common::*;
+use rolvya_domain::ids::ProjectId;
+use rolvya_persistence_sqlite::finance::{
+    EvidenceRef, FinancialCommand, FinancialRequest, OwnerProof,
+};
 use rolvya_persistence_sqlite::*;
 use rolvya_plan_validator::Limits;
 use sqlx::migrate::Migrator;
@@ -45,7 +49,7 @@ async fn migrations_replay_reopen_and_consistent_snapshot_restore() {
             .fetch_one(&raw)
             .await
             .unwrap(),
-        9
+        10
     );
     assert_eq!(
         sqlx::query_scalar::<_, String>("SELECT sqlite_version()")
@@ -119,8 +123,8 @@ async fn failed_migration_rolls_back_ddl_and_data() {
     let f = Fixture::new().await;
     let raw = f.raw().await;
     let scripts = tempfile::tempdir().unwrap();
-    std::fs::write(scripts.path().join("0010_injected_failure.sql"),"CREATE TABLE should_rollback(value TEXT); INSERT INTO should_rollback VALUES ('temporary'); SELECT absent_column FROM absent_table;").unwrap();
-    // Replay real migrations, then verify failing v10 executes and rolls back atomically.
+    std::fs::write(scripts.path().join("0011_injected_failure.sql"),"CREATE TABLE should_rollback(value TEXT); INSERT INTO should_rollback VALUES ('temporary'); SELECT absent_column FROM absent_table;").unwrap();
+    // Replay real migrations, then verify failing v11 executes and rolls back atomically.
     std::fs::write(
         scripts.path().join("0001_plan_store.sql"),
         include_str!("../migrations/0001_plan_store.sql"),
@@ -166,10 +170,15 @@ async fn failed_migration_rolls_back_ddl_and_data() {
         include_str!("../migrations/0009_human_sessions_totp.sql"),
     )
     .unwrap();
+    std::fs::write(
+        scripts.path().join("0010_human_owner_authorization.sql"),
+        include_str!("../migrations/0010_human_owner_authorization.sql"),
+    )
+    .unwrap();
     let migrator = Migrator::new(scripts.path()).await.unwrap();
     let error = migrator.run(&raw).await.unwrap_err();
     assert!(
-        matches!(error, sqlx::migrate::MigrateError::ExecuteMigration(_, 10)),
+        matches!(error, sqlx::migrate::MigrateError::ExecuteMigration(_, 11)),
         "must execute the injected next migration, not reject migration metadata"
     );
     assert_eq!(
@@ -336,7 +345,7 @@ async fn real_v1_upgrade_preserves_projects_and_failed_v2_leaves_v1_intact() {
                 .fetch_one(&raw)
                 .await
                 .unwrap(),
-            9
+            10
         );
         assert_eq!(
             sqlx::query_scalar::<_, i64>("SELECT count(*) FROM financial_events")
@@ -620,5 +629,208 @@ async fn v8_human_records_survive_v9_and_failed_v9_restores_old_guards() {
         raw.close().await;
         let upgraded = PlanStore::open(&path).await.unwrap();
         upgraded.check_integrity().await.unwrap();
+    }
+}
+
+#[tokio::test]
+async fn v9_humans_sessions_and_accounting_upgrade_without_implicit_owner_binding() {
+    use sqlx::sqlite::SqliteConnectOptions;
+    for fail_first in [false, true] {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("upgrade.sqlite");
+        let mut options = std::fs::OpenOptions::new();
+        options.create_new(true).write(true);
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::OpenOptionsExt;
+            options.mode(0o600);
+        }
+        options.open(&path).unwrap();
+        let raw = sqlx::SqlitePool::connect_with(
+            SqliteConnectOptions::new()
+                .filename(&path)
+                .foreign_keys(true),
+        )
+        .await
+        .unwrap();
+        let scripts = tempfile::tempdir().unwrap();
+        for e in std::fs::read_dir(concat!(env!("CARGO_MANIFEST_DIR"), "/migrations")).unwrap() {
+            let e = e.unwrap();
+            if e.file_name().to_str().unwrap() < "0010" {
+                std::fs::copy(e.path(), scripts.path().join(e.file_name())).unwrap();
+            }
+        }
+        Migrator::new(scripts.path())
+            .await
+            .unwrap()
+            .run(&raw)
+            .await
+            .unwrap();
+        // Inert historical schema fixtures: no authenticated human proof or session.
+        let user = "a".repeat(32);
+        let session = "b".repeat(32);
+        let project = ProjectId::new("legacy-project").unwrap();
+        sqlx::query("INSERT INTO projects(project_id,owner_actor) VALUES(?,?)")
+            .bind(project.as_str())
+            .bind(&user)
+            .execute(&raw)
+            .await
+            .unwrap();
+        sqlx::query("INSERT INTO human_users VALUES(?,'active',1,0,10000)")
+            .bind(&user)
+            .execute(&raw)
+            .await
+            .unwrap();
+        sqlx::query("INSERT INTO human_emails VALUES(?,'legacy@example.invalid',1,1,1)")
+            .bind(&user)
+            .execute(&raw)
+            .await
+            .unwrap();
+        sqlx::query("INSERT INTO human_login_policy VALUES(1,1,1,1)")
+            .execute(&raw)
+            .await
+            .unwrap();
+        sqlx::query("INSERT INTO human_authentications VALUES('legacy-primary',?,'magic_link',1,1,1,10000,0,'legacy-email',zeroblob(32))").bind(&user).execute(&raw).await.unwrap();
+        sqlx::query("INSERT INTO human_sessions VALUES(?,?,'legacy-primary',1,1,1,1,'magic_link','primary',zeroblob(32),'synthetic-v9',10000,7786000,10000,10000,1,NULL,zeroblob(32))").bind(&session).bind(&user).execute(&raw).await.unwrap();
+        sqlx::query("INSERT INTO financial_accounts VALUES(?,'USD')")
+            .bind(project.as_str())
+            .execute(&raw)
+            .await
+            .unwrap();
+        let request = FinancialRequest {
+            project: project.clone(),
+            request_id: RequestId::new("legacy-budget").unwrap(),
+            actor: PrincipalId::new(user.clone()).unwrap(),
+            reason: "Inert historical accounting fixture".to_owned(),
+            command: FinancialCommand::Approve {
+                expected_version: 0,
+                new_ceiling: rolvya_domain::money::Money::new(
+                    100,
+                    rolvya_domain::money::Currency::new("USD").unwrap(),
+                )
+                .unwrap(),
+                proof: OwnerProof {
+                    reference: EvidenceRef::new("legacy-budget-evidence").unwrap(),
+                    verified_at: 10000,
+                },
+            },
+        };
+        let payload =
+            serde_json::to_string(&serde_json::json!({"format":1,"request":request})).unwrap();
+        let event:i64=sqlx::query_scalar("INSERT INTO financial_events(project_id,request_id,actor,recorded_at,kind,payload) VALUES(?,'legacy-budget',?,10000,'approval',?) RETURNING sequence").bind(project.as_str()).bind(&user).bind(&payload).fetch_one(&raw).await.unwrap();
+        sqlx::query(
+            "INSERT INTO budget_approvals VALUES(?,?,1,0,100,'legacy-budget-evidence',10000)",
+        )
+        .bind(event)
+        .bind(project.as_str())
+        .execute(&raw)
+        .await
+        .unwrap();
+        let migration = include_str!("../migrations/0010_human_owner_authorization.sql");
+        let next = scripts.path().join("0010_human_owner_authorization.sql");
+        if fail_first {
+            std::fs::write(
+                &next,
+                format!("{migration}\nSELECT absent_column FROM absent_table;"),
+            )
+            .unwrap();
+            assert!(
+                Migrator::new(scripts.path())
+                    .await
+                    .unwrap()
+                    .run(&raw)
+                    .await
+                    .is_err()
+            );
+            assert_eq!(
+                sqlx::query_scalar::<_, i64>("SELECT count(*) FROM _sqlx_migrations")
+                    .fetch_one(&raw)
+                    .await
+                    .unwrap(),
+                9
+            );
+            assert_eq!(
+                sqlx::query_scalar::<_, i64>(
+                    "SELECT count(*) FROM sqlite_schema WHERE name='human_memberships'"
+                )
+                .fetch_one(&raw)
+                .await
+                .unwrap(),
+                0
+            );
+            assert_eq!(
+                sqlx::query_scalar::<_, String>("SELECT payload FROM financial_events")
+                    .fetch_one(&raw)
+                    .await
+                    .unwrap(),
+                payload
+            );
+        }
+        std::fs::write(&next, migration).unwrap();
+        Migrator::new(scripts.path())
+            .await
+            .unwrap()
+            .run(&raw)
+            .await
+            .unwrap();
+        assert_eq!(
+            sqlx::query_scalar::<_, i64>("SELECT count(*) FROM human_memberships")
+                .fetch_one(&raw)
+                .await
+                .unwrap(),
+            0
+        );
+        assert_eq!(
+            sqlx::query_scalar::<_, i64>("SELECT count(*) FROM human_project_bindings")
+                .fetch_one(&raw)
+                .await
+                .unwrap(),
+            0
+        );
+        assert_eq!(
+            sqlx::query_scalar::<_, String>("SELECT owner_actor FROM projects")
+                .fetch_one(&raw)
+                .await
+                .unwrap(),
+            user
+        );
+        assert_eq!(
+            sqlx::query_scalar::<_, String>("SELECT session_id FROM human_sessions")
+                .fetch_one(&raw)
+                .await
+                .unwrap(),
+            session
+        );
+        assert_eq!(
+            sqlx::query_scalar::<_, String>("SELECT payload FROM financial_events")
+                .fetch_one(&raw)
+                .await
+                .unwrap(),
+            payload
+        );
+        assert!(
+            sqlx::query("DELETE FROM financial_events")
+                .execute(&raw)
+                .await
+                .is_err()
+        );
+        assert!(
+            sqlx::query("UPDATE human_sessions SET generation=0")
+                .execute(&raw)
+                .await
+                .is_err()
+        );
+        raw.close().await;
+        let upgraded = PlanStore::open(&path).await.unwrap();
+        upgraded.check_integrity().await.unwrap();
+        assert_eq!(
+            upgraded
+                .financial_snapshot(&project)
+                .await
+                .unwrap()
+                .ceiling
+                .minor_units(),
+            100
+        );
     }
 }

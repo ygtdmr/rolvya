@@ -81,6 +81,14 @@ impl HumanAuth {
         now: i64,
     ) -> Result<SqliteRow, AuthError> {
         let lookup = self.handle_lookup(handle);
+        self.session_lookup(tx, &lookup, now).await
+    }
+    pub(super) async fn session_lookup(
+        &self,
+        tx: &mut Transaction<'_, Sqlite>,
+        lookup: &[u8; 32],
+        now: i64,
+    ) -> Result<SqliteRow, AuthError> {
         let token = sqlx::query("SELECT * FROM human_session_tokens WHERE lookup=?")
             .bind(lookup.as_slice())
             .fetch_optional(&mut **tx)
@@ -99,7 +107,7 @@ impl HumanAuth {
             || now >= expires
             || expires > issued.saturating_add(TOKEN_SECONDS)
             || !constant_eq(
-                &self.token_binding(&lookup, &family, generation, issued, expires, &csrf)?,
+                &self.token_binding(lookup, &family, generation, issued, expires, &csrf)?,
                 &token.try_get::<Vec<u8>, _>("binding")?,
             )
             || generation != family.try_get::<i64, _>("generation")?
@@ -355,6 +363,7 @@ impl HumanAuth {
         {
             sqlx::query("UPDATE human_sessions SET revoked_at=? WHERE session_id=? AND user_id=? AND revoked_at IS NULL").bind(now).bind(&target.0).bind(user).execute(&mut *tx).await?;
             self.block_family_proofs(&mut tx, &target.0, now).await?;
+            self.revoke_owner_actions(&mut tx, &target.0).await?;
             self.session_event(
                 &mut tx,
                 user,
@@ -388,6 +397,7 @@ impl HumanAuth {
         .execute(&mut *tx)
         .await?;
         self.block_family_proofs(&mut tx, id, now).await?;
+        self.revoke_owner_actions(&mut tx, id).await?;
         self.session_event(
             &mut tx,
             r.try_get("user_id")?,
@@ -443,6 +453,12 @@ impl HumanAuth {
         now: i64,
     ) -> Result<(), AuthError> {
         sqlx::query("INSERT OR IGNORE INTO human_primary_blocks SELECT c.evidence_id,? FROM human_primary_context c JOIN human_authentications a USING(evidence_id) WHERE a.user_id=?").bind(now).bind(user).execute(&mut **tx).await?;
+        sqlx::query(
+            "UPDATE human_owner_actions SET state='revoked' WHERE actor=? AND state='pending'",
+        )
+        .bind(user)
+        .execute(&mut **tx)
+        .await?;
         sqlx::query(
             "UPDATE human_sessions SET revoked_at=? WHERE user_id=? AND revoked_at IS NULL",
         )
@@ -503,6 +519,8 @@ impl HumanAuth {
             )
             .await?;
         }
+        self.hold_owner_actions(&mut tx, context.session, &e.request_id, now)
+            .await?;
         self.incident_authority.verify(&IncidentContext {
             now: self.now()?,
             ..context
