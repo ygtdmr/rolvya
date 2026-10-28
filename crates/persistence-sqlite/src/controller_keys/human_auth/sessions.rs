@@ -2,6 +2,7 @@
 use super::*;
 mod factors;
 mod lifecycle;
+pub mod owner;
 mod proof;
 #[cfg(test)]
 mod tests;
@@ -223,6 +224,14 @@ pub(super) struct BrowserFacts {
     client_key: [u8; 32],
 }
 pub(super) trait BrowserAuthority: Send + Sync {
+    fn invitation(
+        &self,
+        _: &BrowserContext,
+        _: &owner::InvitationTicket,
+        _: i64,
+    ) -> Result<(), AuthError> {
+        Err(AuthError::Unavailable)
+    }
     fn verify(
         &self,
         c: &BrowserContext,

@@ -6,6 +6,9 @@ impl HumanAuth {
         &self,
         r: &ChallengeRequest,
     ) -> Result<PreparedChallenge, AuthError> {
+        if r.purpose == ChallengePurpose::OwnerAction {
+            return Err(AuthError::Denied);
+        }
         let now = self.now()?;
         let peer = self
             .transport
@@ -63,6 +66,7 @@ impl HumanAuth {
                         u.get::<i64, _>("verified") == 1 && u.get::<i64, _>("email_login") == 1
                     }
                     ChallengePurpose::VerifyEmail => u.get::<i64, _>("verified") == 0,
+                    ChallengePurpose::OwnerAction => false,
                 }
         });
         let id = new_id()?;
@@ -310,6 +314,7 @@ impl HumanAuth {
             .await?;
         let user: String = row.try_get("user_id")?;
         let result = match purpose {
+            ChallengePurpose::OwnerAction => return Err(AuthError::Denied),
             ChallengePurpose::VerifyEmail => {
                 sqlx::query("UPDATE human_emails SET verified=1,version=version+1 WHERE user_id=? AND verified=0").bind(&user).execute(&mut *tx).await?;
                 sqlx::query(
@@ -462,7 +467,7 @@ struct ChallengeBinding<'a> {
     issued: i64,
     expires: i64,
 }
-fn otp() -> Result<String, AuthError> {
+pub(super) fn otp() -> Result<String, AuthError> {
     // Uniform 8-digit decimal codes via bounded rejection sampling, not modulo bias.
     const SPACE: u64 = 100_000_000;
     const LIMIT: u64 = (u32::MAX as u64 + 1) / SPACE * SPACE;

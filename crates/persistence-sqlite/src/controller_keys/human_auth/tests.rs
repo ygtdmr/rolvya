@@ -241,6 +241,23 @@ impl Fixture {
         );
         a
     }
+    pub(super) fn withdraw_client_at(
+        &self,
+        c: &ClientContext,
+        point: Checkpoint,
+    ) -> Box<dyn Fn(Checkpoint) -> Result<(), AuthError> + Send + Sync> {
+        let authority = self.transport.clone();
+        let key = c.transport_evidence.as_str().to_owned();
+        Box::new(move |p| {
+            if p == point {
+                authority.0.lock().unwrap().remove(&key);
+            }
+            Ok(())
+        })
+    }
+    pub(super) fn synthetic_mail_mode(&self, mode: i64) {
+        self.mail.mode.store(mode, Ordering::SeqCst);
+    }
     pub(super) fn now(&self) -> i64 {
         self.clock.0.load(Ordering::SeqCst)
     }
@@ -1910,7 +1927,9 @@ async fn sigkill_at_seven_authoritative_boundaries_preserves_one_use_and_incompl
             Checkpoint::BeforeSessionCommit
             | Checkpoint::AfterSessionCommit
             | Checkpoint::BeforeFactorCommit
-            | Checkpoint::AfterFactorCommit => {
+            | Checkpoint::AfterFactorCommit
+            | Checkpoint::BeforeOwnerCommit
+            | Checkpoint::AfterOwnerCommit => {
                 unreachable!("S2-03A driver never selects session/factor checkpoints")
             }
             Checkpoint::BeforeConsumptionCommit | Checkpoint::AfterConsumptionCommit => {

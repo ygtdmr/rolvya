@@ -426,7 +426,7 @@ impl HumanAuth {
             recovery,
         })
     }
-    async fn factor_rate(
+    pub(super) async fn factor_rate(
         &self,
         tx: &mut Transaction<'_, Sqlite>,
         user: &str,
@@ -436,7 +436,7 @@ impl HumanAuth {
         let r=sqlx::query("SELECT count(*) FILTER(WHERE user_id=?) AS u,count(*) FILTER(WHERE client_key=?) AS c FROM human_factor_attempts WHERE occurred_at>? AND succeeded=0 AND (user_id=? OR client_key=?)").bind(user).bind(f.client_key.as_slice()).bind(now.saturating_sub(900)).bind(user).bind(f.client_key.as_slice()).fetch_one(&mut **tx).await?;
         Ok(r.try_get::<i64, _>("u")? < 5 && r.try_get::<i64, _>("c")? < 30)
     }
-    async fn record_factor_attempt(
+    pub(super) async fn record_factor_attempt(
         &self,
         tx: &mut Transaction<'_, Sqlite>,
         user: &str,
@@ -772,7 +772,7 @@ impl HumanAuth {
         Err(AuthError::Unavailable)
     }
 }
-fn matching_step(
+pub(super) fn matching_step(
     seed: &[u8],
     code: &TotpCode,
     now: i64,

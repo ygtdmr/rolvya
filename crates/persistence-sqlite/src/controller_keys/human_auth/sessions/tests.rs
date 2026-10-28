@@ -74,23 +74,25 @@ impl IncidentAuthority for SyntheticIncidents {
         Ok(())
     }
 }
-struct Fixture {
-    a: PrimaryFixture,
+pub(super) struct Fixture {
+    pub(super) a: PrimaryFixture,
     browser: Arc<SyntheticBrowser>,
     incidents: Arc<SyntheticIncidents>,
-    user: HumanId,
-    password: Password,
-    email: EmailAddress,
+    pub(super) user: HumanId,
+    pub(super) password: Password,
+    pub(super) email: EmailAddress,
 }
 fn req() -> RequestId {
     RequestId::new(new_id().unwrap()).unwrap()
 }
-fn device() -> DeviceLabel {
+pub(super) fn device() -> DeviceLabel {
     DeviceLabel::new("Synthetic browser".to_owned()).unwrap()
 }
 impl Fixture {
-    async fn new() -> Self {
-        let mut a = PrimaryFixture::new().await;
+    pub(super) async fn new() -> Self {
+        Self::from_primary(PrimaryFixture::new().await).await
+    }
+    pub(super) async fn from_primary(mut a: PrimaryFixture) -> Self {
         let (user, password, email) = a.owner().await;
         let browser = Arc::new(SyntheticBrowser::default());
         let incidents = Arc::new(SyntheticIncidents::default());
@@ -105,7 +107,23 @@ impl Fixture {
             email,
         }
     }
-    fn context(
+    pub(super) fn incident_evidence(&self, t: &SessionTicket) -> IncidentEvidence {
+        let e = IncidentEvidence {
+            request_id: req(),
+            evidence: req(),
+        };
+        self.incidents.0.lock().unwrap().insert(
+            e.request_id.as_str().to_owned(),
+            (
+                t.metadata.user.0.clone(),
+                t.metadata.id.0.clone(),
+                t.metadata.generation,
+                e.evidence.as_str().to_owned(),
+            ),
+        );
+        e
+    }
+    pub(super) fn context(
         &self,
         op: Operation,
         b: u8,
@@ -147,7 +165,11 @@ impl Fixture {
         );
         c
     }
-    async fn proof(&self, b: u8, parent: Option<&SessionTicket>) -> PrimaryAuthentication {
+    pub(super) async fn proof(
+        &self,
+        b: u8,
+        parent: Option<&SessionTicket>,
+    ) -> PrimaryAuthentication {
         let c = self.a.bound_client(
             b,
             parent.map(|t| (t.metadata.id.0.clone(), t.metadata.generation)),
@@ -163,7 +185,7 @@ impl Fixture {
             _ => panic!("primary denied"),
         }
     }
-    async fn session(&self, b: u8) -> SessionTicket {
+    pub(super) async fn session(&self, b: u8) -> SessionTicket {
         let p = self.proof(b, None).await;
         match self
             .a
@@ -197,7 +219,7 @@ impl Fixture {
             _ => panic!("factor bypass"),
         }
     }
-    async fn factor(&self) -> (FactorEnrollment, FactorActivation) {
+    pub(super) async fn factor(&self) -> (FactorEnrollment, FactorActivation) {
         let s = self.session(1).await;
         let p = self.proof(2, Some(&s)).await;
         let e = self
@@ -224,7 +246,7 @@ impl Fixture {
             .unwrap();
         (e, active)
     }
-    async fn inspect(&self, t: &SessionTicket) -> Result<SessionMetadata, AuthError> {
+    pub(super) async fn inspect(&self, t: &SessionTicket) -> Result<SessionMetadata, AuthError> {
         self.a
             .auth
             .inspect_session(
@@ -233,14 +255,14 @@ impl Fixture {
             )
             .await
     }
-    async fn reopened(&self) -> HumanAuth {
+    pub(super) async fn reopened(&self) -> HumanAuth {
         let mut a = self.a.reopened().await;
         a.browser_authority = self.browser.clone();
         a.incident_authority = self.incidents.clone();
         a
     }
 }
-fn code(seed: &[u8], now: i64) -> TotpCode {
+pub(super) fn code(seed: &[u8], now: i64) -> TotpCode {
     TotpCode::parse(
         totp_rs::TOTP::new(totp_rs::Algorithm::SHA1, 6, 0, 30, seed.to_vec())
             .unwrap()
@@ -1342,14 +1364,15 @@ async fn missing_or_wrong_controller_key_blocks_session_and_factor_loading() {
 }
 #[tokio::test]
 async fn human_session_revocation_preserves_real_admitted_worker_and_budget() {
-    let f = Fixture::new().await;
+    let a = PrimaryFixture::new().await;
     let (broker, request, lease, _) =
         crate::controller_keys::secret_broker::tests::admitted_for_session_tests(
-            f.a.store.clone(),
-            f.a.path.clone(),
-            f.a.keys.clone(),
+            a.store.clone(),
+            a.path.clone(),
+            a.keys.clone(),
         )
         .await;
+    let f = Fixture::from_primary(a).await;
     let before =
         f.a.store
             .financial_snapshot(&lease.task.plan.project_id)

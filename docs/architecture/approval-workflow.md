@@ -10,6 +10,8 @@ tags: [approval, budget, identity, sqlite, state-machine]
 
 ## Source of authority
 
+**Implemented library boundary:** [S2-03C Owner authorization](../development/human-owner-authorization.md) now verifies current human session/membership and fresh exact-action proof, then applies the existing ledger, consumes authorization and records audit/notification intents in one SQLite transaction. The conceptual UI/workflow below is not a production service. HTTP, mail and existing-project human-binding adapters remain default-deny.
+
 **Approved and mandatory:** When approved project budget is insufficient, Rolvya must pause **new billable task admission** and require **explicit user approval to raise the budget ceiling**. Never automatically permit a percentage overrun; preserve completed work and notify the owner ([ADR 0002](../decisions/0002-hard-budget-approval.md)). Rust is the backend; SQLite is the authoritative database. The exact identity/session UX, role delegation, in-flight worker cancellation and other human-review gates remain **Proposed/Open**. This document is a conceptual workflow specification, not a deployed approval service.
 
 ## Three independent concepts

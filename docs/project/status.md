@@ -3,12 +3,20 @@
 Current authoritative decision cross-check: 2026-10-26 (see current ADRs; earlier sections are chronological historical checkpoints).
 
 ## Phase
-**R01–R11 synthetic Rust/SQLite core, independently reviewed and verified for Owner core review.** Frozen-plan execution, exact-budget authority, durable worker control, independent artifact/group acceptance and tested recovery are implemented as libraries. Production security, providers, application and operations remain incomplete. Stage 2 P0 security integration now includes S2-01 key bootstrap, the S2-02 encrypted Secret Broker and the S2-03A primary-authentication foundation and the S2-03B session/factor library; deployment and paid execution remain unauthorized.
+**R01–R11 synthetic Rust/SQLite core, independently reviewed and verified for Owner core review.** Frozen-plan execution, exact-budget authority, durable worker control, independent artifact/group acceptance and tested recovery are implemented as libraries. Production security, providers, application and operations remain incomplete. Stage 2 P0 security integration now includes S2-01 key bootstrap, the S2-02 encrypted Secret Broker, S2-03A primary authentication, S2-03B sessions/factors and the S2-03C project authorization/Owner-action library; deployment and paid execution remain unauthorized.
 
 ## Verified repository artifacts
 - `LICENSE` — MIT License text present on `main`.
 - Root `README.md` — introductory project description and explicitly pre-implementation status.
 - `AGENTS.md` and initial `docs/` foundation — repository guidance and planning documents, not implementation.
+
+## S2-03C project authorization and transaction-bound Owner actions (2026-10-28)
+
+[PR #25](https://github.com/ygtdmr/rolvya/pull/25) is confirmed merged as main `b66e078268e726fc51a100c6c80b23d93dde14a7`, matching expected S2-03B source head `0940978ff23c79abbfee6bc7aa419b90abd7768f`. Branch `codex/human-owner-authorization` implements current project Owner/Editor/Viewer memberships, targeted one-use invitations, separately accepted Owner promotion/transfer and fresh exact-action password/email proofs with voluntary enrolled-TOTP protection. Human budget approvals compose the existing ledger, proof consumption, audit and durable notification intents in one authoritative transaction. Forward migration 0010 preserves 0001–0009. See [implementation and verification boundaries](../development/human-owner-authorization.md).
+
+Legacy Owner strings never map to human membership. Production binding requires a separate reviewed ceremony and remains unavailable; ready human enrollment disables legacy financial approval even for unbound projects. Scoped incidents hold affected human approvals while preserving unrelated sessions and safely admitted workers. Fresh local verification passes **526 workspace Rust tests**, **57 focused Owner tests** (a test-only driver includes **ten actual SIGKILL/reopen cases**), **ten populated-upgrade/migration checks**, **203 controller tests** and **23 Python checks**. Formatting, Clippy with warnings denied, locked compilation, repository/inventory checks, workflow linting and staged-source secret scanning pass; dependency vulnerability auditing remains unverified because `cargo audit` is unavailable. Two independent read-only reviewers inspected the actual source and reproduced correction evidence, identifying no remaining critical/high/medium findings in their reviewed boundaries. Technical review is not human Owner approval. Full local and exact-head CI results are recorded in the PR.
+
+Production enrollment/binding, browser/request, mail/delivery and incident adapters remain default-deny. No operational SMTP, production gateway, provider authority, exceptional recovery, encrypted off-host recovery or deployment is claimed. No live credentials, emails, paid work, issues, approvals, merges or protection changes. **Next: S2-04**, verified worker bootstrap and attempt-scoped/revocable credentials, after manual Owner review/merge.
 
 ## S2-03B secure sessions and voluntary TOTP (2026-10-27)
 
