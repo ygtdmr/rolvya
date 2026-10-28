@@ -21,6 +21,8 @@ This extends [R06 admission](atomic-scheduler-admission.md), the [R07 protocol/f
 
 The caller schedules bounded passes and backoff. There is no busy-polling daemon, background task spawning or complete R09 execution loop. An unresolved marker is never automatically reset to claimable. Definitive no-effect/termination observations and separate trusted financial/external reconciliation are required before R06 can authorize another attempt.
 
+For attempts enrolled through [S2-04 worker credentials](verified-worker-bootstrap.md), `WorkerSecurity::receive` wraps the same R08 journal and lifecycle in credential/current-authority validation inside one transaction. Legacy direct peer-policy calls reject enrolled attempts, and the Broker requires separate authority. Historical unenrolled synthetic fixtures remain supported. Production provider/HTTPS adapters remain default-deny.
+
 ## Lease and financial authority
 
 Forward migration `0004` adds durable lease projections, dispatch state, sessions, append-only receipt identities/observations/recovery audit and the synthetic-provider stand-in. Migrations `0001`–`0003` remain unchanged. Existing attempts receive their original lease deadlines on upgrade. R06 checks and independent acceptance now read the authoritative renewed deadline; the immutable admission receipt retains its original deadline as historical evidence.

@@ -16,6 +16,7 @@ mod tests;
 
 pub mod human_auth;
 pub mod secret_broker;
+pub mod worker_auth;
 
 const FORMAT: u32 = 1;
 const KEY_VERSION: u64 = 1;

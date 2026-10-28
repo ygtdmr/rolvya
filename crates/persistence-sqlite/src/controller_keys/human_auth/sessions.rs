@@ -1,5 +1,41 @@
 //! Revocable ordinary human sessions; never roles, Owner action or worker authority.
 use super::*;
+/// Integration probe only; never compiled into production authority APIs.
+#[cfg(all(test, target_os = "linux"))]
+pub(crate) struct SyntheticSessionProbe {
+    fixture: tests::Fixture,
+    ticket: SessionTicket,
+}
+#[cfg(all(test, target_os = "linux"))]
+impl SyntheticSessionProbe {
+    pub(crate) async fn on_existing_installation(
+        store: PlanStore,
+        path: std::path::PathBuf,
+        keys: std::path::PathBuf,
+    ) -> Self {
+        let primary = super::tests::Fixture::from_existing(store, path, keys).await;
+        let fixture = tests::Fixture::from_primary(primary).await;
+        let ticket = fixture.session(1).await;
+        Self { fixture, ticket }
+    }
+    pub(crate) async fn inspect(&self) -> Result<SessionMetadata, AuthError> {
+        self.fixture.inspect(&self.ticket).await
+    }
+    pub(crate) async fn rejects_worker_bearer(&self, raw: String) -> bool {
+        let handle = SessionHandle::parse(raw).unwrap();
+        self.fixture
+            .a
+            .auth
+            .inspect_session(
+                &handle,
+                &self
+                    .fixture
+                    .context(Operation::Read, 19, Some(&self.ticket), false),
+            )
+            .await
+            .is_err()
+    }
+}
 mod factors;
 mod lifecycle;
 pub mod owner;

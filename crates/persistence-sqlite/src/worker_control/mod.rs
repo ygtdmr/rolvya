@@ -10,9 +10,75 @@ use crate::{
     *,
 };
 pub use dispatch::*;
+pub(crate) use messages::receive_in;
 pub use messages::*;
 pub use provider::*;
+pub(crate) use recovery::recover_in;
 pub use recovery::*;
+/// Non-secret authoritative launch scope for the credential boundary. This is
+/// data, not an authentication capability, and is never worker-declared.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub(crate) struct CredentialScope {
+    pub binding: WorkerBinding,
+    pub provider: EvidenceRef,
+    pub account: EvidenceRef,
+    pub pool: EvidenceRef,
+    pub command_digest: String,
+    pub financial_event: i64,
+    pub valid_until: i64,
+    pub profile: ExecutionProfile,
+}
+pub(crate) enum CredentialScopeUse {
+    Bootstrap,
+    Control,
+    Renew,
+    Stop,
+}
+pub(crate) async fn credential_scope(
+    c: &mut SqliteConnection,
+    l: &LeaseRef,
+    policy: &dyn SchedulerPolicy,
+    t: i64,
+    usage: CredentialScopeUse,
+) -> Result<CredentialScope, WorkerError> {
+    let (cmd, state, _) = command(c, l).await?;
+    let s = session(c, l, &cmd).await?;
+    if !matches!(usage, CredentialScopeUse::Stop) {
+        if state != DispatchState::Active {
+            return Err(WorkerError::InvalidState);
+        }
+        current(c, &cmd, policy, t).await?;
+    }
+    if matches!(usage, CredentialScopeUse::Bootstrap) && s.phase != SimulatedPhase::Attached {
+        return Err(WorkerError::InvalidState);
+    }
+    if matches!(usage, CredentialScopeUse::Renew) && s.phase != SimulatedPhase::Executing {
+        return Err(WorkerError::InvalidState);
+    }
+    Ok(CredentialScope {
+        binding: cmd.binding.clone(),
+        provider: cmd.admission.permit.provider.clone(),
+        account: cmd.admission.permit.account.clone(),
+        pool: cmd.admission.permit.pool.clone(),
+        command_digest: cmd.digest()?,
+        financial_event: cmd.financial_event,
+        valid_until: cmd.admission.permit.valid_until,
+        profile: cmd.profile.clone(),
+    })
+}
+async fn credential_managed(
+    c: &mut SqliteConnection,
+    b: &WorkerBinding,
+) -> Result<bool, WorkerError> {
+    Ok(sqlx::query_scalar(
+        "SELECT EXISTS(SELECT 1 FROM worker_enrollments WHERE project_id=? AND attempt_id=?)",
+    )
+    .bind(b.task.plan.project_id.as_str())
+    .bind(b.attempt_id.as_str())
+    .fetch_one(c)
+    .await?)
+}
 use rolvya_domain::{ids::*, worker::*};
 use rolvya_plan_validator::Limits;
 use serde::{Deserialize, Serialize};
@@ -316,6 +382,11 @@ pub(crate) async fn broker_guard(
     provider: &str,
     mode: &str,
 ) -> Result<(), WorkerError> {
+    // Control credentials confer no provider-secret permission. A future broker
+    // integration needs its own reviewed transactional credential/entitlement gate.
+    if credential_managed(c, binding).await? {
+        return Err(WorkerError::Unauthorized);
+    }
     let lease = LeaseRef {
         task: binding.task.clone(),
         attempt_id: binding.attempt_id.clone(),

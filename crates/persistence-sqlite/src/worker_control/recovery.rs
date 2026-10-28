@@ -113,69 +113,10 @@ impl OutboxDispatcher {
         policy: &P,
         clock: &impl Clock,
     ) -> Result<u64, WorkerError> {
-        let l = &r.lease;
         let mut tx = self.store.pool.begin_with("BEGIN IMMEDIATE").await?;
         let t = admission::at(clock)?;
-        let owner = admission::owner(&mut tx, &l.task.plan.project_id).await?;
-        if !policy.permits(&owner, SchedulerAction::Fence(r), t) {
-            return Err(WorkerError::Unauthorized);
-        }
-        // Scope verification occurs even on replay.
-        let (_, until, status) = admission::stored_admission(&mut tx, l).await?;
-        let old: Option<i64> = sqlx::query_scalar(
-            "SELECT next_epoch FROM worker_recoveries WHERE project_id=? AND attempt_id=?",
-        )
-        .bind(l.task.plan.project_id.as_str())
-        .bind(l.attempt_id.as_str())
-        .fetch_optional(&mut *tx)
-        .await?;
-        if let Some(epoch) = old {
-            tx.commit().await?;
-            return Ok(epoch as u64);
-        }
-        if cause == RecoveryCause::Expired && t < until {
-            return Err(WorkerError::InvalidState);
-        }
-        let next = if status == "fenced" {
-            l.epoch.checked_add(1).ok_or(WorkerError::ResourceLimit)?
-        } else {
-            admission::fence_in(&mut tx, r, policy, t).await?.0
-        };
-        let e = audit(
-            &mut tx,
-            l,
-            "recovery",
-            t,
-            &serde_json::json!({"reason":cause,"next_epoch":next,"evidence":r.evidence}),
-        )
-        .await?;
-        affected(
-            sqlx::query("INSERT INTO worker_recoveries VALUES(?,?,?,?,?)")
-                .bind(l.task.plan.project_id.as_str())
-                .bind(l.attempt_id.as_str())
-                .bind(i64::try_from(next).map_err(|_| WorkerError::ResourceLimit)?)
-                .bind(cause.name())
-                .bind(e)
-                .execute(&mut *tx)
-                .await?
-                .rows_affected(),
-        )?;
-        let exists: bool = sqlx::query_scalar(
-            "SELECT EXISTS(SELECT 1 FROM dispatch_operations WHERE project_id=? AND attempt_id=?)",
-        )
-        .bind(l.task.plan.project_id.as_str())
-        .bind(l.attempt_id.as_str())
-        .fetch_one(&mut *tx)
-        .await?;
-        if exists {
-            let (_, state, revision) = command(&mut tx, l).await?;
-            if !matches!(
-                state,
-                DispatchState::Finished | DispatchState::NoEffect | DispatchState::Blocked
-            ) {
-                transition(&mut tx, l, DispatchState::Blocked, revision, e).await?;
-            }
-        }
+        let next = recover_in(&mut tx, r, cause, policy, t).await?;
+        let owner = admission::owner(&mut tx, &r.lease.task.plan.project_id).await?;
         let end = admission::at(clock)?;
         if end < t || !policy.permits(&owner, SchedulerAction::Fence(r), end) {
             return Err(WorkerError::Unauthorized);
@@ -317,4 +258,76 @@ impl OutboxDispatcher {
         }
         Ok(outcomes)
     }
+}
+
+// Composition seam for security revocation; the caller owns commit and final
+// authority/time checks. R08 remains the single fencing/recovery implementation.
+pub(crate) async fn recover_in<P: SchedulerPolicy + ?Sized>(
+    c: &mut SqliteConnection,
+    r: &FenceRequest,
+    cause: RecoveryCause,
+    policy: &P,
+    t: i64,
+) -> Result<u64, WorkerError> {
+    let l = &r.lease;
+    let owner = admission::owner(&mut *c, &l.task.plan.project_id).await?;
+    if !policy.permits(&owner, SchedulerAction::Fence(r), t) {
+        return Err(WorkerError::Unauthorized);
+    }
+    // Scope verification occurs even on replay.
+    let (_, until, status) = admission::stored_admission(&mut *c, l).await?;
+    let old: Option<i64> = sqlx::query_scalar(
+        "SELECT next_epoch FROM worker_recoveries WHERE project_id=? AND attempt_id=?",
+    )
+    .bind(l.task.plan.project_id.as_str())
+    .bind(l.attempt_id.as_str())
+    .fetch_optional(&mut *c)
+    .await?;
+    if let Some(epoch) = old {
+        return Ok(epoch as u64);
+    }
+    if cause == RecoveryCause::Expired && t < until {
+        return Err(WorkerError::InvalidState);
+    }
+    let next = if status == "fenced" {
+        l.epoch.checked_add(1).ok_or(WorkerError::ResourceLimit)?
+    } else {
+        admission::fence_in(&mut *c, r, policy, t).await?.0
+    };
+    let e = audit(
+        &mut *c,
+        l,
+        "recovery",
+        t,
+        &serde_json::json!({"reason":cause,"next_epoch":next,"evidence":r.evidence}),
+    )
+    .await?;
+    affected(
+        sqlx::query("INSERT INTO worker_recoveries VALUES(?,?,?,?,?)")
+            .bind(l.task.plan.project_id.as_str())
+            .bind(l.attempt_id.as_str())
+            .bind(i64::try_from(next).map_err(|_| WorkerError::ResourceLimit)?)
+            .bind(cause.name())
+            .bind(e)
+            .execute(&mut *c)
+            .await?
+            .rows_affected(),
+    )?;
+    let exists: bool = sqlx::query_scalar(
+        "SELECT EXISTS(SELECT 1 FROM dispatch_operations WHERE project_id=? AND attempt_id=?)",
+    )
+    .bind(l.task.plan.project_id.as_str())
+    .bind(l.attempt_id.as_str())
+    .fetch_one(&mut *c)
+    .await?;
+    if exists {
+        let (_, state, revision) = command(&mut *c, l).await?;
+        if !matches!(
+            state,
+            DispatchState::Finished | DispatchState::NoEffect | DispatchState::Blocked
+        ) {
+            transition(&mut *c, l, DispatchState::Blocked, revision, e).await?;
+        }
+    }
+    Ok(next)
 }
