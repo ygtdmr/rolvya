@@ -123,7 +123,7 @@ impl DeliveryAuthority for SyntheticMail {
         self.verified.lock().unwrap().get(id) == Some(&true)
     }
 }
-struct ManualClock(AtomicI64);
+struct ManualClock(Arc<AtomicI64>);
 impl Clock for ManualClock {
     fn now(&self) -> Result<i64, crate::admission::AdmissionError> {
         Ok(self.0.load(Ordering::SeqCst))
@@ -135,12 +135,12 @@ impl super::super::LocalSetupAuthorization for SyntheticSetup {
         true
     }
 }
-struct Fixture {
-    root: tempfile::TempDir,
-    path: PathBuf,
-    keys: PathBuf,
-    store: PlanStore,
-    auth: HumanAuth,
+pub(super) struct Fixture {
+    pub(super) root: tempfile::TempDir,
+    pub(super) path: PathBuf,
+    pub(super) keys: PathBuf,
+    pub(super) store: PlanStore,
+    pub(super) auth: HumanAuth,
     authority: Arc<SyntheticAuthority>,
     transport: Arc<SyntheticTransport>,
     mail: Arc<SyntheticMail>,
@@ -169,7 +169,7 @@ fn password() -> Password {
     Password::new(hex(&random::<32>().unwrap()[..]).into_bytes()).unwrap()
 }
 impl Fixture {
-    async fn new() -> Self {
+    pub(super) async fn new() -> Self {
         let root = temporary();
         let data = root.path().join("data");
         let keys = root.path().join("keys");
@@ -197,7 +197,7 @@ impl Fixture {
         let authority = Arc::new(SyntheticAuthority::default());
         let transport = Arc::new(SyntheticTransport::default());
         let mail = Arc::new(SyntheticMail::default());
-        let clock = Arc::new(ManualClock(AtomicI64::new(10000)));
+        let clock = Arc::new(ManualClock(Arc::new(AtomicI64::new(10000))));
         let mut auth = HumanAuth::open(&bootstrap).await.unwrap();
         auth.passwords = PasswordEngine::synthetic();
         auth.authority = authority.clone();
@@ -217,7 +217,7 @@ impl Fixture {
             clock,
         }
     }
-    fn grant(
+    pub(super) fn grant(
         &self,
         action: AdminAction,
         target: Option<&str>,
@@ -241,13 +241,13 @@ impl Fixture {
         );
         a
     }
-    fn now(&self) -> i64 {
+    pub(super) fn now(&self) -> i64 {
         self.clock.0.load(Ordering::SeqCst)
     }
-    fn advance(&self, n: i64) {
+    pub(super) fn advance(&self, n: i64) {
         self.clock.0.fetch_add(n, Ordering::SeqCst);
     }
-    fn client(&self, browser: u8, ip: u8) -> ClientContext {
+    pub(super) fn client(&self, browser: u8, ip: u8) -> ClientContext {
         let c = ClientContext {
             request_id: request(),
             transport_evidence: request(),
@@ -259,6 +259,7 @@ impl Fixture {
                 VerifiedTransport {
                     ip: IpAddr::from([192, 0, 2, ip]),
                     browser: [browser; 32],
+                    parent: None,
                 },
                 self.now() + 3600,
                 vec![
@@ -270,7 +271,22 @@ impl Fixture {
         );
         c
     }
-    fn enrollment(
+    pub(super) fn clock_for_session_test(&self) -> Arc<std::sync::atomic::AtomicI64> {
+        self.clock.0.clone()
+    }
+    pub(super) fn bound_client(&self, browser: u8, parent: Option<(String, i64)>) -> ClientContext {
+        let c = self.client(browser, 1);
+        self.transport
+            .0
+            .lock()
+            .unwrap()
+            .get_mut(c.transport_evidence.as_str())
+            .unwrap()
+            .1
+            .parent = parent;
+        c
+    }
+    pub(super) fn enrollment(
         &self,
         email: &str,
         pw: Option<&Password>,
@@ -300,7 +316,7 @@ impl Fixture {
         );
         r
     }
-    async fn owner(&self) -> (HumanId, Password, EmailAddress) {
+    pub(super) async fn owner(&self) -> (HumanId, Password, EmailAddress) {
         let pw = password();
         let r = self.enrollment(
             "first@example.invalid",
@@ -313,7 +329,7 @@ impl Fixture {
         let id = self.auth.enroll(&r, Some(&pw)).await.unwrap();
         (id, pw, r.email)
     }
-    async fn challenge(
+    pub(super) async fn challenge(
         &self,
         email: &EmailAddress,
         kind: ChallengeKind,
@@ -349,7 +365,7 @@ impl Fixture {
         .unwrap();
         (receipt, token, client)
     }
-    async fn redeem(
+    pub(super) async fn redeem(
         &self,
         r: &ChallengeReceipt,
         s: &ChallengeSecret,
@@ -368,13 +384,13 @@ impl Fixture {
             .await
             .unwrap()
     }
-    async fn count(&self, table: &str) -> i64 {
+    pub(super) async fn count(&self, table: &str) -> i64 {
         sqlx::query_scalar(&format!("SELECT count(*) FROM {table}"))
             .fetch_one(&self.store.pool)
             .await
             .unwrap()
     }
-    async fn reopened(&self) -> HumanAuth {
+    pub(super) async fn reopened(&self) -> HumanAuth {
         let store = PlanStore::open(&self.path).await.unwrap();
         let bootstrap = ControllerBootstrap::open(
             store,
@@ -1692,7 +1708,7 @@ async fn subprocess_driver() {
     auth.transport = transport.clone();
     auth.mail = mail.clone();
     auth.delivery = mail;
-    auth.clock = Arc::new(ManualClock(AtomicI64::new(10000)));
+    auth.clock = Arc::new(ManualClock(Arc::new(AtomicI64::new(10000))));
     auth.hook = Box::new(|p| {
         if std::env::var("ROLVYA_S203A_TEST_CHECKPOINT").unwrap() == format!("{p:?}") {
             println!("S203A_READY {p:?}");
@@ -1714,6 +1730,7 @@ async fn subprocess_driver() {
             VerifiedTransport {
                 ip: IpAddr::from([192, 0, 2, 1]),
                 browser: [1; 32],
+                parent: None,
             },
             13600,
             vec![
@@ -1889,6 +1906,12 @@ async fn sigkill_at_seven_authoritative_boundaries_preserves_one_use_and_incompl
                         .unwrap(),
                     "dispatching"
                 );
+            }
+            Checkpoint::BeforeSessionCommit
+            | Checkpoint::AfterSessionCommit
+            | Checkpoint::BeforeFactorCommit
+            | Checkpoint::AfterFactorCommit => {
+                unreachable!("S2-03A driver never selects session/factor checkpoints")
             }
             Checkpoint::BeforeConsumptionCommit | Checkpoint::AfterConsumptionCommit => {
                 let (r, s, c) = challenge.unwrap();

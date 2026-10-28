@@ -45,7 +45,7 @@ async fn migrations_replay_reopen_and_consistent_snapshot_restore() {
             .fetch_one(&raw)
             .await
             .unwrap(),
-        8
+        9
     );
     assert_eq!(
         sqlx::query_scalar::<_, String>("SELECT sqlite_version()")
@@ -119,8 +119,8 @@ async fn failed_migration_rolls_back_ddl_and_data() {
     let f = Fixture::new().await;
     let raw = f.raw().await;
     let scripts = tempfile::tempdir().unwrap();
-    std::fs::write(scripts.path().join("0009_injected_failure.sql"),"CREATE TABLE should_rollback(value TEXT); INSERT INTO should_rollback VALUES ('temporary'); SELECT absent_column FROM absent_table;").unwrap();
-    // Replay real migrations, then verify failing v9 executes and rolls back atomically.
+    std::fs::write(scripts.path().join("0010_injected_failure.sql"),"CREATE TABLE should_rollback(value TEXT); INSERT INTO should_rollback VALUES ('temporary'); SELECT absent_column FROM absent_table;").unwrap();
+    // Replay real migrations, then verify failing v10 executes and rolls back atomically.
     std::fs::write(
         scripts.path().join("0001_plan_store.sql"),
         include_str!("../migrations/0001_plan_store.sql"),
@@ -161,10 +161,15 @@ async fn failed_migration_rolls_back_ddl_and_data() {
         include_str!("../migrations/0008_human_primary_authentication.sql"),
     )
     .unwrap();
+    std::fs::write(
+        scripts.path().join("0009_human_sessions_totp.sql"),
+        include_str!("../migrations/0009_human_sessions_totp.sql"),
+    )
+    .unwrap();
     let migrator = Migrator::new(scripts.path()).await.unwrap();
     let error = migrator.run(&raw).await.unwrap_err();
     assert!(
-        matches!(error, sqlx::migrate::MigrateError::ExecuteMigration(_, 9)),
+        matches!(error, sqlx::migrate::MigrateError::ExecuteMigration(_, 10)),
         "must execute the injected next migration, not reject migration metadata"
     );
     assert_eq!(
@@ -331,7 +336,7 @@ async fn real_v1_upgrade_preserves_projects_and_failed_v2_leaves_v1_intact() {
                 .fetch_one(&raw)
                 .await
                 .unwrap(),
-            8
+            9
         );
         assert_eq!(
             sqlx::query_scalar::<_, i64>("SELECT count(*) FROM financial_events")
@@ -461,5 +466,159 @@ async fn v2_financial_data_survives_v3_and_failed_v3_rolls_back_before_repair() 
             1
         );
         store.check_integrity().await.unwrap();
+    }
+}
+
+#[tokio::test]
+async fn v8_human_records_survive_v9_and_failed_v9_restores_old_guards() {
+    use sqlx::sqlite::SqliteConnectOptions;
+    for fail_first in [false, true] {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("upgrade.sqlite");
+        let mut options = std::fs::OpenOptions::new();
+        options.create_new(true).write(true);
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::OpenOptionsExt;
+            options.mode(0o600);
+        }
+        options.open(&path).unwrap();
+        let raw = sqlx::SqlitePool::connect_with(
+            SqliteConnectOptions::new()
+                .filename(&path)
+                .foreign_keys(true),
+        )
+        .await
+        .unwrap();
+        let scripts = tempfile::tempdir().unwrap();
+        for entry in std::fs::read_dir(concat!(env!("CARGO_MANIFEST_DIR"), "/migrations")).unwrap()
+        {
+            let entry = entry.unwrap();
+            let name = entry.file_name();
+            if name.to_str().unwrap() < "0009" {
+                std::fs::copy(entry.path(), scripts.path().join(name)).unwrap();
+            }
+        }
+        Migrator::new(scripts.path())
+            .await
+            .unwrap()
+            .run(&raw)
+            .await
+            .unwrap();
+        let user = "a".repeat(32);
+        sqlx::query("INSERT INTO human_users VALUES (?,'active',1,0,10000)")
+            .bind(&user)
+            .execute(&raw)
+            .await
+            .unwrap();
+        sqlx::query("INSERT INTO human_emails VALUES (?,'legacy@example.invalid',1,1,1)")
+            .bind(&user)
+            .execute(&raw)
+            .await
+            .unwrap();
+        sqlx::query("INSERT INTO human_login_policy VALUES (1,1,1,1)")
+            .execute(&raw)
+            .await
+            .unwrap();
+        // Inert schema fixture, deliberately not an authenticated primary proof.
+        sqlx::query("INSERT INTO human_authentications VALUES ('legacy-proof',?,'magic_link',1,1,1,10000,0,'legacy-challenge',zeroblob(32))")
+            .bind(&user).execute(&raw).await.unwrap();
+        let migration = include_str!("../migrations/0009_human_sessions_totp.sql");
+        let next = scripts.path().join("0009_human_sessions_totp.sql");
+        if fail_first {
+            std::fs::write(
+                &next,
+                format!("{migration}\nSELECT absent_column FROM absent_table;"),
+            )
+            .unwrap();
+            assert!(
+                Migrator::new(scripts.path())
+                    .await
+                    .unwrap()
+                    .run(&raw)
+                    .await
+                    .is_err()
+            );
+            assert_eq!(
+                sqlx::query_scalar::<_, i64>("SELECT count(*) FROM _sqlx_migrations")
+                    .fetch_one(&raw)
+                    .await
+                    .unwrap(),
+                8
+            );
+            assert_eq!(
+                sqlx::query_scalar::<_, i64>(
+                    "SELECT count(*) FROM sqlite_schema WHERE name='human_sessions'"
+                )
+                .fetch_one(&raw)
+                .await
+                .unwrap(),
+                0
+            );
+            // The replaced v8 trigger must also have rolled back.
+            let trigger: String =
+                sqlx::query_scalar("SELECT sql FROM sqlite_schema WHERE name='human_user_update'")
+                    .fetch_one(&raw)
+                    .await
+                    .unwrap();
+            assert!(!trigger.contains("human_factors"));
+        }
+        std::fs::write(&next, migration).unwrap();
+        Migrator::new(scripts.path())
+            .await
+            .unwrap()
+            .run(&raw)
+            .await
+            .unwrap();
+        assert_eq!(
+            sqlx::query_scalar::<_, String>("SELECT user_id FROM human_users")
+                .fetch_one(&raw)
+                .await
+                .unwrap(),
+            user
+        );
+        assert_eq!(
+            sqlx::query_scalar::<_, String>("SELECT address FROM human_emails")
+                .fetch_one(&raw)
+                .await
+                .unwrap(),
+            "legacy@example.invalid"
+        );
+        assert_eq!(
+            sqlx::query_scalar::<_, i64>("SELECT count(*) FROM human_authentications")
+                .fetch_one(&raw)
+                .await
+                .unwrap(),
+            1
+        );
+        assert_eq!(
+            sqlx::query_scalar::<_, i64>("SELECT count(*) FROM human_primary_context")
+                .fetch_one(&raw)
+                .await
+                .unwrap(),
+            0
+        );
+        assert!(
+            sqlx::query("UPDATE human_users SET factor_required=1,security_epoch=2")
+                .execute(&raw)
+                .await
+                .is_err()
+        );
+        assert!(
+            sqlx::query("DELETE FROM human_authentications")
+                .execute(&raw)
+                .await
+                .is_err()
+        );
+        assert!(
+            sqlx::query("PRAGMA foreign_key_check")
+                .fetch_all(&raw)
+                .await
+                .unwrap()
+                .is_empty()
+        );
+        raw.close().await;
+        let upgraded = PlanStore::open(&path).await.unwrap();
+        upgraded.check_integrity().await.unwrap();
     }
 }

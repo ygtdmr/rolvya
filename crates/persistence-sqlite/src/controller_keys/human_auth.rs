@@ -14,6 +14,7 @@ use zeroize::Zeroizing;
 mod credentials;
 mod email;
 mod identity;
+pub mod sessions;
 #[cfg(test)]
 mod tests;
 use credentials::PasswordEngine;
@@ -395,6 +396,7 @@ enum TransportOperation {
 struct VerifiedTransport {
     ip: IpAddr,
     browser: [u8; 32],
+    parent: Option<(String, i64)>,
 }
 trait TransportAuthority: Send + Sync {
     fn verify(
@@ -476,6 +478,10 @@ enum Checkpoint {
     AfterMailSend,
     BeforeConsumptionCommit,
     AfterConsumptionCommit,
+    BeforeSessionCommit,
+    AfterSessionCommit,
+    BeforeFactorCommit,
+    AfterFactorCommit,
 }
 /// No override/allow-all constructor. Production enrollment, transport and mail are
 /// blocked until independent trusted integrations have been implemented and reviewed.
@@ -488,6 +494,8 @@ pub struct HumanAuth {
     mail: Arc<dyn MailTransport>,
     delivery: Arc<dyn DeliveryAuthority>,
     clock: Arc<dyn Clock>,
+    browser_authority: Arc<dyn sessions::BrowserAuthority>,
+    incident_authority: Arc<dyn sessions::IncidentAuthority>,
     #[cfg(test)]
     hook: Box<dyn Fn(Checkpoint) -> Result<(), AuthError> + Send + Sync>,
 }
@@ -512,6 +520,8 @@ impl HumanAuth {
             mail: Arc::new(Unimplemented),
             delivery: Arc::new(Unimplemented),
             clock: Arc::new(SystemClock),
+            browser_authority: Arc::new(Unimplemented),
+            incident_authority: Arc::new(Unimplemented),
             #[cfg(test)]
             hook: Box::new(|_| Ok(())),
         })
@@ -602,6 +612,8 @@ impl HumanAuth {
             .bind(binding.as_slice())
             .execute(&mut **tx)
             .await?;
+        self.persist_primary_context(tx, &id, r.user, r.email_version, r.context, r.now)
+            .await?;
         audit(tx, Some(r.user), request, "primary_verified", r.now).await?;
         Ok(PrimaryAuthentication {
             user: HumanId(r.user.to_owned()),
@@ -627,6 +639,8 @@ struct PrimaryRecord<'a> {
     policy: i64,
     factor: i64,
     source: &'a str,
+    email_version: i64,
+    context: &'a VerifiedTransport,
     now: i64,
 }
 fn random<const N: usize>() -> Result<Zeroizing<[u8; N]>, AuthError> {
