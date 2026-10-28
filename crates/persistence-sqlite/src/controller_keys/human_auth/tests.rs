@@ -194,11 +194,31 @@ impl Fixture {
             )
             .await
             .unwrap();
+        Self::configured(root, path, keys, store, &bootstrap).await
+    }
+    pub(super) async fn from_existing(store: PlanStore, path: PathBuf, keys: PathBuf) -> Self {
+        let bootstrap = ControllerBootstrap::open(
+            store.clone(),
+            &keys,
+            super::super::ServiceIdentity::current(),
+            &[],
+        )
+        .await
+        .unwrap();
+        Self::configured(temporary(), path, keys, store, &bootstrap).await
+    }
+    async fn configured(
+        root: tempfile::TempDir,
+        path: PathBuf,
+        keys: PathBuf,
+        store: PlanStore,
+        bootstrap: &ControllerBootstrap,
+    ) -> Self {
         let authority = Arc::new(SyntheticAuthority::default());
         let transport = Arc::new(SyntheticTransport::default());
         let mail = Arc::new(SyntheticMail::default());
         let clock = Arc::new(ManualClock(Arc::new(AtomicI64::new(10000))));
-        let mut auth = HumanAuth::open(&bootstrap).await.unwrap();
+        let mut auth = HumanAuth::open(bootstrap).await.unwrap();
         auth.passwords = PasswordEngine::synthetic();
         auth.authority = authority.clone();
         auth.transport = transport.clone();

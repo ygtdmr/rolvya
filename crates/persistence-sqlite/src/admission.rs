@@ -949,6 +949,7 @@ impl PlanStore {
         )?;
         if let Some(l) = &r.lease {
             one(sqlx::query("UPDATE attempt_states SET state='succeeded' WHERE project_id=? AND attempt_id=? AND state='admitted'").bind(r.task.plan.project_id.as_str()).bind(l.attempt_id.as_str()).execute(&mut *tx).await?.rows_affected())?;
+            credential_retirement(&mut tx, l).await?;
         }
         set_runtime(&mut tx, &r.task, "succeeded").await?;
         let end = at(clock)?;
@@ -1076,7 +1077,7 @@ impl PlanStore {
     }
 }
 
-pub(crate) async fn fence_in<P: SchedulerPolicy>(
+pub(crate) async fn fence_in<P: SchedulerPolicy + ?Sized>(
     c: &mut SqliteConnection,
     r: &FenceRequest,
     policy: &P,
@@ -1113,6 +1114,21 @@ pub(crate) async fn fence_in<P: SchedulerPolicy>(
     one(sqlx::query("UPDATE task_fences SET epoch=?,current_attempt=NULL WHERE project_id=? AND plan_id=? AND version=? AND task_id=? AND epoch=? AND current_attempt=?")
             .bind(next).bind(p.as_str()).bind(r.lease.task.plan.plan_id.as_str()).bind(version(&r.lease.task.plan)?).bind(r.lease.task.task_id.as_str()).bind(epoch).bind(r.lease.attempt_id.as_str()).execute(&mut *c).await?.rows_affected())?;
     one(sqlx::query("UPDATE attempt_states SET state='fenced',fenced_at=? WHERE project_id=? AND attempt_id=? AND state='admitted'").bind(t).bind(p.as_str()).bind(r.lease.attempt_id.as_str()).execute(&mut *c).await?.rows_affected())?;
+    credential_retirement(c, &r.lease).await?;
     set_runtime(&mut *c, &r.lease.task, "waiting").await?;
     Ok((next as u64, false))
+}
+// Nested trigger writes can be silently ignored by a fault. Verify the new S2-04
+// retirement projection before either terminal attempt transition can commit.
+async fn credential_retirement(
+    c: &mut SqliteConnection,
+    l: &LeaseRef,
+) -> Result<(), AdmissionError> {
+    let incomplete:bool=sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM worker_enrollments e LEFT JOIN worker_bootstrap_challenges b USING(enrollment_id) WHERE e.project_id=? AND e.attempt_id=? AND (e.state<>'revoked' OR e.security_epoch<=1 OR b.challenge_id IS NULL OR b.state='pending' OR NOT EXISTS(SELECT 1 FROM worker_security_events a WHERE a.enrollment_id=e.enrollment_id AND a.kind='retired' AND a.request_id='attempt-retired')))")
+        .bind(l.task.plan.project_id.as_str()).bind(l.attempt_id.as_str()).fetch_one(c).await?;
+    if incomplete {
+        Err(StoreError::Integrity.into())
+    } else {
+        Ok(())
+    }
 }

@@ -3,12 +3,20 @@
 Current authoritative decision cross-check: 2026-10-26 (see current ADRs; earlier sections are chronological historical checkpoints).
 
 ## Phase
-**R01–R11 synthetic Rust/SQLite core, independently reviewed and verified for Owner core review.** Frozen-plan execution, exact-budget authority, durable worker control, independent artifact/group acceptance and tested recovery are implemented as libraries. Production security, providers, application and operations remain incomplete. Stage 2 P0 security integration now includes S2-01 key bootstrap, the S2-02 encrypted Secret Broker, S2-03A primary authentication, S2-03B sessions/factors and the S2-03C project authorization/Owner-action library; deployment and paid execution remain unauthorized.
+**R01–R11 synthetic Rust/SQLite core, independently reviewed and verified for Owner core review.** Frozen-plan execution, exact-budget authority, durable worker control, independent artifact/group acceptance and tested recovery are implemented as libraries. Production security, providers, application and operations remain incomplete. Stage 2 P0 security integration now includes S2-01 key bootstrap, the S2-02 encrypted Secret Broker, S2-03A primary authentication, S2-03B sessions/factors, the S2-03C project authorization/Owner-action library and S2-04 worker credential authority; deployment and paid execution remain unauthorized.
 
 ## Verified repository artifacts
 - `LICENSE` — MIT License text present on `main`.
 - Root `README.md` — introductory project description and explicitly pre-implementation status.
 - `AGENTS.md` and initial `docs/` foundation — repository guidance and planning documents, not implementation.
+
+## S2-04 verified worker bootstrap and scoped credential authority (2026-10-28)
+
+[PR #26](https://github.com/ygtdmr/rolvya/pull/26) is confirmed merged as main `fe3fb982525a1ea46f02eb93a422b9d0ed6fe3db`, with the complete expected S2-03C source and migration 0010. Branch `codex/verified-worker-bootstrap` adds independently verified worker-identity boundaries, one-use bootstrap, opaque 256-bit credentials, versioned renewal/revocation and same-transaction R08 message authorization. Forward migration 0011 preserves 0001–0010; existing R06 admission, financial holds, fencing, durable messages and R09 accepted artifacts remain authority. See [implementation and recovery boundaries](../development/verified-worker-bootstrap.md).
+
+Fresh local verification passes **584 workspace Rust tests**, including **57 focused worker-authority tests** with **ten actual SIGKILL/reopen cases** and a populated-v10 upgrade/failed-v11 rollback test. The **203 controller tests**, **23 Python checks**, **ten migration checks** over 11 versions, formatting, Clippy with warnings denied, locked compilation, Rust CI wrapper, repository/inventory gates, workflow linting and staged-source secret scan also pass. Dependency vulnerability auditing remains unverified because `cargo audit` is unavailable. Two independent read-only source reviewers identified no unresolved substantive findings after reproduced canonical bearer-reflection and nested-retirement corrections. Tests also demonstrate legacy callback/Broker isolation, SQLite abort/ignored-write rollback, financial uncertainty, concurrent authority changes and preservation of real same-database human sessions and accepted artifact bytes. Full local and exact-head CI verification are recorded in the PR; technical review does not grant human Owner approval.
+
+Provider attestation, authenticated HTTPS, credential delivery, incident adapters and paid provider/entitlement integration remain unavailable/default-deny. Lost issuance responses cannot reconstruct bearers; recovery requires fencing and external/financial reconciliation. A restored stale database requires the existing operator-pause/reconciliation gate. No live credentials, mail, cloud resources, paid work, issues, protection changes, approval or merge. **Next: S2-05 provider/account entitlement verification**, after manual Owner review/merge; not started here.
 
 ## S2-03C project authorization and transaction-bound Owner actions (2026-10-28)
 

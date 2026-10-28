@@ -24,6 +24,8 @@ pub enum WorkerOperation {
     Disconnect,
     /// Separate broker authority; heartbeat permission never implies credential use.
     UseCredential,
+    /// Separate credential lifecycle operation; never renews a worker lease.
+    RenewCredential,
 }
 pub(crate) fn operation(body: &WorkerBody) -> WorkerOperation {
     match body {

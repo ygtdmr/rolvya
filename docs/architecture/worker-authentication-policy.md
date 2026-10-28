@@ -47,8 +47,12 @@ Keep token expiry (15 min) independent from lease TTL (90 sec); refresh a token 
 - Secret-bearing errors and logs are redacted; replay and stolen-token risks are tested.
 - Defaults are validated under controller CPU/RAM constraints and provider latency.
 
+## Current implementation boundary
+
+[S2-04 Rust/SQLite implementation](../development/verified-worker-bootstrap.md) adds keyed attempt-scoped credentials, independently verified identity interfaces, renewal/revocation and same-transaction R08 message authorization. Public construction remains default-deny until reviewed provider attestation, HTTPS and credential-delivery adapters exist. No native AWS identity or live TLS behavior is claimed. Existing trusted synthetic kernels are not network authentication endpoints; enrolled attempts cannot use their legacy policy callbacks.
+
 ## Remaining implementation decisions
 
-Concrete provider attestation mechanisms, token hashing/crypto libraries, revocation storage schema, authorization endpoint routes, rotation margins, clock-skew tolerance, TLS termination, rate limits, and load-tested timing adjustments remain for the implementation specification. Authentication design alone does not certify an initial cloud provider.
+Concrete native provider attestation, authenticated endpoint routes, TLS termination, gateway rate limits and load-tested timing adjustments remain integration gates. S2-04 implements installation-keyed HMAC-SHA256 token commitments, versioned revocation storage and bounded rotation; these library mechanisms do not complete production authentication. Authentication design alone does not certify an initial cloud provider.
 
 See [worker wire contract](worker-wire-contract-draft.md), [identity and authorization](identity-authorization.md), [remote worker lifecycle](../operations/remote-worker-lifecycle-contract.md), [bounded spend ADR](../decisions/0010-inflight-budget.md), and [multi-provider ADR](../decisions/0011-multi-provider-worker-infrastructure.md).
