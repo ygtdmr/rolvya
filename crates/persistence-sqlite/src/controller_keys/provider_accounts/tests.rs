@@ -182,6 +182,14 @@ pub(in crate::controller_keys) async fn fixture_registry(
     b: &ControllerBootstrap,
     t: i64,
 ) -> Arc<ProviderRegistry> {
+    fixture_registry_for(b, t, "synthetic", "synthetic-account").await
+}
+pub(in crate::controller_keys) async fn fixture_registry_for(
+    b: &ControllerBootstrap,
+    t: i64,
+    infrastructure: &str,
+    account: &str,
+) -> Arc<ProviderRegistry> {
     let mut registry = Arc::new(ProviderRegistry::open(b).await.unwrap());
     let mut current_grants = std::collections::BTreeSet::new();
     let rows=sqlx::query("SELECT DISTINCT project_id,json_extract(definition,'$.execution') AS assignment FROM tasks WHERE kind='executable_leaf'").fetch_all(&registry.store.pool).await.unwrap();
@@ -336,8 +344,8 @@ pub(in crate::controller_keys) async fn fixture_registry(
                 cpu_millis: 10000,
                 memory_mib: 8192,
                 timeout_seconds: 3600,
-                infrastructure_provider: "synthetic".into(),
-                infrastructure_account: "synthetic-account".into(),
+                infrastructure_provider: infrastructure.into(),
+                infrastructure_account: account.into(),
                 pool: "synthetic-pool".into(),
                 region: "synthetic-region".into(),
                 resource_class: "synthetic-class".into(),

@@ -616,5 +616,5 @@ impl<P: crate::orchestration::SyntheticExecutionAuthority>
 }
 #[cfg(test)]
 pub(in crate::controller_keys) use tests::{
-    fixture_limit, fixture_owner_verifier, fixture_registry, fixture_reopen,
+    fixture_limit, fixture_owner_verifier, fixture_registry, fixture_registry_for, fixture_reopen,
 };

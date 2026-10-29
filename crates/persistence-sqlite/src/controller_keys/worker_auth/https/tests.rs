@@ -200,19 +200,24 @@ impl Certificate {
         .unwrap()
     }
 }
-type Policy = provider_accounts::RegistryPolicy<synthetic::Authority>;
-struct Fixture {
+type Policy<P = synthetic::Authority> = provider_accounts::RegistryPolicy<P>;
+struct Fixture<P = synthetic::Authority> {
     root: tempfile::TempDir,
     bootstrap: ControllerBootstrap,
     store: PlanStore,
     clock: Arc<DeterministicClock>,
-    policy: Arc<Policy>,
+    policy: Arc<Policy<P>>,
     co: SyntheticCoordinator,
     key: Ed25519KeyPair,
     cert: Certificate,
 }
 impl Fixture {
     async fn new() -> Self {
+        Self::with_authority(synthetic::Authority::default()).await
+    }
+}
+impl<P: SyntheticExecutionAuthority + 'static> Fixture<P> {
+    async fn with_authority(authority: P) -> Self {
         let root = temporary();
         for p in ["data", "keys"] {
             fs::create_dir(root.path().join(p)).unwrap();
@@ -293,8 +298,21 @@ impl Fixture {
             )
             .await
             .unwrap();
-        let registry = provider_accounts::fixture_registry(&bootstrap, synthetic::T).await;
-        let policy = Arc::new(registry.policy(synthetic::Authority::default()));
+        let sample = authority
+            .assignment(
+                p.tasks.iter().find(|t| t.id.as_str() == "task-a").unwrap(),
+                1,
+                synthetic::T,
+            )
+            .unwrap();
+        let registry = provider_accounts::fixture_registry_for(
+            &bootstrap,
+            synthetic::T,
+            sample.permit.provider.as_str(),
+            sample.permit.account.as_str(),
+        )
+        .await;
+        let policy = Arc::new(registry.policy(authority));
         let clock = Arc::new(DeterministicClock::new(synthetic::T).unwrap());
         let co = SyntheticCoordinator::open(
             store.clone(),
@@ -522,3 +540,6 @@ mod process;
 
 #[path = "tests_adversarial.rs"]
 mod adversarial;
+
+#[path = "tests_aws.rs"]
+mod aws;

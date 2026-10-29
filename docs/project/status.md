@@ -2,6 +2,12 @@
 
 Current authoritative decision cross-check: 2026-10-26 (see current ADRs; earlier sections are chronological historical checkpoints).
 
+## S2-06B AWS Fargate identity foundation (2026-10-29)
+
+[PR #29](https://github.com/ygtdmr/rolvya/pull/29) is confirmed merged at `4563e915ea8910b203869ca8b170234427f43ee7`, with its complete expected source tree. Branch `codex/aws-fargate-worker-identity` adds official Rust AWS SDK read-only inspection, typed account/task/configuration correlation, MAC-authenticated versioned SQLite evidence (forward migration 0013), current R06/R08/S2-05 scope rechecks and a concrete S2-06A HTTPS AWS denial boundary. See [implementation, official sources and evidence limits](../development/aws-fargate-identity.md).
+
+Production per-task possession, authorized controller credential consumption and protected bootstrap delivery are **not established**. Matching ECS records, task-role strings, metadata and TLS cannot issue a worker credential. Live launch/stop and production account enrollment remain unavailable; this implements the explicitly permitted conservative foundation, not working native AWS attestation. Fresh local verification passes 672 workspace Rust tests and 12 migration checks over 13 versions, with 203 controller and 23 Python checks. Deterministic SDK protocol/real HTTPS tests, six SIGKILL checkpoints and migration rollback exercise safety without cloud calls; exact-head CI/security evidence belongs to the PR. Independent reviews prompted reproduced entry-point/lifecycle and scoped foreign-key corrections. No paid resources, credentials, provider calls, protections, approvals or merges are used. Next: resolve and independently verify the documented trust, delivery, isolation and financial-enforcement gates before activation; no automatic next-stage work.
+
 ## Phase
 **R01–R11 synthetic Rust/SQLite core, independently reviewed and verified for Owner core review.** Frozen-plan execution, exact-budget authority, durable worker control, independent artifact/group acceptance and tested recovery are implemented as libraries. Production security, providers, application and operations remain incomplete. Stage 2 P0 security integration now includes S2-01 key bootstrap, the S2-02 encrypted Secret Broker, S2-03A primary authentication, S2-03B sessions/factors, the S2-03C project authorization/Owner-action library, S2-04 worker credential authority, the S2-05 provider/account eligibility library and the S2-06A worker HTTPS transport; deployment and paid execution remain unauthorized.
 

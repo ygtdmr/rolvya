@@ -49,7 +49,7 @@ async fn migrations_replay_reopen_and_consistent_snapshot_restore() {
             .fetch_one(&raw)
             .await
             .unwrap(),
-        12
+        13
     );
     assert_eq!(
         sqlx::query_scalar::<_, String>("SELECT sqlite_version()")
@@ -123,8 +123,8 @@ async fn failed_migration_rolls_back_ddl_and_data() {
     let f = Fixture::new().await;
     let raw = f.raw().await;
     let scripts = tempfile::tempdir().unwrap();
-    std::fs::write(scripts.path().join("0013_injected_failure.sql"),"CREATE TABLE should_rollback(value TEXT); INSERT INTO should_rollback VALUES ('temporary'); SELECT absent_column FROM absent_table;").unwrap();
-    // Replay real migrations, then verify failing v13 executes and rolls back atomically.
+    std::fs::write(scripts.path().join("0014_injected_failure.sql"),"CREATE TABLE should_rollback(value TEXT); INSERT INTO should_rollback VALUES ('temporary'); SELECT absent_column FROM absent_table;").unwrap();
+    // Replay real migrations, then verify failing v14 executes and rolls back atomically.
     std::fs::write(
         scripts.path().join("0001_plan_store.sql"),
         include_str!("../migrations/0001_plan_store.sql"),
@@ -187,10 +187,15 @@ async fn failed_migration_rolls_back_ddl_and_data() {
         include_str!("../migrations/0012_provider_account_entitlements.sql"),
     )
     .unwrap();
+    std::fs::write(
+        scripts.path().join("0013_aws_fargate_identity.sql"),
+        include_str!("../migrations/0013_aws_fargate_identity.sql"),
+    )
+    .unwrap();
     let migrator = Migrator::new(scripts.path()).await.unwrap();
     let error = migrator.run(&raw).await.unwrap_err();
     assert!(
-        matches!(error, sqlx::migrate::MigrateError::ExecuteMigration(_, 13)),
+        matches!(error, sqlx::migrate::MigrateError::ExecuteMigration(_, 14)),
         "must execute the injected next migration, not reject migration metadata"
     );
     assert_eq!(
@@ -357,7 +362,7 @@ async fn real_v1_upgrade_preserves_projects_and_failed_v2_leaves_v1_intact() {
                 .fetch_one(&raw)
                 .await
                 .unwrap(),
-            12
+            13
         );
         assert_eq!(
             sqlx::query_scalar::<_, i64>("SELECT count(*) FROM financial_events")
@@ -940,6 +945,112 @@ async fn populated_v11_upgrade_and_v12_failure_preserve_all_prior_authority_with
             "provider_connections",
             "provider_capacity_reservations",
             "provider_project_grants",
+        ] {
+            assert_eq!(
+                sqlx::query_scalar::<_, i64>(&format!("SELECT count(*) FROM {table}"))
+                    .fetch_one(&raw)
+                    .await
+                    .unwrap(),
+                0
+            );
+        }
+        raw.close().await;
+        let store = PlanStore::open(&path).await.unwrap();
+        store.check_integrity().await.unwrap();
+    }
+}
+
+#[tokio::test]
+async fn populated_v12_upgrade_and_v13_failure_preserve_prior_authority_without_cloud_grants() {
+    use sqlx::sqlite::SqliteConnectOptions;
+    for fail in [false, true] {
+        let root = tempfile::tempdir().unwrap();
+        let path = root.path().join("v12.sqlite");
+        let mut options = std::fs::OpenOptions::new();
+        options.create_new(true).write(true);
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::OpenOptionsExt;
+            options.mode(0o600);
+        }
+        options.open(&path).unwrap();
+        let raw = sqlx::SqlitePool::connect_with(
+            SqliteConnectOptions::new()
+                .filename(&path)
+                .foreign_keys(true),
+        )
+        .await
+        .unwrap();
+        let scripts = tempfile::tempdir().unwrap();
+        for e in std::fs::read_dir(concat!(env!("CARGO_MANIFEST_DIR"), "/migrations")).unwrap() {
+            let e = e.unwrap();
+            if e.file_name().to_str().unwrap() < "0013" {
+                std::fs::copy(e.path(), scripts.path().join(e.file_name())).unwrap();
+            }
+        }
+        Migrator::new(scripts.path())
+            .await
+            .unwrap()
+            .run(&raw)
+            .await
+            .unwrap();
+        sqlx::query("INSERT INTO projects(project_id,owner_actor) VALUES('retained-project','legacy-owner')").execute(&raw).await.unwrap();
+        let before: Vec<(String, String)> =
+            sqlx::query_as("SELECT project_id,owner_actor FROM projects")
+                .fetch_all(&raw)
+                .await
+                .unwrap();
+        let next = scripts.path().join("0013_aws_fargate_identity.sql");
+        let migration = include_str!("../migrations/0013_aws_fargate_identity.sql");
+        if fail {
+            std::fs::write(
+                &next,
+                format!("{migration}\nSELECT missing_column FROM missing_table;"),
+            )
+            .unwrap();
+            assert!(
+                Migrator::new(scripts.path())
+                    .await
+                    .unwrap()
+                    .run(&raw)
+                    .await
+                    .is_err()
+            );
+            assert_eq!(
+                sqlx::query_scalar::<_, i64>("SELECT count(*) FROM _sqlx_migrations")
+                    .fetch_one(&raw)
+                    .await
+                    .unwrap(),
+                12
+            );
+            assert_eq!(
+                sqlx::query_scalar::<_, i64>(
+                    "SELECT count(*) FROM sqlite_schema WHERE name='aws_infrastructure_accounts'"
+                )
+                .fetch_one(&raw)
+                .await
+                .unwrap(),
+                0
+            );
+        }
+        std::fs::write(&next, migration).unwrap();
+        Migrator::new(scripts.path())
+            .await
+            .unwrap()
+            .run(&raw)
+            .await
+            .unwrap();
+        assert_eq!(
+            sqlx::query_as::<_, (String, String)>("SELECT project_id,owner_actor FROM projects")
+                .fetch_all(&raw)
+                .await
+                .unwrap(),
+            before
+        );
+        for table in [
+            "aws_infrastructure_accounts",
+            "aws_execution_bindings",
+            "aws_task_inspections",
         ] {
             assert_eq!(
                 sqlx::query_scalar::<_, i64>(&format!("SELECT count(*) FROM {table}"))
