@@ -67,7 +67,7 @@ impl ServerIdentity {
         Self::build(chain, key).unwrap()
     }
 }
-pub(super) fn client() -> Result<Arc<ClientConfig>, ErrorCode> {
+pub(in crate::controller_keys::worker_auth) fn client() -> Result<Arc<ClientConfig>, ErrorCode> {
     client_with_roots(roots())
 }
 fn client_with_roots(roots: RootCertStore) -> Result<Arc<ClientConfig>, ErrorCode> {
@@ -87,7 +87,7 @@ pub(super) fn fixture_client(root: CertificateDer<'static>) -> Arc<ClientConfig>
     client_with_roots(r).unwrap()
 }
 
-pub(super) struct SecretBytes(pub zeroize::Zeroizing<Vec<u8>>);
+pub(in crate::controller_keys::worker_auth) struct SecretBytes(pub zeroize::Zeroizing<Vec<u8>>);
 impl AsRef<[u8]> for SecretBytes {
     fn as_ref(&self) -> &[u8] {
         &self.0

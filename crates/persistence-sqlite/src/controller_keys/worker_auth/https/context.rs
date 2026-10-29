@@ -82,7 +82,7 @@ pub struct Diagnostics {
     pub active: u64,
     pub peak: u64,
 }
-pub(super) struct HttpTransport {
+pub(in crate::controller_keys::worker_auth) struct HttpTransport {
     state: Mutex<State>,
     pub(super) limits: ResourceLimits,
     pub(super) counters: Counters,
@@ -203,6 +203,38 @@ impl HttpTransport {
             .filter(|a| a.reference == *c.evidence)
             .cloned()
             .ok_or(WorkerAuthError::Denied)
+    }
+    /// Private snapshot of a live accepted request. A JSON channel identifier
+    /// cannot construct this evidence. It remains correlation, never AWS identity.
+    pub(in crate::controller_keys::worker_auth) fn accepted_channel(
+        &self,
+        c: &IdentityCheck<'_>,
+        now: i64,
+    ) -> Result<[u8; 32], WorkerAuthError> {
+        let operation = match c.stage {
+            VerificationStage::Bootstrap => WorkerOperation::Register,
+            VerificationStage::Renew => WorkerOperation::RenewCredential,
+            _ => return Err(WorkerAuthError::Denied),
+        };
+        let s = self
+            .state
+            .lock()
+            .map_err(|_| WorkerAuthError::Unavailable)?;
+        let mut matching = s.active.values().filter(|a| {
+            a.request == *c.request
+                && a.binding == *c.binding
+                && a.operation == operation
+                && a.attestation
+                    .as_ref()
+                    .is_some_and(|a| a.reference == *c.evidence)
+                && now >= a.created
+                && now < a.expires
+        });
+        let a = matching.next().ok_or(WorkerAuthError::Denied)?;
+        if matching.next().is_some() {
+            return Err(WorkerAuthError::Denied);
+        }
+        Ok(a.channel)
     }
     pub(super) fn diagnostics(&self) -> Diagnostics {
         Diagnostics {

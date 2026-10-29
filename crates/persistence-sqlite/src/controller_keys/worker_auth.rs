@@ -16,6 +16,7 @@ use sha2::{Digest as _, Sha256};
 use sqlx::{Row, SqliteConnection};
 use std::{fmt, future::Future, pin::Pin, sync::Arc};
 use zeroize::Zeroizing;
+pub mod aws_fargate;
 mod bootstrap;
 mod control;
 mod credentials;

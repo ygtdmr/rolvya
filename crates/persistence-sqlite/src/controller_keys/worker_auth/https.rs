@@ -4,7 +4,7 @@ pub mod client;
 pub mod tls;
 pub mod wire;
 
-mod context;
+pub(in crate::controller_keys::worker_auth) mod context;
 pub use context::{Diagnostics, ResourceLimits};
 
 mod denial;

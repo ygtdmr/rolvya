@@ -47,6 +47,25 @@ impl HttpsWorkerServer {
             identity,
         }))
     }
+    /// Selects the concrete read-only AWS correlation boundary. Production
+    /// consent/credential resolution, task possession and delivery remain blocked.
+    pub async fn open_fargate(
+        bootstrap: &ControllerBootstrap,
+        policy: Arc<dyn SchedulerPolicy>,
+        identity: ServerIdentity,
+        limits: ResourceLimits,
+    ) -> Result<Arc<Self>, WorkerAuthError> {
+        let aws = super::super::aws_fargate::FargateIdentity::open(bootstrap, policy.clone())
+            .await
+            .map_err(|_| WorkerAuthError::Unavailable)?;
+        let mut s = Self::open(bootstrap, policy, identity, limits).await?;
+        let state = Arc::get_mut(&mut s).ok_or(WorkerAuthError::Unavailable)?;
+        state.security.identity = Arc::new(super::super::aws_fargate::HttpsIdentity {
+            identity: aws,
+            transport: state.transport.clone(),
+        });
+        Ok(s)
+    }
     pub fn diagnostics(&self) -> Diagnostics {
         self.transport.diagnostics()
     }
