@@ -1,5 +1,5 @@
-//! S2-04 worker control authority. Provider attestation and HTTPS are unavailable
-//! by default; no worker ID, evidence reference or request object is a grant.
+//! S2-04 worker control authority with the reviewed S2-06A HTTPS adapter.
+//! Provider attestation is default-deny; IDs or request objects are not grants.
 use super::{ControllerBootstrap, ControllerKey};
 use crate::{
     PlanStore, RequestId, StoreError,
@@ -19,6 +19,7 @@ use zeroize::Zeroizing;
 mod bootstrap;
 mod control;
 mod credentials;
+pub mod https;
 mod revocation;
 pub use revocation::{WorkerRevocation, WorkerRevocationReceipt};
 #[cfg(test)]
@@ -169,6 +170,7 @@ pub struct WorkerCredentialTicket {
     response_operation: WorkerOperation,
 }
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[cfg_attr(test, derive(Serialize, Deserialize))]
 enum VerificationStage {
     Prepare,
     Bootstrap,
@@ -232,6 +234,7 @@ struct IdentityGrant {
 }
 /// Verified statement/controller-side correlation, not reflected worker claims.
 #[derive(Clone, PartialEq, Eq)]
+#[cfg_attr(test, derive(Serialize, Deserialize))]
 struct VerifiedIdentityScope {
     controller: ControllerIdentity,
     stage: VerificationStage,
@@ -357,8 +360,8 @@ impl RevocationAuthority for Unimplemented {
         Err(WorkerAuthError::Unavailable)
     }
 }
-/// No public verifier/policy overrides or credential-export callbacks. A future
-/// provider/HTTPS integration must implement the private reviewed boundaries.
+/// No public identity-verifier overrides or credential-export callbacks. The
+/// HTTPS adapter stays inside this boundary; real provider verification is absent.
 pub struct WorkerSecurity {
     store: PlanStore,
     key: ControllerKey,

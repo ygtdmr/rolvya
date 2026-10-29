@@ -3,12 +3,18 @@
 Current authoritative decision cross-check: 2026-10-26 (see current ADRs; earlier sections are chronological historical checkpoints).
 
 ## Phase
-**R01–R11 synthetic Rust/SQLite core, independently reviewed and verified for Owner core review.** Frozen-plan execution, exact-budget authority, durable worker control, independent artifact/group acceptance and tested recovery are implemented as libraries. Production security, providers, application and operations remain incomplete. Stage 2 P0 security integration now includes S2-01 key bootstrap, the S2-02 encrypted Secret Broker, S2-03A primary authentication, S2-03B sessions/factors, the S2-03C project authorization/Owner-action library, S2-04 worker credential authority and the S2-05 provider/account eligibility library; deployment and paid execution remain unauthorized.
+**R01–R11 synthetic Rust/SQLite core, independently reviewed and verified for Owner core review.** Frozen-plan execution, exact-budget authority, durable worker control, independent artifact/group acceptance and tested recovery are implemented as libraries. Production security, providers, application and operations remain incomplete. Stage 2 P0 security integration now includes S2-01 key bootstrap, the S2-02 encrypted Secret Broker, S2-03A primary authentication, S2-03B sessions/factors, the S2-03C project authorization/Owner-action library, S2-04 worker credential authority, the S2-05 provider/account eligibility library and the S2-06A worker HTTPS transport; deployment and paid execution remain unauthorized.
 
 ## Verified repository artifacts
 - `LICENSE` — MIT License text present on `main`.
 - Root `README.md` — introductory project description and explicitly pre-implementation status.
 - `AGENTS.md` and initial `docs/` foundation — repository guidance and planning documents, not implementation.
+
+## S2-06A trusted worker HTTPS transport (2026-10-29)
+
+PR #28 is confirmed merged at main `4f9f1bef8bcb482c044a0f0fe4ef4606ba07d352`, with matching S2-05 source and migration 0012. Branch `codex/worker-https-transport` adds real Axum/rustls HTTPS and a bounded worker client inside the existing private credential boundary. No migration or additional authority store. [Implementation, executable evidence and production gates](../development/worker-https-transport.md) distinguish TLS transport from still-unimplemented real provider identity/bootstrap delivery.
+
+Real TLS/subprocess tests exercise concurrent A/B workers, independent artifact/group acceptance before C, durable receipt replay, six SIGKILL commit boundaries, expiry/fencing/financial/entitlement denial and resource limits. Production provider verification remains default-deny; fixture roots and signed synthetic identity are test-only. Fresh verification passes **644 workspace Rust tests**, **24 focused entries** (23 behavioral plus the process driver), **11 migration checks**, **203 controller tests** and **23 Python repository tests**. Formatting, warning-denied Clippy, locked compilation, repository/inventory checks, Actionlint and tracked-source secret scanning pass. Two independent read-only reviews closed their findings. `cargo audit` is unavailable; exact-head CI/CodeQL evidence is recorded in the PR. No live providers, credentials, paid work, deployment, self-approval or merge; manual Owner review remains required.
 
 ## S2-05 provider/account registry and execution eligibility (2026-10-29)
 
