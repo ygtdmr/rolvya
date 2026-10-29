@@ -47,6 +47,18 @@ impl WorkerSecurity {
         bytes: &[u8],
         context: &WorkerRequestContext,
     ) -> Result<ControllerMessage, WorkerAuthError> {
+        self.receive_receipt(credential, bytes, context)
+            .await
+            .map(|(message, _)| message)
+    }
+    /// Transport disposition is derived inside the same writer transaction as
+    /// receipt processing; a preliminary cache lookup is not authoritative.
+    pub(super) async fn receive_receipt(
+        &self,
+        credential: &WorkerCredential,
+        bytes: &[u8],
+        context: &WorkerRequestContext,
+    ) -> Result<(ControllerMessage, bool), WorkerAuthError> {
         if bytes.is_empty() || bytes.len() > MAX_MESSAGE_BYTES {
             return Err(WorkerAuthError::Protocol);
         }
@@ -88,7 +100,7 @@ impl WorkerSecurity {
         credential: &WorkerCredential,
         message: &WorkerMessage,
         context: &WorkerRequestContext,
-    ) -> Result<ControllerMessage, WorkerAuthError> {
+    ) -> Result<(ControllerMessage, bool), WorkerAuthError> {
         let op = crate::worker_simulation::controller::operation(&message.body);
         let stop = matches!(op, WorkerOperation::StopQuery | WorkerOperation::StopAck);
         let usage = || {
@@ -192,7 +204,7 @@ impl WorkerSecurity {
             .verify(context, &record.scope.binding, op, end)?;
         tx.commit().await?;
         self.checkpoint(CommitCheckpoint::AfterMessage)?;
-        Ok(result)
+        Ok((result, old.is_some()))
     }
     /// Only a verified current token plus trusted transport can attribute a
     /// denial to a project. Unknown network traffic remains a future gateway gate.

@@ -231,3 +231,20 @@ pub struct SyntheticCoordinator {
     children: BTreeMap<TaskId, Vec<TaskId>>,
     limits: Limits,
 }
+
+/// Read-only immutable synthetic work for the authenticated HTTPS adapter. The
+/// adapter independently checks current credential, lease and provider authority.
+pub(crate) async fn synthetic_worker_assignment(
+    connection: &mut sqlx::SqliteConnection,
+    lease: &LeaseRef,
+) -> Result<
+    (
+        rolvya_domain::worker::WorkerBinding,
+        SyntheticAssignment,
+        Vec<SyntheticInput>,
+    ),
+    OrchestrationError,
+> {
+    let job = artifacts::job(connection, lease).await?;
+    Ok((job.binding, job.assignment, job.inputs))
+}
