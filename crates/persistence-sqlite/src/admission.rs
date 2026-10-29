@@ -7,6 +7,7 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum AdmissionError {
     Storage(StoreError),
+    Provider(crate::controller_keys::provider_accounts::RegistryError),
     Finance(FinanceError),
     InvalidInput,
     Forbidden,
@@ -24,6 +25,7 @@ impl fmt::Display for AdmissionError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(match self {
             Self::Storage(_) => "scheduler storage operation failed",
+            Self::Provider(_) => "provider/account authority denied admission",
             Self::Finance(_) => "financial authority denied admission",
             Self::InvalidInput => "invalid scheduler request",
             Self::Forbidden => "scheduler action is not authorized",
@@ -40,6 +42,11 @@ impl fmt::Display for AdmissionError {
     }
 }
 impl std::error::Error for AdmissionError {}
+impl From<crate::controller_keys::provider_accounts::RegistryError> for AdmissionError {
+    fn from(e: crate::controller_keys::provider_accounts::RegistryError) -> Self {
+        Self::Provider(e)
+    }
+}
 impl From<StoreError> for AdmissionError {
     fn from(e: StoreError) -> Self {
         Self::Storage(e)
@@ -151,6 +158,14 @@ pub enum SchedulerAction<'a> {
     Recover(&'a RecoveryRequest),
 }
 pub trait SchedulerPolicy: AssignmentPolicy + Send + Sync {
+    /// Opaque controller authority, not a client flag. Missing registry denies
+    /// configured controller admission; old uninitialized synthetic kernels
+    /// remain an explicit non-production compatibility boundary.
+    fn provider_registry(
+        &self,
+    ) -> Option<&crate::controller_keys::provider_accounts::ProviderRegistry> {
+        None
+    }
     /// Bounded synchronous check inside the write transaction and before commit;
     /// no I/O, external side effects, or unverified model/worker claims.
     fn permits(&self, owner: &PrincipalId, action: SchedulerAction<'_>, now: i64) -> bool;
@@ -520,9 +535,17 @@ impl PlanStore {
             .is_some()
         {
             let value = receipt(&mut tx, r).await?;
+            crate::controller_keys::provider_accounts::gate::current(
+                &mut tx, policy, r, assignment, t,
+            )
+            .await?;
             tx.commit().await?;
             return Ok(value);
         }
+        crate::controller_keys::provider_accounts::gate::before_admission(
+            &mut tx, policy, r, assignment, t,
+        )
+        .await?;
         check_capability(r, t)?;
         policy
             .check(assignment)
@@ -623,7 +646,13 @@ impl PlanStore {
         let until = t
             .checked_add(90)
             .ok_or(AdmissionError::InvalidInput)?
-            .min(r.permit.valid_until);
+            .min(r.permit.valid_until)
+            .min(
+                crate::controller_keys::provider_accounts::gate::authority_until(
+                    &mut tx, policy, r, assignment, t,
+                )
+                .await?,
+            );
         one(
             sqlx::query("INSERT INTO task_attempts VALUES (?,?,?,?,?,?,?,?,?,?,?)")
                 .bind(r.task.plan.project_id.as_str())
@@ -664,6 +693,8 @@ impl PlanStore {
         one(sqlx::query("UPDATE task_fences SET epoch=?,current_attempt=? WHERE project_id=? AND plan_id=? AND version=? AND task_id=? AND epoch=? AND current_attempt IS NULL")
             .bind(next).bind(r.request_id.as_str()).bind(r.task.plan.project_id.as_str()).bind(r.task.plan.plan_id.as_str()).bind(version(&r.task.plan)?).bind(r.task.task_id.as_str()).bind(epoch).execute(&mut *tx).await?.rows_affected())?;
         set_runtime(&mut tx, &r.task, "running").await?;
+        crate::controller_keys::provider_accounts::gate::reserve(&mut tx, policy, r, assignment, t)
+            .await?;
         let _: i64 = sqlx::query_scalar(
             "INSERT INTO dispatch_outbox(project_id,attempt_id) VALUES (?,?) RETURNING sequence",
         )
@@ -681,6 +712,10 @@ impl PlanStore {
             return Err(AdmissionError::Capability);
         }
         let _ = live(&mut tx, &value.lease, end).await?;
+        crate::controller_keys::provider_accounts::gate::current(
+            &mut tx, policy, r, assignment, end,
+        )
+        .await?;
         tx.commit().await?;
         Ok(value)
     }
@@ -750,6 +785,14 @@ impl PlanStore {
         ) {
             return Err(AdmissionError::Forbidden);
         }
+        crate::controller_keys::provider_accounts::gate::current(
+            &mut tx,
+            policy,
+            &admission,
+            task.execution.as_ref().ok_or(AdmissionError::NotEligible)?,
+            t,
+        )
+        .await?;
         let current = live(&mut tx, &r.lease, t).await?;
         if current != admission {
             return Err(StoreError::Integrity.into());
@@ -844,6 +887,14 @@ impl PlanStore {
         policy
             .check(task.execution.as_ref().ok_or(AdmissionError::NotEligible)?)
             .map_err(|_| AdmissionError::Capability)?;
+        crate::controller_keys::provider_accounts::gate::current(
+            &mut tx,
+            policy,
+            &admission,
+            task.execution.as_ref().ok_or(AdmissionError::NotEligible)?,
+            end,
+        )
+        .await?;
         let permit = DispatchPermit {
             lease: r.lease.clone(),
             assignment: task.execution.clone().ok_or(AdmissionError::NotEligible)?,

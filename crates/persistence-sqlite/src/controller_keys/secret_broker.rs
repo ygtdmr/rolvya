@@ -362,3 +362,18 @@ enum Checkpoint {
     BeforeCommit,
     AfterCommit,
 }
+/// Internal integrity-only operation. It returns no plaintext, key or use grant.
+/// All caller authorization remains at the enclosing registry/Owner boundary.
+pub(in crate::controller_keys) async fn verify_reference_in(
+    c: &mut sqlx::SqliteConnection,
+    key: &ControllerKey,
+    scope: &RecordScope,
+    version: SecretVersion,
+) -> Result<(), BrokerError> {
+    let envelope = store::load(c, scope, version).await?;
+    let plaintext = crypto::open(key, &envelope)?;
+    drop(plaintext);
+    Ok(())
+}
+#[cfg(test)]
+pub(in crate::controller_keys) use store::fixture_record;

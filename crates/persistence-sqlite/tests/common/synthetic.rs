@@ -173,7 +173,7 @@ pub async fn fixture_with(ceiling: i64, edit: impl FnOnce(&mut PlanContent)) -> 
         .unwrap();
     f
 }
-pub async fn open(f: &Fixture, a: &Authority) -> SyntheticCoordinator {
+pub async fn open<P: SyntheticExecutionAuthority>(f: &Fixture, a: &P) -> SyntheticCoordinator {
     SyntheticCoordinator::open(
         f.store.clone(),
         &f.content.key.project_id,

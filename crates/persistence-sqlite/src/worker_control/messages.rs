@@ -103,7 +103,10 @@ pub(crate) async fn receive_in<P: SchedulerPolicy + ?Sized>(
                 Err(WorkerError::Admission(AdmissionError::Expired)) => StopReason::LeaseExpired,
                 Err(WorkerError::Admission(AdmissionError::StaleFence)) => StopReason::Fenced,
                 Err(WorkerError::FinancialRisk) => StopReason::BudgetRisk,
-                Err(WorkerError::Unauthorized) => StopReason::AuthorityRevoked,
+                Err(WorkerError::Unauthorized)
+                | Err(WorkerError::Admission(AdmissionError::Provider(_))) => {
+                    StopReason::AuthorityRevoked
+                }
                 Err(error) => return Err(error.clone()),
                 Ok(()) => StopReason::BudgetRisk,
             };
@@ -169,10 +172,23 @@ pub(crate) async fn receive_in<P: SchedulerPolicy + ?Sized>(
         // The SchedulerPolicy's current Dispatch decision verifies the original
         // enforceable maximum for the entire interval. Hold coverage is checked
         // inside this transaction; no extra cost or token authority is created.
+        let provider_until = crate::controller_keys::provider_accounts::gate::authority_until(
+            &mut *tx,
+            policy,
+            &cmd.admission,
+            &cmd.assignment,
+            t,
+        )
+        .await
+        .map_err(AdmissionError::from)?;
+        if until > provider_until {
+            return Err(WorkerError::Unauthorized);
+        }
         until = until.max(
             t.checked_add(i64::from(LEASE_DURATION_SECONDS))
                 .ok_or(WorkerError::InvalidTime)?
-                .min(cmd.admission.permit.valid_until),
+                .min(cmd.admission.permit.valid_until)
+                .min(provider_until),
         );
     }
     let e=audit(&mut *tx,&l,"message",t,&serde_json::json!({"message_id":m.message_id,"digest":digest,"sequence":m.sequence,"lease_until":until})).await?;

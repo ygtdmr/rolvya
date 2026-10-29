@@ -590,3 +590,6 @@ fn no_bearer_reference(secret: &WorkerCredential, fields: &[&[u8]]) -> Result<()
         Ok(())
     }
 }
+
+#[cfg(test)]
+pub(in crate::controller_keys) use tests::FixtureWorker;

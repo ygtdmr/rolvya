@@ -2,7 +2,7 @@
 title: Provider Coding-Agent CLI API Entitlement Evidence
 status: Proposed
 category: reference
-last-reviewed: 2026-10-22
+last-reviewed: 2026-10-28
 tags: [claude, codex, cli, api, subscriptions, terms]
 ---
 
@@ -85,3 +85,11 @@ Related: [model access contract](../architecture/model-access-entitlement-contra
 - [OpenAI — Using your ChatGPT plan in other apps/sites](https://help.openai.com/en/articles/20001542-using-your-chatgpt-plan-in-other-apps-and-sites): certain participating integrations may offer explicit third-party subscription use and usage limits, but Rolvya must not presume it is a participating/approved app or copy unrelated tokens.
 
 **Implication:** CLI executable presence or a user's personal subscription alone is insufficient. Allow **API-key remote operation only after explicit authorization, provider eligibility, protected broker access and hard budget reservation**. Allow unattended subscription-backed third-party CLI mode **only with documented provider-permitted integration, user consent and secure credential/host policy**. Otherwise block, preserving the historical subscription-only Claude CLI preference as an unmet target rather than secretly switching to an API bill. This note makes **no new provider integration Approved**.
+
+## S2-05 official-source recheck — 2026-10-28
+
+Rechecked [Codex with ChatGPT plans](https://help.openai.com/en/articles/11369540-using-codex-with-your-chatgpt-plan), [plan use in other apps/sites](https://help.openai.com/en/articles/20001542-using-your-chatgpt-plan-in-other-apps-and-sites) and [ChatGPT Work/Codex](https://help.openai.com/en/articles/20001275-chatgpt-work-and-codex). Native-client support, participating integration consent, plan/workspace limits and separately billed API keys remain distinct. [Sign in with ChatGPT token sharing](https://developers.openai.com/siwc/token-sharing-open-source) and its [Codex app-server guidance](https://developers.openai.com/siwc/token-sharing-open-source/codex-app-server) describe eligible integrations and consent; remotely hosted/paid applications require their applicable access process. No evidence establishes Rolvya registration, an actual account's permission or its current quota.
+
+Rechecked [Claude account login](https://support.claude.com/en/articles/13189465-log-in-to-your-claude-account), [Claude Code authentication](https://code.claude.com/docs/en/authentication) and [third-party integrations](https://code.claude.com/docs/en/third-party-integrations). Native subscription authentication and supported API/cloud integration modes do not establish blanket third-party hosted subscription entitlement. Account consent, provider-permitted deployment and actual limits require separate trusted verification. Native-client impersonation and credential copying cannot substitute for that evidence.
+
+S2-05 therefore encodes no live model catalogue, prices or production account allowlist. Both production API and CLI activation remain unavailable pending account-specific evidence, scoped encrypted credentials and independently enforceable financial/infrastructure authority. The [implemented registry](../development/provider-account-entitlements.md) exercises explicitly synthetic evidence only. These date-sensitive observations are not legal approval or evidence of live provider integration.

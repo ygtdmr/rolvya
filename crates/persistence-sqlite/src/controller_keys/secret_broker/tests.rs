@@ -1190,6 +1190,17 @@ async fn admitted_worker(
         )
         .await
         .unwrap();
+    let mut b = f.broker("project").await;
+    b.create_connection(&scope("project"), &admin("worker-connection"))
+        .await
+        .unwrap();
+    b.put_secret(&put("project", "worker-secret"), value())
+        .await
+        .unwrap();
+    let registry =
+        crate::controller_keys::provider_accounts::fixture_registry(&f.bootstrap, synthetic::T)
+            .await;
+    let authority = registry.policy(authority);
     let co = synthetic::open(&fixture, &authority).await;
     let clock = Arc::new(DeterministicClock::new(synthetic::T).unwrap());
     for offset in 0..=2 {
@@ -1212,16 +1223,10 @@ async fn admitted_worker(
         .binding(&lease)
         .await
         .unwrap();
-    let mut b = f.broker("project").await;
-    b.policy = Arc::new(synthetic::Authority::default());
+    b.policy = Arc::new(registry.policy(synthetic::Authority::default()));
     b.worker = Arc::new(synthetic::Authority::default());
     b.clock = clock.clone();
-    b.create_connection(&scope("project"), &admin("worker-connection"))
-        .await
-        .unwrap();
-    b.put_secret(&put("project", "worker-secret"), value())
-        .await
-        .unwrap();
+
     let mut r = use_request("project", "worker-use");
     r.operation = CredentialOperation::ProxyModelRequest;
     r.worker = Some(AttemptSecretScope {

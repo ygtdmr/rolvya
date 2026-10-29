@@ -88,7 +88,8 @@ async fn subprocess_driver() {
     assert_eq!(digest, actual);
     let clock = Arc::new(DeterministicClock::new(now).unwrap());
     security.clock = clock;
-    security.policy = Arc::new(synthetic::Authority::default());
+    let registry = crate::controller_keys::provider_accounts::fixture_reopen(&bootstrap).await;
+    security.policy = Arc::new(registry.policy(synthetic::Authority::default()));
     let identity = Arc::new(SyntheticIdentity::default());
     let transport = Arc::new(SyntheticTransport::default());
     let revocation = Arc::new(SyntheticRevocation::default());

@@ -118,6 +118,7 @@ The paths above are a **planned inventory**, not links to files that already exi
 ## Engineering and agent execution specifications
 
 - [S2-04 verified worker bootstrap and scoped credentials](development/verified-worker-bootstrap.md)
+- [S2-05 provider/account entitlement authority](development/provider-account-entitlements.md)
 - [S2-03C project authorization and exact-action Owner approvals](development/human-owner-authorization.md)
 - [S2-03B human sessions and voluntary TOTP](development/human-sessions-totp.md)
 - [S2-02 encrypted SQLite Secret Broker](development/encrypted-secret-broker.md)

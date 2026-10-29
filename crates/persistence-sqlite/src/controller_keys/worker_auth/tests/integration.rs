@@ -47,11 +47,12 @@ async fn project(f: &Fixture, id: &str) -> common::Fixture {
         )
         .await
         .unwrap();
+    crate::controller_keys::provider_accounts::fixture_registry(&f.bootstrap, synthetic::T).await;
     fixture
 }
 async fn secondary(f: &Fixture) -> (WorkerBinding, WorkerCredentialTicket) {
     let p = project(f, "project-b").await;
-    let authority = synthetic::Authority::default();
+    let authority = f.policy();
     let lease = f
         .store
         .admit(
@@ -330,7 +331,7 @@ async fn worker_containment_preserves_real_human_sessions_without_granting_human
 async fn independently_accepted_artifact_bytes_survive_unrelated_worker_revocation_and_restart() {
     let f = Fixture::new().await;
     let p = project(&f, "verified-project").await;
-    let authority = synthetic::Authority::default();
+    let authority = f.policy();
     let co = synthetic::open(&p, &authority).await;
     let clock = DeterministicClock::new(synthetic::T).unwrap();
     assert_eq!(

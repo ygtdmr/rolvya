@@ -342,6 +342,15 @@ async fn current<P: SchedulerPolicy + ?Sized>(
     ) {
         return Err(WorkerError::Unauthorized);
     }
+    crate::controller_keys::provider_accounts::gate::current(
+        c,
+        policy,
+        &cmd.admission,
+        &cmd.assignment,
+        t,
+    )
+    .await
+    .map_err(AdmissionError::from)?;
     financial_guard(c, cmd).await
 }
 async fn transition(
@@ -411,10 +420,27 @@ pub(crate) async fn broker_guard(
         rolvya_domain::plan::AccessMode::ApiKey => "api_key",
         rolvya_domain::plan::AccessMode::CliSession => "cli_subscription",
     };
-    if cmd.assignment.connection_ref != connection
+    if actual_mode != mode {
+        return Err(WorkerError::ScopeMismatch);
+    }
+    if policy.provider_registry().is_some() {
+        crate::controller_keys::provider_accounts::gate::broker_connection(
+            c,
+            policy,
+            &cmd.admission,
+            &cmd.assignment,
+            now,
+            crate::controller_keys::provider_accounts::gate::ModelConnection {
+                connection,
+                account,
+                provider,
+            },
+        )
+        .await
+        .map_err(AdmissionError::from)?;
+    } else if cmd.assignment.connection_ref != connection
         || cmd.admission.permit.account.as_str() != account
         || cmd.admission.permit.provider.as_str() != provider
-        || actual_mode != mode
     {
         return Err(WorkerError::ScopeMismatch);
     }

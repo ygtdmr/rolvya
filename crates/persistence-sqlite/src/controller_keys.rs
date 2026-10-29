@@ -15,6 +15,7 @@ mod custody;
 mod tests;
 
 pub mod human_auth;
+pub mod provider_accounts;
 pub mod secret_broker;
 pub mod worker_auth;
 
