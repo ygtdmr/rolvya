@@ -201,6 +201,7 @@ impl WorkerTransport for SyntheticTransport {
     }
 }
 struct Fixture {
+    registry: Arc<crate::controller_keys::provider_accounts::ProviderRegistry>,
     root: tempfile::TempDir,
     path: PathBuf,
     keys: PathBuf,
@@ -217,6 +218,9 @@ struct Fixture {
 }
 impl Fixture {
     async fn new() -> Self {
+        Self::with_provider_limit(None).await
+    }
+    async fn with_provider_limit(until: Option<i64>) -> Self {
         let root = temporary();
         let data = root.path().join("data");
         let keys = root.path().join("keys");
@@ -280,6 +284,18 @@ impl Fixture {
             )
             .await
             .unwrap();
+        let registry =
+            crate::controller_keys::provider_accounts::fixture_registry(&bootstrap, synthetic::T)
+                .await;
+        if let Some(until) = until {
+            crate::controller_keys::provider_accounts::fixture_limit(
+                &registry,
+                &content.key.project_id,
+                until,
+            )
+            .await;
+        }
+        let policy = registry.policy(policy);
         let clock = Arc::new(DeterministicClock::new(synthetic::T).unwrap());
         let lease = store
             .admit(
@@ -355,6 +371,7 @@ impl Fixture {
         security.clock = clock.clone();
         security.revocation = revocation.clone();
         Self {
+            registry,
             root,
             path,
             keys,
@@ -369,6 +386,11 @@ impl Fixture {
             transport,
             revocation,
         }
+    }
+    fn policy(
+        &self,
+    ) -> crate::controller_keys::provider_accounts::RegistryPolicy<synthetic::Authority> {
+        self.registry.policy(synthetic::Authority::default())
     }
     fn request(&self, id: &str) -> PrepareBootstrap {
         let r = PrepareBootstrap {
@@ -909,3 +931,99 @@ mod faults;
 mod integration;
 #[path = "tests/migrations.rs"]
 mod migrations;
+#[tokio::test]
+async fn provider_entitlement_retirement_still_delivers_scoped_stop_and_ack_without_financial_release()
+ {
+    let f = Fixture::new().await;
+    let token = f.issued().await;
+    f.executing(&token).await;
+    sqlx::query("UPDATE provider_policy_revisions SET revision='withdrawn-policy',version=2")
+        .execute(&f.store.pool)
+        .await
+        .unwrap();
+    let stop = f
+        .send(&token, &f.message(4, WorkerBody::GetStopInstruction {}))
+        .await;
+    assert!(
+        stop.is_ok(),
+        "a provider denial must produce a scoped stop instruction: {stop:?}"
+    );
+    assert!(matches!(stop.unwrap().body, ControllerBody::Stop { .. }));
+    f.send(
+        &token,
+        &f.message(
+            5,
+            WorkerBody::StopAcknowledged {
+                instruction_id: MessageId::new("message-4").unwrap(),
+            },
+        ),
+    )
+    .await
+    .unwrap();
+    assert_eq!(
+        f.store
+            .financial_snapshot(&f.lease.task.plan.project_id)
+            .await
+            .unwrap()
+            .held,
+        synthetic::costs()
+    );
+    let held: i64 = sqlx::query_scalar(
+        "SELECT count(*) FROM provider_capacity_reservations WHERE state='held'",
+    )
+    .fetch_one(&f.store.pool)
+    .await
+    .unwrap();
+    assert_eq!(held, 1);
+}
+#[tokio::test]
+async fn provider_deadline_caps_initial_lease_and_authenticated_heartbeat_without_renewing_token() {
+    let f = Fixture::with_provider_limit(Some(synthetic::T + 35)).await;
+    let token = f.issued().await;
+    f.executing(&token).await;
+    let controller = DurableWorkerController::new(f.store.clone());
+    assert_eq!(
+        controller.lease_until(&f.lease).await.unwrap(),
+        synthetic::T + 35
+    );
+    let original_expiry = token.metadata.expires_at;
+    f.clock.advance_to(synthetic::T + 30).unwrap();
+    let c = f.context("provider-bounded-heartbeat", WorkerOperation::Heartbeat);
+    f.security
+        .receive(
+            &token.secret,
+            &encode_worker_message(&f.message(4, WorkerBody::Heartbeat {})).unwrap(),
+            &c,
+        )
+        .await
+        .unwrap();
+    assert_eq!(
+        controller.lease_until(&f.lease).await.unwrap(),
+        synthetic::T + 35
+    );
+    assert_eq!(token.metadata.expires_at, original_expiry);
+    f.clock.advance_to(synthetic::T + 35).unwrap();
+    let c = f.context("provider-expired-heartbeat", WorkerOperation::Heartbeat);
+    assert!(
+        f.security
+            .receive(
+                &token.secret,
+                &encode_worker_message(&f.message(5, WorkerBody::Heartbeat {})).unwrap(),
+                &c
+            )
+            .await
+            .is_err()
+    );
+    assert_eq!(
+        f.store
+            .financial_snapshot(&f.binding.task.plan.project_id)
+            .await
+            .unwrap()
+            .held,
+        synthetic::costs()
+    );
+    assert_eq!(f.rows("provider_capacity_reservations").await, 1);
+}
+
+mod provider_fixture;
+pub(in crate::controller_keys) use provider_fixture::FixtureWorker;

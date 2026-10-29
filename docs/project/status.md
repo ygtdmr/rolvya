@@ -3,12 +3,20 @@
 Current authoritative decision cross-check: 2026-10-26 (see current ADRs; earlier sections are chronological historical checkpoints).
 
 ## Phase
-**R01–R11 synthetic Rust/SQLite core, independently reviewed and verified for Owner core review.** Frozen-plan execution, exact-budget authority, durable worker control, independent artifact/group acceptance and tested recovery are implemented as libraries. Production security, providers, application and operations remain incomplete. Stage 2 P0 security integration now includes S2-01 key bootstrap, the S2-02 encrypted Secret Broker, S2-03A primary authentication, S2-03B sessions/factors, the S2-03C project authorization/Owner-action library and S2-04 worker credential authority; deployment and paid execution remain unauthorized.
+**R01–R11 synthetic Rust/SQLite core, independently reviewed and verified for Owner core review.** Frozen-plan execution, exact-budget authority, durable worker control, independent artifact/group acceptance and tested recovery are implemented as libraries. Production security, providers, application and operations remain incomplete. Stage 2 P0 security integration now includes S2-01 key bootstrap, the S2-02 encrypted Secret Broker, S2-03A primary authentication, S2-03B sessions/factors, the S2-03C project authorization/Owner-action library, S2-04 worker credential authority and the S2-05 provider/account eligibility library; deployment and paid execution remain unauthorized.
 
 ## Verified repository artifacts
 - `LICENSE` — MIT License text present on `main`.
 - Root `README.md` — introductory project description and explicitly pre-implementation status.
 - `AGENTS.md` and initial `docs/` foundation — repository guidance and planning documents, not implementation.
+
+## S2-05 provider/account registry and execution eligibility (2026-10-29)
+
+PR #27 is confirmed merged as main `f75f20206297d562f66b9c310237d71b5f0f84af`, matching the expected S2-04 source and migration 0011. Branch `codex/provider-account-entitlements` adds distinct API/CLI account identities, exact-action human consent, scoped versioned evidence, mandatory admission/dispatch/Broker checks, transactional capacity/quota accounting and conservative reconciliation. Migration 0012 preserves 0001–0011 and retains immutable project-grant history referenced by attempts. See [implementation and production gates](../development/provider-account-entitlements.md).
+
+Fresh focused verification passes 38 tests, including four separately attributed synthetic accounts through real R06–R09 and S2-04 credentials, two new SIGKILL/reopen admission checkpoints, competing SQLite pools, commit-time revocation, quota persistence, rollback, secret/ciphertext isolation and final capacity reconciliation. Two independent read-only source reviews identified and checked scoped-consent, current-verifier, expiry, stop-path and historical-evidence corrections. Fresh workspace verification passes **620 Rust tests**, including **11 migration tests** over 12 versions, with no failures or ignored tests. Formatting, Clippy with warnings denied, locked compilation, **203 controller tests**, **23 Python checks**, repository/inventory gates, workflow linting and the tracked-source secret scan pass. The Rust wrapper and exact-head GitHub evidence are recorded in the PR after execution. Dependency advisory auditing remains unavailable (`cargo audit` is not installed); no dependencies were added or updated.
+
+Production provider/account verification, consent/authentication adapters, model catalogues, quota inspection, credential consumption, actual remote CLI isolation/region enforcement and external spending limits remain unavailable/default-deny. Official policy pages were rechecked on 2026-10-28 and grant no Rolvya registration or account entitlement. Cancellation/expiry does not imply termination or final billing; holds and verified artifacts are preserved. No live credentials, mail, model/CLI calls, cloud resources, paid work, issues, protection changes, approval or merge. Next work requires a separately scoped trusted-adapter and authenticated-transport handoff; it is not started here.
 
 ## S2-04 verified worker bootstrap and scoped credential authority (2026-10-28)
 

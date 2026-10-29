@@ -6,6 +6,7 @@ use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 mod governance;
 mod invitations;
+mod providers;
 pub use email::{OwnerChallengeId, PreparedOwnerEmail};
 pub(crate) use governance::VerifiedBudgetApproval;
 pub use governance::{
@@ -62,6 +63,10 @@ pub struct OwnerAction {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "type", deny_unknown_fields)]
 enum Payload {
+    ProviderConnection {
+        proposal: String,
+        digest: String,
+    },
     Budget {
         expected_version: i64,
         currency: String,
@@ -134,6 +139,16 @@ impl OwnerAction {
     }
     fn validate(&self) -> Result<(), AuthError> {
         match &self.payload {
+            Payload::ProviderConnection { proposal, digest } => {
+                SessionId::parse(proposal.clone())?;
+                if digest.len() != 64
+                    || !digest
+                        .bytes()
+                        .all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b))
+                {
+                    return Err(AuthError::InvalidInput);
+                }
+            }
             Payload::Budget {
                 expected_version,
                 currency,
@@ -172,6 +187,11 @@ impl OwnerAction {
         // Fixed version + discriminant + length-framed fields. JSON is storage only.
         let mut out = b"rolvya/owner-action/v1\0".to_vec();
         let parts: Vec<Vec<u8>> = match &self.payload {
+            Payload::ProviderConnection { proposal, digest } => vec![
+                b"provider_connection".to_vec(),
+                proposal.as_bytes().to_vec(),
+                digest.as_bytes().to_vec(),
+            ],
             Payload::Budget {
                 expected_version,
                 currency,

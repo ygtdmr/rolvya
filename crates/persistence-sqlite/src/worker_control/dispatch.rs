@@ -211,6 +211,46 @@ impl OutboxDispatcher {
         clock: &impl Clock,
         limits: Limits,
     ) -> Result<DispatchState, WorkerError> {
+        let mut tx = self.store.pool.begin().await?;
+        let (cmd, _, _) = command(&mut tx, &ticket.lease).await?;
+        let t = admission::at(clock)?;
+        let pre = crate::controller_keys::provider_accounts::gate::current(
+            &mut tx,
+            policy,
+            &cmd.admission,
+            &cmd.assignment,
+            t,
+        )
+        .await;
+        tx.commit().await?;
+        let result = match pre {
+            Ok(()) => {
+                self.dispatch_inner(ticket, adapter, policy, clock, limits)
+                    .await
+            }
+            Err(e) => Err(AdmissionError::from(e).into()),
+        };
+        if let Err(WorkerError::Admission(AdmissionError::Provider(e))) = &result {
+            crate::controller_keys::provider_accounts::gate::record_blocked(
+                &self.store,
+                &cmd.admission,
+                &cmd.assignment,
+                *e,
+                admission::at(clock)?,
+            )
+            .await
+            .map_err(AdmissionError::from)?;
+        }
+        result
+    }
+    async fn dispatch_inner<P: SchedulerPolicy>(
+        &self,
+        ticket: &DispatchTicket,
+        adapter: &impl LaunchAdapter,
+        policy: &P,
+        clock: &impl Clock,
+        limits: Limits,
+    ) -> Result<DispatchState, WorkerError> {
         let l = &ticket.lease;
         let mut read = self.store.pool.begin().await?;
         let (cmd, _, _) = command(&mut read, l).await?;

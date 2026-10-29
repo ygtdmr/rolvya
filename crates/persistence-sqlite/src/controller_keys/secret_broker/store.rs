@@ -568,6 +568,9 @@ impl SecretBroker {
         now: i64,
     ) -> Result<(), BrokerError> {
         self.user.check(r, now)?;
+        super::super::provider_accounts::gate::broker_in(c, self.policy.as_ref(), r, now)
+            .await
+            .map_err(|_| BrokerError::AttemptAuthority)?;
         if r.operation != CredentialOperation::LocalIntegrityInspection && r.worker.is_none() {
             return Err(BrokerError::AttemptAuthority);
         }
@@ -806,4 +809,38 @@ pub(super) async fn preflight(
         }
     }
     Ok(())
+}
+#[cfg(test)]
+pub(in crate::controller_keys) async fn fixture_record(
+    c: &mut SqliteConnection,
+    key: &ControllerKey,
+    s: &RecordScope,
+    value: &SecretValue,
+) -> Result<(), BrokerError> {
+    // Private synthetic fixture provisioning; absent from production APIs.
+    sqlx::query("INSERT OR IGNORE INTO secret_connections VALUES(?,?,?,?,?,1,'active')")
+        .bind(s.connection.project.as_str())
+        .bind(s.connection.connection.as_str())
+        .bind(s.connection.account.as_str())
+        .bind(s.connection.provider.as_str())
+        .bind(s.connection.mode.name())
+        .execute(&mut *c)
+        .await?;
+    sqlx::query("INSERT INTO secret_records VALUES(?,?,?,?,1)")
+        .bind(s.connection.project.as_str())
+        .bind(s.connection.connection.as_str())
+        .bind(s.record.as_str())
+        .bind(s.purpose.as_str())
+        .execute(&mut *c)
+        .await?;
+    let e = crypto::seal(
+        key,
+        s,
+        SecretVersion(1),
+        value,
+        os_random::<32>()?,
+        *os_random::<24>()?,
+        *os_random::<24>()?,
+    )?;
+    insert(c, &e).await
 }
