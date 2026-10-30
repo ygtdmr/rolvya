@@ -24,7 +24,7 @@ pub struct PublicationReceipt {
 /// supports exact synthetic artifact bytes only; arbitrary code bytes fail closed.
 #[derive(Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(deny_unknown_fields)]
-pub struct AcceptedChange {
+pub(super) struct AcceptedChange {
     lease: LeaseRef,
     acceptance: String,
     fingerprint: String,

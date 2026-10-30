@@ -12,9 +12,7 @@ use crate::{
 };
 use hmac::{Hmac, Mac};
 pub use model::*;
-pub use publication::{
-    AcceptedChange, PublicationReceipt, PublicationState, PullRequestPreparation, RemoteGit,
-};
+pub use publication::{PublicationReceipt, PublicationState, PullRequestPreparation, RemoteGit};
 use serde::{Serialize, de::DeserializeOwned};
 use sha2::{Digest, Sha256};
 use sqlx::Row;
@@ -57,6 +55,11 @@ impl From<sqlx::Error> for GitError {
 }
 /// No public transport/verifier injection or credential accessor. Production calls
 /// fail before networking until a separate reviewed live activation exists.
+/// Persisted acceptance metadata cannot be manufactured as a public capability.
+/// ```compile_fail
+/// let _ = serde_json::from_str::<
+///     rolvya_persistence_sqlite::controller_keys::github_app::AcceptedChange>("{}");
+/// ```
 pub struct GitHubRemote {
     store: PlanStore,
     key: ControllerKey,
