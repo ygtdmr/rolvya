@@ -4,6 +4,7 @@ use crate::{PrincipalId, ProjectId};
 use rolvya_domain::money::{Currency, Money};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
+mod git;
 mod governance;
 mod infrastructure;
 mod invitations;
@@ -20,7 +21,9 @@ mod step_up;
 #[cfg(test)]
 mod tests;
 #[cfg(test)]
-pub(in crate::controller_keys) use tests::infrastructure_consent_on_existing;
+pub(in crate::controller_keys) use tests::{
+    GitOwnerFixture, git_consent_on_existing, infrastructure_consent_on_existing,
+};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -66,6 +69,10 @@ pub struct OwnerAction {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "type", deny_unknown_fields)]
 enum Payload {
+    GitRepository {
+        proposal: String,
+        digest: String,
+    },
     AwsInfrastructure {
         proposal: String,
         digest: String,
@@ -146,7 +153,8 @@ impl OwnerAction {
     }
     fn validate(&self) -> Result<(), AuthError> {
         match &self.payload {
-            Payload::ProviderConnection { proposal, digest }
+            Payload::GitRepository { proposal, digest }
+            | Payload::ProviderConnection { proposal, digest }
             | Payload::AwsInfrastructure { proposal, digest } => {
                 SessionId::parse(proposal.clone())?;
                 if digest.len() != 64
@@ -195,6 +203,11 @@ impl OwnerAction {
         // Fixed version + discriminant + length-framed fields. JSON is storage only.
         let mut out = b"rolvya/owner-action/v1\0".to_vec();
         let parts: Vec<Vec<u8>> = match &self.payload {
+            Payload::GitRepository { proposal, digest } => vec![
+                b"git_repository".to_vec(),
+                proposal.as_bytes().to_vec(),
+                digest.as_bytes().to_vec(),
+            ],
             Payload::AwsInfrastructure { proposal, digest } => vec![
                 b"aws_infrastructure".to_vec(),
                 proposal.as_bytes().to_vec(),
