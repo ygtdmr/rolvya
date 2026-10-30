@@ -603,11 +603,13 @@ async fn ignored_receipt_write_cannot_erase_provider_effect_or_allow_relaunch() 
 async fn actual_snapshot_before_launch_cannot_rollback_external_reality() {
     let f = FixtureRun::new().await;
     let snapshot = f.f.root.path().join("data/before.sqlite");
-    sqlx::query("VACUUM INTO ?")
-        .bind(snapshot.to_str().unwrap())
-        .execute(&f.f.store.pool)
-        .await
-        .unwrap();
+    // Reuse the real protected backup API: raw VACUUM INTO inherits umask
+    // (0644 on the CI runner), which the existing path guard correctly rejects.
+    f.f.store.snapshot(&snapshot).await.unwrap();
+    assert_eq!(
+        fs::metadata(&snapshot).unwrap().permissions().mode() & 0o777,
+        0o600
+    );
     f.dispatch().await;
     assert_eq!(f.world.count().await, 1);
     let restored = PlanStore::open(&snapshot).await.unwrap();

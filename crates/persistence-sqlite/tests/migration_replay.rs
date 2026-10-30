@@ -1189,7 +1189,10 @@ async fn populated_v14_upgrade_and_v15_failure_preserve_prior_data() {
     use sqlx::sqlite::SqliteConnectOptions;
     for fail in [false, true] {
         let root = tempfile::tempdir().unwrap();
-        let path = root.path().join("upgrade.sqlite");
+        // Keep the populated-upgrade fixture private from creation, regardless
+        // of the runner umask; PlanStore correctly rejects a broad raw DB file.
+        let private = tempfile::NamedTempFile::new_in(root.path()).unwrap();
+        let path = private.path().to_path_buf();
         let raw = sqlx::SqlitePool::connect_with(
             SqliteConnectOptions::new()
                 .filename(&path)
