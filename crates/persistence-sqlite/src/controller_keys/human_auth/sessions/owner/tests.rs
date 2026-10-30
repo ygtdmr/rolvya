@@ -3128,3 +3128,37 @@ async fn historical_status_is_read_only_and_requires_current_session_authority()
 }
 
 mod providers;
+
+/// Private integration fixture uses real password/session/Owner proofs. It does
+/// not install any production identity or provider-verifier bypass.
+pub(in crate::controller_keys) async fn infrastructure_consent_on_existing(
+    store: PlanStore,
+    path: std::path::PathBuf,
+    keys: std::path::PathBuf,
+    expected: &crate::controller_keys::worker_auth::aws_fargate::ExpectedExecution,
+) -> crate::controller_keys::worker_auth::aws_fargate::AccountEnrollment {
+    let primary = super::super::super::tests::Fixture::from_existing(store, path, keys).await;
+    primary.advance(expected.authorized_at - primary.now());
+    let sessions = SessionFixture::from_primary(primary).await;
+    let f = Fixture::from_session(sessions, expected.binding.task.plan.project_id.clone()).await;
+    let mut draft = providers::infrastructure_draft(&f).await;
+    draft.workload = expected.workload.clone();
+    draft.account_ref = expected.account_ref.clone();
+    draft.valid_until = expected.authorization_until;
+    let action =
+        f.s.a
+            .auth
+            .prepare_infrastructure_account(
+                &f.owner.handle,
+                &f.project,
+                &draft,
+                &f.ctx(&f.owner, Operation::Write, 1),
+            )
+            .await
+            .unwrap();
+    let id = f.prepare(&action).await;
+    assert!(f.execute(&id, &action).await.is_err());
+    f.prove(&id).await;
+    f.execute(&id, &action).await.unwrap();
+    draft
+}

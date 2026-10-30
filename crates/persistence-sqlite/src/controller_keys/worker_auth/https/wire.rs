@@ -38,6 +38,9 @@ pub enum Operation {
     Renew {
         attestation: Attestation,
     },
+    /// Metadata only. Possession material is delivered through the separate,
+    /// restricted resource, never this bearer-authenticated response.
+    PreparePossession {},
     Message {
         message: Box<WorkerMessage>,
         artifact: Option<ArtifactUpload>,
@@ -98,6 +101,10 @@ pub enum Response {
         version: u16,
         assignment: Assignment,
     },
+    Possession {
+        version: u16,
+        challenge: Box<super::super::aws_fargate::PossessionChallenge>,
+    },
 }
 // Credential-bearing responses have a separate, transport-owned codec. They
 // deliberately do not appear in a serializable DTO or this public enum.
@@ -144,7 +151,7 @@ impl Request {
                     _ => return Err(ErrorCode::InvalidProtocol),
                 }
             }
-            Operation::Assignment {} => {}
+            Operation::Assignment {} | Operation::PreparePossession {} => {}
         }
         Ok(())
     }

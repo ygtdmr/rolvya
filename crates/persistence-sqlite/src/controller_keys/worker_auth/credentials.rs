@@ -110,7 +110,7 @@ impl WorkerSecurity {
         if end < now || end >= old.metadata.expires_at {
             return Err(WorkerAuthError::Expired);
         }
-        self.grant_current(&check, &grant, end)?;
+        self.grant_current_in(&mut tx, &check, &grant, end).await?;
         self.transport.verify(
             context,
             &r.scope.binding,
@@ -205,7 +205,7 @@ impl WorkerSecurity {
         if end < now || end >= record.challenge_expires_at || end >= ticket.metadata.expires_at {
             return Err(WorkerAuthError::Expired);
         }
-        self.grant_current(&check, &grant, end)?;
+        self.grant_current_in(&mut tx, &check, &grant, end).await?;
         self.transport.verify(
             claim.context,
             &record.scope.binding,

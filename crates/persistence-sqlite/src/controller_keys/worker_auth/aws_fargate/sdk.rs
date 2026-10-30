@@ -1,5 +1,6 @@
-//! Official AWS SDKs with explicit credentials and a read-only, bounded HTTPS
-//! connector. No default credential chain, endpoint override, RunTask or StopTask.
+//! Official AWS SDKs with explicit credentials and bounded HTTPS. Default
+//! inspection is read-only; protected delivery permits only exact scoped Secrets
+//! Manager operations. No default chain, endpoint override, RunTask or StopTask.
 use super::super::https::tls;
 use super::{AwsIdentityError as E, *};
 use aws_credential_types::Credentials;
@@ -17,10 +18,11 @@ use zeroize::Zeroizing;
 
 const MAX_AWS_BODY: usize = 512 * 1024;
 #[derive(Clone)]
-struct ReadOnlyHttps {
+pub(super) struct ReadOnlyHttps {
     http: reqwest::Client,
     ecs: String,
     sts: String,
+    protected: Option<ProtectedDelivery>,
 }
 impl fmt::Debug for ReadOnlyHttps {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -31,7 +33,7 @@ fn connector_error() -> ConnectorError {
     ConnectorError::user(Box::new(E::InvalidInput))
 }
 impl ReadOnlyHttps {
-    fn new(w: &FargateWorkload) -> Result<Self, E> {
+    pub(super) fn new(w: &FargateWorkload) -> Result<Self, E> {
         let tls = tls::client().map_err(|_| E::Transient)?;
         let http = reqwest::Client::builder()
             .tls_backend_preconfigured(tls.as_ref().clone())
@@ -47,6 +49,7 @@ impl ReadOnlyHttps {
             .map_err(|_| E::Transient)?;
         Ok(Self {
             http,
+            protected: None,
             ecs: format!(
                 "ecs.{}.{}",
                 w.cluster.region(),
@@ -58,6 +61,15 @@ impl ReadOnlyHttps {
                 w.cluster.partition().dns_suffix()
             ),
         })
+    }
+    pub(super) fn for_secret(w: &FargateWorkload, p: &ProtectedDelivery) -> Result<Self, E> {
+        p.validate()?;
+        if p.execution.workload != *w {
+            return Err(E::ScopeMismatch);
+        }
+        let mut c = Self::new(w)?;
+        c.protected = Some(p.clone());
+        Ok(c)
     }
     fn check(&self, request: &http::Request<SdkBody>) -> Result<url::Url, E> {
         let uri = url::Url::parse(&request.uri().to_string()).map_err(|_| E::InvalidInput)?;
@@ -107,6 +119,18 @@ impl ReadOnlyHttps {
                 {
                     return Err(E::LiveLaunchDisabled);
                 }
+            }
+            Some(h)
+                if self.protected.as_ref().is_some_and(|p| {
+                    h == format!(
+                        "secretsmanager.{}.{}",
+                        p.secret.region(),
+                        p.secret.partition().dns_suffix()
+                    )
+                }) =>
+            {
+                let p = self.protected.as_ref().ok_or(E::SecureDeliveryUnverified)?;
+                super::secrets_sdk::check_request(p, request)?;
             }
             _ => return Err(E::ScopeMismatch),
         }
@@ -219,6 +243,16 @@ impl SdkClients {
             sts: aws_sdk_sts::Client::from_conf(sts),
         })
     }
+    pub(super) async fn verify_controller(&self, w: &FargateWorkload) -> Result<(), E> {
+        w.validate()?;
+        let caller = self
+            .sts
+            .get_caller_identity()
+            .send()
+            .await
+            .map_err(|e| service_error(e.as_service_error().and_then(|e| e.meta().code())))?;
+        super::inspection::controller_identity(w, &caller)
+    }
     pub(super) async fn inspect(
         &self,
         expected: &ExpectedExecution,
@@ -262,7 +296,7 @@ impl SdkClients {
         Self::with_http(w, c, http).unwrap()
     }
 }
-fn service_error(code: Option<&str>) -> E {
+pub(super) fn service_error(code: Option<&str>) -> E {
     match code {
         Some(
             "Throttling"

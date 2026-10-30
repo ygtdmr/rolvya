@@ -55,7 +55,8 @@ impl WorkerSecurity {
             {
                 return Err(WorkerAuthError::Conflict);
             }
-            self.grant_current(&check, &grant, self.now()?)?;
+            self.grant_current_in(&mut tx, &check, &grant, self.now()?)
+                .await?;
             tx.commit().await?;
             return Ok(BootstrapTicket {
                 id: record.challenge,
@@ -135,7 +136,10 @@ impl WorkerSecurity {
         {
             return Err(WorkerAuthError::Denied);
         }
-        self.grant_current(&check, &grant, end)?;
+        self.identity
+            .prepared_in(&mut tx, &record, &secret, end)
+            .await?;
+        self.grant_current_in(&mut tx, &check, &grant, end).await?;
         tx.commit().await?;
         self.checkpoint(CommitCheckpoint::AfterPrepare)?;
         Ok(BootstrapTicket {

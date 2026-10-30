@@ -270,8 +270,51 @@ type VerificationFuture<'a> =
     Pin<Box<dyn Future<Output = Result<IdentityGrant, WorkerAuthError>> + Send + 'a>>;
 /// Private, reviewed provider integrations only. External verification happens
 /// without a SQLite write lock; current() must be bounded and perform no I/O.
+type IdentityCommitFuture<'a> =
+    Pin<Box<dyn Future<Output = Result<(), WorkerAuthError>> + Send + 'a>>;
 trait IdentityAuthority: Send + Sync {
+    /// Current native AWS authority must be rechecked at each control boundary.
+    /// A different/generic server factory cannot inherit a native credential.
+    fn control_in<'a>(
+        &'a self,
+        c: &'a mut SqliteConnection,
+        r: &'a EnrollmentRecord,
+        _: &'a RequestId,
+        _: i64,
+        _: worker_control::CredentialScopeUse,
+    ) -> IdentityCommitFuture<'a> {
+        Box::pin(async move {
+            let native: bool = sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM aws_attempt_roles WHERE project_id=? AND attempt_id=?)").bind(r.scope.binding.task.plan.project_id.as_str()).bind(r.scope.binding.attempt_id.as_str()).fetch_one(c).await?;
+            if native {
+                Err(WorkerAuthError::Unavailable)
+            } else {
+                Ok(())
+            }
+        })
+    }
     fn verify<'a>(&'a self, check: &'a IdentityCheck<'a>, now: i64) -> VerificationFuture<'a>;
+    /// Additional bounded SQLite checks in the issuer's own transaction. The
+    /// synchronous current() check still runs first for every existing adapter.
+    fn current_in<'a>(
+        &'a self,
+        _: &'a mut SqliteConnection,
+        _: &'a IdentityCheck<'a>,
+        _: &'a IdentityGrant,
+        _: i64,
+    ) -> IdentityCommitFuture<'a> {
+        Box::pin(async { Ok(()) })
+    }
+    /// A provider may persist protected preparation/delivery intent atomically
+    /// with the existing one-use challenge. This never mints another bearer.
+    fn prepared_in<'a>(
+        &'a self,
+        _: &'a mut SqliteConnection,
+        _: &'a EnrollmentRecord,
+        _: &'a BootstrapSecret,
+        _: i64,
+    ) -> IdentityCommitFuture<'a> {
+        Box::pin(async { Ok(()) })
+    }
     fn current(
         &self,
         check: &IdentityCheck<'_>,
@@ -455,6 +498,16 @@ impl WorkerSecurity {
     ) -> Result<i64, WorkerAuthError> {
         Ok(sqlx::query_scalar("INSERT INTO worker_security_events(project_id,attempt_id,enrollment_id,request_id,kind,recorded_at) VALUES(?,?,?,?,?,?) RETURNING sequence")
             .bind(r.scope.binding.task.plan.project_id.as_str()).bind(r.scope.binding.attempt_id.as_str()).bind(r.id.as_str()).bind(request.as_str()).bind(kind).bind(t).fetch_one(c).await?)
+    }
+    async fn grant_current_in(
+        &self,
+        c: &mut SqliteConnection,
+        check: &IdentityCheck<'_>,
+        g: &IdentityGrant,
+        t: i64,
+    ) -> Result<(), WorkerAuthError> {
+        self.grant_current(check, g, t)?;
+        self.identity.current_in(c, check, g, t).await
     }
     fn grant_current(
         &self,

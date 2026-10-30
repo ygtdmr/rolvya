@@ -9,6 +9,7 @@ use crate::{
 use rolvya_domain::{ids::ProjectId, worker::WorkerBinding};
 use std::{fmt, sync::Arc};
 use zeroize::Zeroizing;
+pub(in crate::controller_keys) mod aws_consumer;
 pub(in crate::controller_keys) mod crypto;
 mod store;
 #[cfg(test)]
@@ -377,3 +378,17 @@ pub(in crate::controller_keys) async fn verify_reference_in(
 }
 #[cfg(test)]
 pub(in crate::controller_keys) use store::fixture_record;
+/// Current-reference guard for trusted consumers. Historical integrity inspection
+/// intentionally remains separate and cannot authorize revoked/stale material.
+pub(in crate::controller_keys) async fn current_reference_in(
+    c: &mut sqlx::SqliteConnection,
+    k: &ControllerKey,
+    s: &RecordScope,
+    v: SecretVersion,
+) -> Result<(), BrokerError> {
+    let current:bool=sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM secret_connections c JOIN secret_records r USING(project_id,connection_id) WHERE c.project_id=? AND c.connection_id=? AND c.account_id=? AND c.provider=? AND c.mode=? AND c.state='active' AND r.record_id=? AND r.purpose=? AND r.current_version=?)").bind(s.connection.project.as_str()).bind(s.connection.connection.as_str()).bind(s.connection.account.as_str()).bind(s.connection.provider.as_str()).bind(s.connection.mode.name()).bind(s.record.as_str()).bind(s.purpose.as_str()).bind(v.0).fetch_one(&mut *c).await?;
+    if !current {
+        return Err(BrokerError::Revoked);
+    }
+    verify_reference_in(c, k, s, v).await
+}

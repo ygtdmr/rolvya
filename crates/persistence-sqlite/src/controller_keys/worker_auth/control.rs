@@ -122,6 +122,9 @@ impl WorkerSecurity {
         if self.scope(&mut tx, &record.lease(), now, usage()).await? != record.scope {
             return Err(WorkerAuthError::Integrity);
         }
+        self.identity
+            .control_in(&mut tx, record, &context.request_id, now, usage())
+            .await?;
         let old_lease = admission::stored_admission(&mut tx, &record.lease())
             .await
             .map_err(WorkerError::from)?
@@ -194,6 +197,9 @@ impl WorkerSecurity {
         if end < now || (!stop && end >= old_lease) {
             return Err(WorkerAuthError::Expired);
         }
+        self.identity
+            .control_in(&mut tx, record, &context.request_id, end, usage())
+            .await?;
         let end_current = self.current_credential(&mut tx, credential, end).await?;
         if end_current.metadata != current.metadata
             || self.scope(&mut tx, &record.lease(), end, usage()).await? != record.scope

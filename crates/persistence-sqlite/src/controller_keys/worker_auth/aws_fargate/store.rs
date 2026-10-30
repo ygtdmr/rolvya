@@ -39,7 +39,7 @@ pub struct ExecutionRegistration {
 }
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
-enum Origin {
+pub(super) enum Origin {
     ReviewedControllerRegistration,
     #[cfg(test)]
     SyntheticAwsProtocolFixture,
@@ -63,9 +63,9 @@ pub(super) struct AccountRecord {
 }
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(deny_unknown_fields)]
-struct ExecutionRecord {
+pub(super) struct ExecutionRecord {
     format: u16,
-    expected: ExpectedExecution,
+    pub(super) expected: ExpectedExecution,
     request_id: RequestId,
     receipt_reference: EvidenceRef,
     actor: EvidenceRef,
@@ -105,26 +105,32 @@ pub(super) enum AdministrativeOperation<'a> {
         request: &'a RequestId,
     },
 }
-type Authorization<'a> = Pin<Box<dyn Future<Output = Result<EvidenceRef, E>> + Send + 'a>>;
-struct ResolvedCredentials {
-    account_ref: EvidenceRef,
-    account_version: u64,
-    reference: CredentialReference,
-    expires_at: i64,
-    credentials: aws_credential_types::Credentials,
+pub(super) type Authorization<'a> =
+    Pin<Box<dyn Future<Output = Result<EvidenceRef, E>> + Send + 'a>>;
+pub(super) struct ResolvedCredentials {
+    pub(super) account_ref: EvidenceRef,
+    pub(super) account_version: u64,
+    pub(super) reference: CredentialReference,
+    pub(super) expires_at: i64,
+    pub(super) credentials: aws_credential_types::Credentials,
     #[cfg(test)]
-    http: Option<aws_smithy_runtime_api::client::http::SharedHttpClient>,
+    pub(super) http: Option<aws_smithy_runtime_api::client::http::SharedHttpClient>,
 }
-type CredentialLoad<'a> = Pin<Box<dyn Future<Output = Result<ResolvedCredentials, E>> + Send + 'a>>;
+pub(super) type CredentialLoad<'a> =
+    Pin<Box<dyn Future<Output = Result<ResolvedCredentials, E>> + Send + 'a>>;
 /// Sealed controller boundary. authorize_in is bounded SQLite work only, never
 /// AWS/email/network I/O. No public caller can install its own success provider.
-trait InfrastructureAuthority: Send + Sync {
+pub(super) trait InfrastructureAuthority: Send + Sync {
     fn authorize_in<'a>(
         &'a self,
         c: &'a mut SqliteConnection,
         op: AdministrativeOperation<'a>,
         now: i64,
     ) -> Authorization<'a>;
+    #[cfg(test)]
+    fn controller_http(&self) -> Option<aws_smithy_runtime_api::client::http::SharedHttpClient> {
+        None
+    }
     fn credentials<'a>(
         &'a self,
         account: &'a AccountRecord,
@@ -132,50 +138,14 @@ trait InfrastructureAuthority: Send + Sync {
         now: i64,
     ) -> CredentialLoad<'a>;
 }
-struct UnconfiguredInfrastructure;
-impl InfrastructureAuthority for UnconfiguredInfrastructure {
-    fn authorize_in<'a>(
-        &'a self,
-        _: &'a mut SqliteConnection,
-        op: AdministrativeOperation<'a>,
-        _: i64,
-    ) -> Authorization<'a> {
-        Box::pin(async move {
-            match op {
-                AdministrativeOperation::Enroll(r) => {
-                    let _ = r;
-                }
-                AdministrativeOperation::Bind(r) => {
-                    let _ = r;
-                }
-                AdministrativeOperation::Inspect {
-                    account,
-                    execution,
-                    request,
-                } => {
-                    let _ = (account, execution, request);
-                }
-            }
-            Err(E::UnverifiedControllerAuthority)
-        })
-    }
-    fn credentials<'a>(
-        &'a self,
-        _: &'a AccountRecord,
-        _: &'a ExpectedExecution,
-        _: i64,
-    ) -> CredentialLoad<'a> {
-        Box::pin(async { Err(E::UnverifiedControllerAuthority) })
-    }
-}
 pub struct FargateIdentity {
     pub(super) guard: WorkerSecurity,
-    authority: Arc<dyn InfrastructureAuthority>,
+    pub(super) authority: Arc<dyn InfrastructureAuthority>,
     #[cfg(test)]
-    hook: Box<dyn Fn(AwsCheckpoint) -> Result<(), E> + Send + Sync>,
+    pub(super) hook: Box<dyn Fn(AwsCheckpoint) -> Result<(), E> + Send + Sync>,
 }
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum AwsCheckpoint {
+pub(super) enum AwsCheckpoint {
     BeforeAccount,
     AfterAccount,
     BeforeBinding,
@@ -190,14 +160,16 @@ impl FargateIdentity {
     ) -> Result<Arc<Self>, E> {
         let mut guard = WorkerSecurity::open(b).await.map_err(auth_error)?;
         guard.policy = policy;
+        let authority =
+            Arc::new(super::trusted::ReviewedInfrastructure::new(b, guard.clock.clone()).await?);
         Ok(Arc::new(Self {
             guard,
-            authority: Arc::new(UnconfiguredInfrastructure),
+            authority,
             #[cfg(test)]
             hook: Box::new(|_| Ok(())),
         }))
     }
-    fn now(&self) -> Result<i64, E> {
+    pub(super) fn now(&self) -> Result<i64, E> {
         self.guard.clock.now().map_err(|_| E::ExpiredEvidence)
     }
     fn checkpoint(&self, p: AwsCheckpoint) -> Result<(), E> {
@@ -299,8 +271,16 @@ impl FargateIdentity {
             one(sqlx::query("UPDATE aws_infrastructure_accounts SET current_version=? WHERE project_id=? AND account_ref=? AND current_version=?").bind(version as i64).bind(r.project.as_str()).bind(r.account_ref.as_str()).bind(r.expected_version as i64).execute(&mut *tx).await?.rows_affected())?;
         }
         self.checkpoint(AwsCheckpoint::BeforeAccount)?;
-        if self.now()? < now || self.now()? >= r.valid_until {
+        let end = self.now()?;
+        if end < now || end >= r.valid_until {
             return Err(E::ExpiredEvidence);
+        }
+        let current_actor = self
+            .authority
+            .authorize_in(&mut tx, AdministrativeOperation::Enroll(r), end)
+            .await?;
+        if current_actor != record.actor {
+            return Err(E::Revoked);
         }
         tx.commit().await?;
         self.checkpoint(AwsCheckpoint::AfterAccount)?;
@@ -621,7 +601,12 @@ impl FargateIdentity {
         // All observations, even perfectly matching RUNNING, remain denial-only.
         observed.worker_issuance()
     }
-    fn account_current(&self, a: &AccountRecord, e: &ExpectedExecution, now: i64) -> Result<(), E> {
+    pub(super) fn account_current(
+        &self,
+        a: &AccountRecord,
+        e: &ExpectedExecution,
+        now: i64,
+    ) -> Result<(), E> {
         if a.revoked {
             return Err(E::Revoked);
         }
@@ -638,7 +623,7 @@ impl FargateIdentity {
         }
         Ok(())
     }
-    async fn account(
+    pub(super) async fn account(
         &self,
         c: &mut SqliteConnection,
         p: &ProjectId,
@@ -648,7 +633,7 @@ impl FargateIdentity {
             .await?
             .ok_or(E::UnconfiguredAccount)
     }
-    async fn account_optional(
+    pub(super) async fn account_optional(
         &self,
         c: &mut SqliteConnection,
         p: &ProjectId,
@@ -689,7 +674,7 @@ impl FargateIdentity {
         }
         Ok(Some(r))
     }
-    async fn execution_optional(
+    pub(super) async fn execution_optional(
         &self,
         c: &mut SqliteConnection,
         l: &crate::admission::LeaseRef,
@@ -724,7 +709,7 @@ impl FargateIdentity {
         }
         Ok(Some(r))
     }
-    async fn latest(
+    pub(super) async fn latest(
         &self,
         c: &mut SqliteConnection,
         l: &crate::admission::LeaseRef,
@@ -762,7 +747,7 @@ impl FargateIdentity {
         }
         Ok(Some(r))
     }
-    async fn credential_reference(
+    pub(super) async fn credential_reference(
         &self,
         c: &mut SqliteConnection,
         p: &ProjectId,
@@ -771,17 +756,23 @@ impl FargateIdentity {
     ) -> Result<(), E> {
         validate_credential(w, k)?;
         let scope = credential_scope(p, k)?;
-        broker::verify_reference_in(
+        broker::current_reference_in(
             c,
             &self.guard.key,
             &scope,
             broker::SecretVersion::new(k.version as u64).map_err(|_| E::InvalidInput)?,
         )
         .await
-        .map_err(|_| E::Integrity)
+        .map_err(|e| {
+            if e == broker::BrokerError::Revoked {
+                E::Revoked
+            } else {
+                E::Integrity
+            }
+        })
     }
 }
-fn origin() -> Origin {
+pub(super) fn origin() -> Origin {
     #[cfg(test)]
     {
         Origin::SyntheticAwsProtocolFixture
@@ -791,7 +782,7 @@ fn origin() -> Origin {
         Origin::ReviewedControllerRegistration
     }
 }
-fn validate_credential(w: &FargateWorkload, k: &CredentialReference) -> Result<(), E> {
+pub(super) fn validate_credential(w: &FargateWorkload, k: &CredentialReference) -> Result<(), E> {
     if k.provider != "aws"
         || k.account != w.cluster.account().as_str()
         || k.purpose != "aws-controller-inspection"
@@ -801,7 +792,10 @@ fn validate_credential(w: &FargateWorkload, k: &CredentialReference) -> Result<(
     }
     Ok(())
 }
-fn credential_scope(p: &ProjectId, k: &CredentialReference) -> Result<broker::RecordScope, E> {
+pub(super) fn credential_scope(
+    p: &ProjectId,
+    k: &CredentialReference,
+) -> Result<broker::RecordScope, E> {
     Ok(broker::RecordScope {
         connection: broker::ConnectionScope {
             project: p.clone(),
@@ -815,7 +809,7 @@ fn credential_scope(p: &ProjectId, k: &CredentialReference) -> Result<broker::Re
         purpose: broker::SecretPurpose::new(k.purpose.clone()).map_err(|_| E::InvalidInput)?,
     })
 }
-fn one(n: u64) -> Result<(), E> {
+pub(super) fn one(n: u64) -> Result<(), E> {
     if n == 1 { Ok(()) } else { Err(E::Conflict) }
 }
 fn encode(v: &impl Serialize, max: usize) -> Result<String, E> {
@@ -825,7 +819,7 @@ fn encode(v: &impl Serialize, max: usize) -> Result<String, E> {
     }
     Ok(s)
 }
-fn auth_error(e: WorkerAuthError) -> E {
+pub(super) fn auth_error(e: WorkerAuthError) -> E {
     match e {
         WorkerAuthError::FinancialRisk => E::FinancialRisk,
         WorkerAuthError::Expired => E::ExpiredEvidence,

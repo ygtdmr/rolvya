@@ -8,7 +8,7 @@ use crate::{
 use rolvya_plan_validator::{AssignmentDenial, AssignmentPolicy};
 use std::{io::Read, sync::atomic::Ordering};
 #[derive(Default)]
-struct AwsAuthority(synthetic::Authority);
+pub(super) struct AwsAuthority(synthetic::Authority);
 impl AssignmentPolicy for AwsAuthority {
     fn check(&self, a: &ExecutionAssignment) -> Result<(), AssignmentDenial> {
         self.0.check(a)
@@ -83,7 +83,7 @@ async fn expected_for(
     e.operation_token = e.expected_operation_token().unwrap();
     e
 }
-async fn setup() -> (
+pub(super) async fn setup() -> (
     Fixture<AwsAuthority>,
     Arc<HttpsWorkerServer>,
     Arc<SignedProvider>,
@@ -105,7 +105,7 @@ async fn setup() -> (
     .await;
     (f, s, v, e, identity, http)
 }
-async fn registered(i: &FargateIdentity, e: &ExpectedExecution) {
+pub(super) async fn registered(i: &FargateIdentity, e: &ExpectedExecution) {
     assert_eq!(i.enroll_account(&af::enrollment(e)).await.unwrap(), 1);
     i.record_execution(&af::registration(e)).await.unwrap();
 }
@@ -736,4 +736,19 @@ async fn sigkill_before_and_after_durable_aws_commits_reopens_without_grants_or_
             assert_eq!(count(&f, "task_attempts").await, 2);
         }
     }
+}
+#[tokio::test]
+async fn broker_revocation_blocks_aws_inspection_before_credential_resolution() {
+    let (f, _, _, e, i, http) = setup().await;
+    registered(&i, &e).await;
+    sqlx::query("UPDATE secret_connections SET state='revoked',revision=2 WHERE project_id=? AND connection_id='aws-inspection'").bind(e.binding.task.plan.project_id.as_str()).execute(&f.store.pool).await.unwrap();
+    assert_eq!(
+        i.inspect(
+            &e.lease(),
+            &RequestId::new("revoked-broker-reference").unwrap()
+        )
+        .await,
+        Err(AwsIdentityError::Revoked)
+    );
+    assert_eq!(http.calls.load(Ordering::SeqCst), 0);
 }

@@ -27,6 +27,7 @@ pub struct HttpsWorkerServer {
     pub(super) security: WorkerSecurity,
     pub(super) transport: Arc<HttpTransport>,
     pub(super) identity: ServerIdentity,
+    pub(super) secure_fargate: Option<Arc<super::super::aws_fargate::SecureFargateBootstrap>>,
 }
 impl HttpsWorkerServer {
     /// Production identity verification remains unimplemented/default-deny. This
@@ -45,6 +46,7 @@ impl HttpsWorkerServer {
             security,
             transport,
             identity,
+            secure_fargate: None,
         }))
     }
     /// Selects the concrete read-only AWS correlation boundary. Production
@@ -65,6 +67,48 @@ impl HttpsWorkerServer {
             transport: state.transport.clone(),
         });
         Ok(s)
+    }
+    /// The concrete possession verifier remains gated on independent effective
+    /// delivery/IAM/launch evidence. No caller can install a success provider.
+    pub async fn open_secure_fargate(
+        bootstrap: &ControllerBootstrap,
+        policy: Arc<dyn SchedulerPolicy>,
+        identity: ServerIdentity,
+        limits: ResourceLimits,
+    ) -> Result<Arc<Self>, WorkerAuthError> {
+        let service =
+            super::super::aws_fargate::SecureFargateBootstrap::open(bootstrap, policy.clone())
+                .await
+                .map_err(|_| WorkerAuthError::Unavailable)?;
+        let mut server = Self::open(bootstrap, policy, identity, limits).await?;
+        let s = Arc::get_mut(&mut server).ok_or(WorkerAuthError::Unavailable)?;
+        s.security.identity = Arc::new(super::super::aws_fargate::PossessionIdentity {
+            service: service.clone(),
+            transport: s.transport.clone(),
+        });
+        s.secure_fargate = Some(service);
+        Ok(server)
+    }
+    /// Trusted local controller orchestration only, not an HTTP setup route.
+    /// The response contains metadata, never the protected bootstrap material.
+    pub async fn prepare_fargate_bootstrap(
+        &self,
+        r: &PrepareBootstrap,
+        plan: &super::super::aws_fargate::ProtectedDelivery,
+    ) -> Result<super::super::aws_fargate::PossessionChallenge, WorkerAuthError> {
+        let service = self
+            .secure_fargate
+            .as_ref()
+            .ok_or(WorkerAuthError::Unavailable)?;
+        service
+            .register_plan(r, plan)
+            .await
+            .map_err(|_| WorkerAuthError::Denied)?;
+        let ticket = self.security.prepare_bootstrap(r).await?;
+        service
+            .publish(&ticket.id, &r.request_id)
+            .await
+            .map_err(|_| WorkerAuthError::Unavailable)
     }
     pub fn diagnostics(&self) -> Diagnostics {
         self.transport.diagnostics()
@@ -323,7 +367,9 @@ impl HttpsWorkerServer {
         read.commit().await.map_err(|_| E::TransientStorage)?;
         let operation = match &frame.operation {
             wire::Operation::Bootstrap { .. } => WorkerOperation::Register,
-            wire::Operation::Renew { .. } => WorkerOperation::RenewCredential,
+            wire::Operation::Renew { .. } | wire::Operation::PreparePossession {} => {
+                WorkerOperation::RenewCredential
+            }
             wire::Operation::Message { message, .. } => {
                 crate::worker_simulation::controller::operation(&message.body)
             }
@@ -360,6 +406,19 @@ impl HttpsWorkerServer {
                     guard.take_response().map_err(auth_error)?,
                     StatusCode::OK,
                 ))
+            }
+            wire::Operation::PreparePossession {} => {
+                let service = self.secure_fargate.as_ref().ok_or(E::Unavailable)?;
+                let challenge = service
+                    .prepare_renewal(&self.security, &credential, &guard.context)
+                    .await
+                    .map_err(auth_error)?;
+                let body = serde_json::to_vec(&wire::Response::Possession {
+                    version: wire::WIRE_VERSION,
+                    challenge: Box::new(challenge),
+                })
+                .map_err(|_| E::Unavailable)?;
+                Ok(response(SecretBytes(Zeroizing::new(body)), StatusCode::OK))
             }
             wire::Operation::Renew { attestation } => {
                 guard
@@ -536,6 +595,17 @@ impl HttpsWorkerServer {
                 )
                 .await);
         }
+        self.security
+            .identity
+            .control_in(
+                &mut tx,
+                &e,
+                &c.request_id,
+                now,
+                worker_control::CredentialScopeUse::Control,
+            )
+            .await
+            .map_err(auth_error)?;
         let (binding, a, inputs) =
             crate::orchestration::synthetic_worker_assignment(&mut tx, &e.lease())
                 .await
@@ -544,13 +614,16 @@ impl HttpsWorkerServer {
             .await
             .map_err(|_| E::LeaseExpired)?
             .1;
-        if binding != e.scope.binding || a.capabilities != e.identity.capabilities {
+        if binding != e.scope.binding
+            || !e.identity.capabilities.supports(&e.scope.profile)
+            || (self.secure_fargate.is_none() && a.capabilities != e.identity.capabilities)
+        {
             return Err(E::UnauthorizedScope);
         }
         tx.commit().await.map_err(|_| E::TransientStorage)?;
         Ok(wire::Assignment {
             binding,
-            capabilities: a.capabilities,
+            capabilities: e.identity.capabilities,
             seed: a.seed,
             inputs,
             initial_lease_until: until,

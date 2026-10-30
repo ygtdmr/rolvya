@@ -211,6 +211,13 @@ impl HttpTransport {
         c: &IdentityCheck<'_>,
         now: i64,
     ) -> Result<[u8; 32], WorkerAuthError> {
+        self.accepted_proof(c, now).map(|v| v.0)
+    }
+    pub(in crate::controller_keys::worker_auth) fn accepted_proof(
+        &self,
+        c: &IdentityCheck<'_>,
+        now: i64,
+    ) -> Result<([u8; 32], wire::Attestation), WorkerAuthError> {
         let operation = match c.stage {
             VerificationStage::Bootstrap => WorkerOperation::Register,
             VerificationStage::Renew => WorkerOperation::RenewCredential,
@@ -234,7 +241,10 @@ impl HttpTransport {
         if matching.next().is_some() {
             return Err(WorkerAuthError::Denied);
         }
-        Ok(a.channel)
+        Ok((
+            a.channel,
+            a.attestation.clone().ok_or(WorkerAuthError::Denied)?,
+        ))
     }
     pub(super) fn diagnostics(&self) -> Diagnostics {
         Diagnostics {
