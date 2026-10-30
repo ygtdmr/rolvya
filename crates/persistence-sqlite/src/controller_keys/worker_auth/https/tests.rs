@@ -224,6 +224,9 @@ impl<P: SyntheticExecutionAuthority + 'static> Fixture<P> {
         Self::with_authority_stage(authority, false, runtime).await
     }
     async fn with_authority_stage(authority: P, launch: bool, runtime: u32) -> Self {
+        Self::with_content_kind(authority, launch, runtime, false).await
+    }
+    async fn with_content_kind(authority: P, launch: bool, runtime: u32, coding: bool) -> Self {
         let root = temporary();
         for p in ["data", "keys"] {
             fs::create_dir(root.path().join(p)).unwrap();
@@ -253,8 +256,25 @@ impl<P: SyntheticExecutionAuthority + 'static> Fixture<P> {
         let mut a = common::task("task-a", &p.key);
         a.parent = Some(common::task_ref(&g));
         a.acceptance_criteria = vec![ARTIFACT_CRITERION.into()];
+        if coding {
+            a.acceptance_criteria = vec![crate::orchestration::coding::CODING_CRITERION.into()];
+            a.scope = vec!["src/a.rs".into()];
+            a.execution.as_mut().unwrap().write_scope = rolvya_domain::plan::WriteScope::Remote {
+                repository: "fixture/repository".into(),
+                git_ref: "refs/heads/rolvya/planned/task-a".into(),
+                paths: a.scope.clone(),
+            };
+        }
+
         let mut b = a.clone();
         b.id = TaskId::new("task-b").unwrap();
+        if coding
+            && let rolvya_domain::plan::WriteScope::Remote { git_ref, .. } =
+                &mut b.execution.as_mut().unwrap().write_scope
+        {
+            *git_ref = "refs/heads/rolvya/planned/task-b".into();
+        }
+
         let mut c = common::task("task-c", &p.key);
         c.dependencies = vec![common::task_ref(&g)];
         c.acceptance_criteria = vec![ARTIFACT_CRITERION.into(), INPUTS_CRITERION.into()];
@@ -604,3 +624,123 @@ mod secure_aws;
 
 #[path = "tests_lifecycle.rs"]
 mod lifecycle;
+
+#[tokio::test]
+async fn real_tls_coding_upload_above_legacy_size_is_atomic_untrusted_evidence() {
+    use crate::controller_keys::github_app::{GitSha, RepositoryId};
+    use crate::orchestration::coding::*;
+    let f = Fixture::with_content_kind(synthetic::Authority::default(), false, 60, true).await;
+    let lease = f.lease("task-a").await;
+    let dispatcher = worker_control::OutboxDispatcher::new(f.store.clone());
+    let ticket = dispatcher
+        .claim(
+            &lease,
+            &f.policy.actor(),
+            f.policy.as_ref(),
+            f.clock.as_ref(),
+            Limits::default(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(
+        dispatcher
+            .dispatch(
+                &ticket,
+                &worker_control::SyntheticProvider::new(f.store.clone()),
+                f.policy.as_ref(),
+                f.clock.as_ref(),
+                Limits::default()
+            )
+            .await
+            .unwrap(),
+        worker_control::DispatchState::Active
+    );
+    let (s, v) = f.server().await;
+    let (boot, secret, proof, binding, id) = f.prepare(&s, &v, "task-a").await;
+    let (url, stop, task) = listen(s).await;
+    let mut client = f.cert.client(&url);
+    client
+        .bootstrap(id, boot.id, &secret, proof, &binding)
+        .await
+        .unwrap();
+    let script = FakeWorker::new(binding.clone(), synthetic::caps(), 1)
+        .unwrap()
+        .script(FakeBehavior::Success, synthetic::T)
+        .unwrap();
+    for event in script.events {
+        if let SimulatedInput::Message(bytes) = event.input {
+            let m = crate::worker_simulation::decode_worker_message(&bytes).unwrap();
+            if m.sequence <= 3 {
+                client.message(m, None).await.unwrap();
+            }
+        }
+    }
+    let d = || Digest::new("1".repeat(64)).unwrap();
+    let artifact = CodingResult {
+        format: CodingFormat::V1,
+        installation: f
+            .bootstrap
+            .load_existing()
+            .await
+            .unwrap()
+            .coding_installation(),
+        binding: binding.clone(),
+        repository: RepositoryId::new(99).unwrap(),
+        base_commit: GitSha::parse("1".repeat(40)).unwrap(),
+        base_tree: GitSha::parse("2".repeat(40)).unwrap(),
+        source_sha256: d(),
+        inputs: vec![],
+        financial_event: 1,
+        operation: d(),
+        changes: vec![FileChange::Add {
+            path: "src/a.rs".into(),
+            content: "x".repeat(9000),
+        }],
+        resulting_tree_sha256: d(),
+        worker_execution: "private-synthetic-worker".into(),
+        verification_execution: "private-synthetic-run".into(),
+    };
+    let raw = serde_json::to_vec(&artifact).unwrap();
+    assert!(raw.len() > 8192 && raw.len() < MAX_CODING_BYTES);
+    let result = WorkerBody::SubmitResult {
+        outcome: ExecutionOutcome::Succeeded {
+            manifest_sha256: Digest::new(format!("{:x}", Sha256::digest(&raw))).unwrap(),
+        },
+    };
+    let mut m = WorkerMessage {
+        protocol_version: 1,
+        message_id: MessageId::new("coding-tls-denied").unwrap(),
+        binding: binding.clone(),
+        sequence: 99,
+        body: result,
+    };
+    assert!(client.message(m.clone(), Some(&raw)).await.is_err());
+    assert_eq!(
+        sqlx::query_scalar::<_, i64>("SELECT count(*) FROM coding_artifacts")
+            .fetch_one(&f.store.pool)
+            .await
+            .unwrap(),
+        0
+    );
+    m.sequence = 4;
+    m.message_id = MessageId::new("coding-tls-received").unwrap();
+    client.message(m, Some(&raw)).await.unwrap();
+    assert_eq!(
+        sqlx::query_scalar::<_, i64>("SELECT count(*) FROM coding_artifacts")
+            .fetch_one(&f.store.pool)
+            .await
+            .unwrap(),
+        1
+    );
+    assert_eq!(f.co.snapshot().await.unwrap().received_unvalidated, 1);
+    assert_eq!(f.co.snapshot().await.unwrap().accepted, 0);
+    assert_eq!(
+        sqlx::query_scalar::<_, Vec<u8>>("SELECT content FROM coding_artifacts")
+            .fetch_one(&f.store.pool)
+            .await
+            .unwrap(),
+        raw
+    );
+    stop.send(()).unwrap();
+    task.await.unwrap();
+}

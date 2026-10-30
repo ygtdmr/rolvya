@@ -10,6 +10,7 @@ use crate::{
     *,
 };
 pub use dispatch::*;
+pub(crate) use messages::coding_receipt_in;
 pub(crate) use messages::receive_in;
 pub use messages::*;
 pub use provider::*;

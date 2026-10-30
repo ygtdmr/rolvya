@@ -239,3 +239,51 @@ pub(crate) async fn receive_in<P: SchedulerPolicy + ?Sized>(
     }
     Ok(response)
 }
+
+/// Exact durable successful result and receipt, read in the validator's transaction.
+pub(crate) async fn coding_receipt_in(
+    c: &mut SqliteConnection,
+    l: &LeaseRef,
+) -> Result<(WorkerBinding, Digest, WorkerReceipt), WorkerError> {
+    let (cmd, _, _) = command(c, l).await?;
+    let s = session(c, l, &cmd).await?;
+    let Some(ExecutionOutcome::Succeeded { manifest_sha256 }) = s.result else {
+        return Err(WorkerError::InvalidState);
+    };
+    let rows:Vec<String>=sqlx::query_scalar("SELECT response FROM worker_receipts WHERE project_id=? AND attempt_id=? AND json_extract(response,'$.body.body.receipt.kind')='result_received' ORDER BY message_id LIMIT 2").bind(l.task.plan.project_id.as_str()).bind(l.attempt_id.as_str()).fetch_all(&mut *c).await?;
+    let mut found = None;
+    for r in rows {
+        let response = decode_controller_message(r.as_bytes())?;
+        if response.binding != s.binding {
+            return Err(WorkerError::ContextMismatch);
+        }
+        if let ControllerBody::Acknowledged { receipt } = response.body
+            && receipt.kind == ReceiptKind::ResultReceived
+            && found.replace(receipt).is_some()
+        {
+            return Err(WorkerError::InvalidState);
+        }
+    }
+    let receipt = found.ok_or(WorkerError::InvalidState)?;
+    let saved=sqlx::query("SELECT digest,sequence,recorded_at FROM worker_messages WHERE project_id=? AND attempt_id=? AND message_id=?").bind(l.task.plan.project_id.as_str()).bind(l.attempt_id.as_str()).bind(receipt.message_id.as_str()).fetch_one(&mut *c).await?;
+    let message = WorkerMessage {
+        protocol_version: PROTOCOL_VERSION,
+        message_id: receipt.message_id.clone(),
+        binding: s.binding.clone(),
+        sequence: receipt.sequence,
+        body: WorkerBody::SubmitResult {
+            outcome: ExecutionOutcome::Succeeded {
+                manifest_sha256: manifest_sha256.clone(),
+            },
+        },
+    };
+    let canonical = String::from_utf8(encode_worker_message(&message)?)
+        .map_err(|_| WorkerError::InvalidState)?;
+    if saved.get::<String, _>(0) != hash(&canonical)
+        || saved.get::<i64, _>(1) != receipt.sequence as i64
+        || saved.get::<i64, _>(2) != receipt.observed_at
+    {
+        return Err(WorkerError::InvalidState);
+    }
+    Ok((s.binding, manifest_sha256, receipt))
+}

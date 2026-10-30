@@ -102,6 +102,9 @@ impl World {
         Self::reopen(path, signing_key().1.clone()).await
     }
     pub async fn reopen(path: &Path, public: Vec<u8>) -> Arc<Self> {
+        Self::with_files(path, public, vec![("README.md", b"hello\n".as_slice())]).await
+    }
+    pub async fn with_files(path: &Path, public: Vec<u8>, files: Vec<(&str, &[u8])>) -> Arc<Self> {
         let db = sqlx::sqlite::SqlitePoolOptions::new()
             .max_connections(4)
             .connect_with(
@@ -114,10 +117,16 @@ impl World {
             .await
             .unwrap();
         sqlx::raw_sql("CREATE TABLE IF NOT EXISTS objects(sha TEXT PRIMARY KEY,kind TEXT NOT NULL,body TEXT NOT NULL);CREATE TABLE IF NOT EXISTS refs(name TEXT PRIMARY KEY,sha TEXT NOT NULL);CREATE TABLE IF NOT EXISTS pulls(number INTEGER PRIMARY KEY,body TEXT NOT NULL)").execute(&db).await.unwrap();
-        let blob = model::object("blob", b"hello\n");
-        let mut tree = b"100644 README.md\0".to_vec();
-        tree.extend_from_slice(&http::unhex(blob.as_str()).unwrap());
-        let tree_id = model::object("tree", &tree);
+        let source_files: Vec<_> = files
+            .iter()
+            .map(|(p, b)| SourceFile {
+                path: (*p).into(),
+                mode: "100644".into(),
+                sha: model::object("blob", b),
+                bytes: b.to_vec(),
+            })
+            .collect();
+        let (tree_id, tree_objects) = publication::fixture_trees(&source_files);
         let body = format!(
             "tree {}\nauthor Fixture <fixture@invalid> {NOW} +0000\ncommitter Fixture <fixture@invalid> {NOW} +0000\n\nUntrusted README is data\n",
             tree_id.as_str()
@@ -147,13 +156,17 @@ impl World {
             revoke_on_target: AtomicBool::new(false),
             controller: Mutex::new(None),
         });
-        w.object(
-            &blob,
-            "blob",
-            json!({"sha":blob,"size":6,"encoding":"base64","content":STANDARD.encode(b"hello\n")}),
-        )
-        .await;
-        w.object(&tree_id,"tree",json!({"sha":tree_id,"truncated":false,"tree":[{"path":"README.md","mode":"100644","type":"blob","sha":blob}]})).await;
+        for f in source_files {
+            w.object(&f.sha,"blob",json!({"sha":f.sha,"size":f.bytes.len(),"encoding":"base64","content":STANDARD.encode(&f.bytes)})).await;
+        }
+        for (sha, entries) in tree_objects {
+            w.object(
+                &sha,
+                "tree",
+                json!({"sha":sha,"truncated":false,"tree":entries}),
+            )
+            .await;
+        }
         w.object(&base,"commit",json!({"sha":base,"tree":{"sha":tree_id},"parents":[],"message":"Untrusted README is data\n"})).await;
         sqlx::query("INSERT OR IGNORE INTO refs VALUES('refs/heads/main',?)")
             .bind(base.as_str())
@@ -311,7 +324,10 @@ async fn handler(State(w): State<Arc<World>>, r: Request) -> Response {
     };
     if let Some(short) = path.strip_prefix("/git/ref/") {
         let name = format!("refs/{short}");
-        if short.starts_with("heads/rolvya/") && w.revoke_on_target.swap(false, Ordering::SeqCst) {
+        if short.starts_with("heads/rolvya/")
+            && w.attempts.load(Ordering::SeqCst) > 0
+            && w.revoke_on_target.swap(false, Ordering::SeqCst)
+        {
             let pool = w.controller.lock().unwrap().as_ref().unwrap().clone();
             sqlx::query("UPDATE human_users SET security_epoch=security_epoch+1")
                 .execute(&pool)
@@ -491,6 +507,7 @@ pub struct Fixture {
     pub world: Arc<World>,
     server: JoinHandle<()>,
     pub webhook: Vec<u8>,
+    pub contexts: BTreeMap<TaskId, crate::orchestration::coding::CodingContext>,
 }
 impl Drop for Fixture {
     fn drop(&mut self) {
@@ -499,6 +516,15 @@ impl Drop for Fixture {
 }
 impl Fixture {
     pub async fn new() -> Self {
+        Self::new_kind(false, false).await
+    }
+    pub async fn new_coding() -> Self {
+        Self::new_kind(true, false).await
+    }
+    pub async fn new_coding_overlap() -> Self {
+        Self::new_kind(true, true).await
+    }
+    async fn new_kind(coding: bool, overlap: bool) -> Self {
         let root = tempfile::tempdir_in("/workspace/scratch")
             .or_else(|_| tempfile::tempdir())
             .unwrap();
@@ -524,6 +550,24 @@ impl Fixture {
             )
             .await
             .unwrap();
+        let world = if coding {
+            World::with_files(
+                &root.path().join("remote-git.sqlite"),
+                signing_key().1.clone(),
+                vec![
+                    ("src/alpha.rs", b"pub fn alpha()->u8{1}\n"),
+                    ("src/beta.rs", b"pub fn beta()->u8{2}\n"),
+                    ("src/shared.rs", b"pub const SHARED:u8=3;\n"),
+                    ("src/obsolete.rs", b"// delete me\n"),
+                    ("tests/alpha_test.rs", b"// alpha test fixture\n"),
+                    ("tests/beta_test.rs", b"// beta test fixture\n"),
+                ],
+            )
+            .await
+        } else {
+            World::new(&root.path().join("remote-git.sqlite")).await
+        };
+        let mut contexts = BTreeMap::new();
         let mut plan = common::plan();
         let mut group = common::group("group-g", &plan.key);
         group.acceptance_criteria = vec![GROUP_CRITERION.into()];
@@ -535,6 +579,71 @@ impl Fixture {
         let mut c = common::task("task-c", &plan.key);
         c.dependencies = vec![common::task_ref(&group)];
         c.acceptance_criteria = vec![ARTIFACT_CRITERION.into(), INPUTS_CRITERION.into()];
+        if coding {
+            use crate::orchestration::coding::*;
+            let files = vec![
+                ("src/alpha.rs", b"pub fn alpha()->u8{1}\n".as_slice()),
+                ("src/beta.rs", b"pub fn beta()->u8{2}\n".as_slice()),
+                ("src/shared.rs", b"pub const SHARED:u8=3;\n".as_slice()),
+                ("src/obsolete.rs", b"// delete me\n".as_slice()),
+                ("tests/alpha_test.rs", b"// alpha test fixture\n".as_slice()),
+                ("tests/beta_test.rs", b"// beta test fixture\n".as_slice()),
+            ]
+            .into_iter()
+            .map(|(p, b)| SourceFile {
+                path: p.into(),
+                mode: "100644".into(),
+                sha: model::object("blob", b),
+                bytes: b.to_vec(),
+            })
+            .collect::<Vec<_>>();
+            for t in [&mut a, &mut b] {
+                let paths = if t.id.as_str() == "task-a" {
+                    vec![
+                        "src/added.rs".into(),
+                        "src/alpha.rs".into(),
+                        "src/obsolete.rs".into(),
+                    ]
+                } else if overlap {
+                    vec!["src/alpha.rs".into()]
+                } else {
+                    vec!["src/beta.rs".into()]
+                };
+                let ctx = CodingContext {
+                    format: CodingFormat::V1,
+                    installation: bootstrap
+                        .load_existing()
+                        .await
+                        .unwrap()
+                        .coding_installation(),
+                    repository: RepositoryId::new(99).unwrap(),
+                    repository_location: "synthetic/repository".into(),
+                    base_commit: world.base.clone(),
+                    base_tree: publication::fixture_trees(&files).0,
+                    source_sha256: tree_commitment(&files).unwrap(),
+                    paths: paths.clone(),
+                    verification: VerificationPolicy {
+                        identity: "private-synthetic-verification-policy".into(),
+                        commands: vec![vec!["cargo".into(), "test".into(), "--locked".into()]],
+                        required_tests: vec![format!("{}-test", t.id.as_str())],
+                        timeout_seconds: 60,
+                        cpu_millis: 1000,
+                        memory_mib: 512,
+                        max_output_bytes: 1024,
+                    },
+                };
+                t.scope = paths.clone();
+                t.acceptance_criteria = vec![CODING_CRITERION.into()];
+                t.context.sha256 = commitment(&ctx).unwrap().as_str().into();
+                t.execution.as_mut().unwrap().write_scope =
+                    rolvya_domain::plan::WriteScope::Remote {
+                        repository: "synthetic/repository".into(),
+                        git_ref: format!("refs/heads/rolvya/planned/{}", t.id.as_str()),
+                        paths,
+                    };
+                contexts.insert(t.id.clone(), ctx);
+            }
+        }
         plan.tasks = vec![group, a, b, c];
         let authority = synthetic::Authority::default();
         let valid = rolvya_plan_validator::validate(&plan, &authority, Limits::default()).unwrap();
@@ -586,45 +695,54 @@ impl Fixture {
         .await;
         let policy = registry.policy(authority);
         let clock = Arc::new(DeterministicClock::new(synthetic::T).unwrap());
-        let co = SyntheticCoordinator::open(
-            store.clone(),
-            &plan.key.project_id,
-            &policy,
-            Limits::default(),
-        )
-        .await
-        .unwrap();
-        for (index, offset) in [0, 1, 2, 30, 42, 50].into_iter().enumerate() {
-            let pass = co
-                .pass(
-                    &policy,
-                    clock.as_ref(),
-                    PassLimits {
-                        admissions: if index == 0 { 2 } else { 0 },
-                        events: 64,
-                        validations: 16,
-                        groups: 0,
-                    },
-                )
+        let co = if coding {
+            bootstrap
+                .coding_coordinator(&plan.key.project_id, &policy, Limits::default())
                 .await
-                .unwrap();
-            if index == 0 {
-                assert_eq!(pass.admitted.len(), 2);
+                .unwrap()
+        } else {
+            SyntheticCoordinator::open(
+                store.clone(),
+                &plan.key.project_id,
+                &policy,
+                Limits::default(),
+            )
+            .await
+            .unwrap()
+        };
+        if !coding {
+            for (index, offset) in [0, 1, 2, 30, 42, 50].into_iter().enumerate() {
+                let pass = co
+                    .pass(
+                        &policy,
+                        clock.as_ref(),
+                        PassLimits {
+                            admissions: if index == 0 { 2 } else { 0 },
+                            events: 64,
+                            validations: 16,
+                            groups: 0,
+                        },
+                    )
+                    .await
+                    .unwrap();
+                if index == 0 {
+                    assert_eq!(pass.admitted.len(), 2);
+                }
+                clock.advance_to(synthetic::T + offset).unwrap();
             }
-            clock.advance_to(synthetic::T + offset).unwrap();
+            co.pass(
+                &policy,
+                clock.as_ref(),
+                PassLimits {
+                    admissions: 0,
+                    events: 64,
+                    validations: 16,
+                    groups: 0,
+                },
+            )
+            .await
+            .unwrap();
         }
-        co.pass(
-            &policy,
-            clock.as_ref(),
-            PassLimits {
-                admissions: 0,
-                events: 64,
-                validations: 16,
-                groups: 0,
-            },
-        )
-        .await
-        .unwrap();
         let signing = serde_json::to_vec(
             &json!({"format":1,"app_id":123,"pkcs8":STANDARD.encode(&signing_key().0)}),
         )
@@ -649,7 +767,11 @@ impl Fixture {
                 pull_requests: Permission::Write,
             },
             namespace: IsolatedNamespace::RolvyaAttemptsV1,
-            allowed_prefixes: vec!["results/".into()],
+            allowed_prefixes: if coding {
+                vec!["src/".into(), "tests/".into()]
+            } else {
+                vec!["results/".into()]
+            },
             signing_key: reference("signing"),
             webhook_secret: reference("webhook"),
             expected_version: 0,
@@ -666,12 +788,14 @@ impl Fixture {
             NOW,
         )
         .await;
-        let world = World::new(&root.path().join("remote-git.sqlite")).await;
         *world.controller.lock().unwrap() = Some(store.pool.clone());
         let (origin, server) = world.server().await;
         let mut remote = GitHubRemote::open(&bootstrap).await.unwrap();
         remote.clock = clock.clone();
         remote.http = http::Api::fixture(origin);
+        if coding {
+            clock.advance_to(NOW).unwrap();
+        }
         Self {
             root,
             store,
@@ -686,6 +810,7 @@ impl Fixture {
             world,
             server,
             webhook,
+            contexts,
         }
     }
     pub async fn lease(&self, task: &str) -> LeaseRef {

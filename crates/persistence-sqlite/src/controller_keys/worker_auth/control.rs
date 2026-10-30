@@ -59,6 +59,30 @@ impl WorkerSecurity {
         bytes: &[u8],
         context: &WorkerRequestContext,
     ) -> Result<(ControllerMessage, bool), WorkerAuthError> {
+        self.receive_receipt_with_artifact(credential, bytes, context, None)
+            .await
+    }
+    /// Internal HTTPS composition only: untrusted artifact and authenticated
+    /// result receipt commit or roll back in the SAME transaction.
+    pub(super) async fn receive_receipt_with_artifact(
+        &self,
+        credential: &WorkerCredential,
+        bytes: &[u8],
+        context: &WorkerRequestContext,
+        artifact: Option<&[u8]>,
+    ) -> Result<(ControllerMessage, bool), WorkerAuthError> {
+        if let Some(raw) = artifact {
+            if raw.len() > crate::orchestration::coding::MAX_CODING_BYTES {
+                return Err(WorkerAuthError::ResourceLimit);
+            }
+            no_bearer_reference(credential, &[raw])?;
+            let parsed: crate::orchestration::coding::CodingResult =
+                serde_json::from_slice(raw).map_err(|_| WorkerAuthError::Protocol)?;
+            no_bearer_reference(
+                credential,
+                &[&serde_json::to_vec(&parsed).map_err(|_| WorkerAuthError::Protocol)?],
+            )?;
+        }
         if bytes.is_empty() || bytes.len() > MAX_MESSAGE_BYTES {
             return Err(WorkerAuthError::Protocol);
         }
@@ -75,7 +99,7 @@ impl WorkerSecurity {
         // smuggle a bearer into a persisted ID or protocol field.
         no_bearer_reference(credential, &[&encode_worker_message(&message)?])?;
         let result = self
-            .apply_authenticated(credential, &message, context)
+            .apply_authenticated(credential, &message, context, artifact)
             .await;
         if let Err(error) = &result
             && !matches!(
@@ -100,6 +124,7 @@ impl WorkerSecurity {
         credential: &WorkerCredential,
         message: &WorkerMessage,
         context: &WorkerRequestContext,
+        artifact: Option<&[u8]>,
     ) -> Result<(ControllerMessage, bool), WorkerAuthError> {
         let op = crate::worker_simulation::controller::operation(&message.body);
         let stop = matches!(op, WorkerOperation::StopQuery | WorkerOperation::StopAck);
@@ -162,6 +187,15 @@ impl WorkerSecurity {
             since: current.metadata.issued_at,
             until: current.metadata.expires_at,
         };
+        if let Some(raw) = artifact {
+            if !matches!(&message.body,WorkerBody::SubmitResult{outcome:ExecutionOutcome::Succeeded{manifest_sha256}} if manifest_sha256.as_str()==format!("{:x}",Sha256::digest(raw)))
+            {
+                return Err(WorkerAuthError::Protocol);
+            }
+            crate::orchestration::coding::stage_untrusted(&mut tx, &record.scope.binding, raw, now)
+                .await
+                .map_err(|_| WorkerAuthError::Protocol)?;
+        }
         let result = worker_control::receive_in(
             &mut tx,
             &peer,

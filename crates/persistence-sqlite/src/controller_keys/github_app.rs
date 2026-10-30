@@ -139,5 +139,12 @@ fn one(n: u64) -> Result<(), GitError> {
         Err(GitError::Storage)
     }
 }
+pub(crate) fn coding_blob(bytes: &[u8]) -> GitSha {
+    model::object("blob", bytes)
+}
 #[cfg(test)]
 mod tests;
+
+pub(crate) fn validate_coding_source(source: &PinnedSource) -> Result<(), GitError> {
+    publication::validate_source(source)
+}

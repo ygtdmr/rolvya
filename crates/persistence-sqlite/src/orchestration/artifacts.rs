@@ -12,18 +12,20 @@ struct Artifact {
 }
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
-struct Manifest {
-    format: u8,
-    task: TaskRef,
-    plan_hash: Digest,
-    context_hash: Digest,
-    lease: Option<LeaseRef>,
-    artifact: Option<Digest>,
-    inputs: Vec<SyntheticInput>,
-    children: Vec<SyntheticInput>,
-    criteria: Vec<String>,
-    scope: Vec<String>,
-    operation: Option<Digest>,
+pub(super) struct Manifest {
+    pub(super) format: u8,
+    pub(super) task: TaskRef,
+    pub(super) plan_hash: Digest,
+    pub(super) context_hash: Digest,
+    pub(super) lease: Option<LeaseRef>,
+    pub(super) artifact: Option<Digest>,
+    pub(super) inputs: Vec<SyntheticInput>,
+    pub(super) children: Vec<SyntheticInput>,
+    pub(super) criteria: Vec<String>,
+    pub(super) scope: Vec<String>,
+    pub(super) operation: Option<Digest>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub(super) coding: Option<Digest>,
 }
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ValidationReceipt {
@@ -123,7 +125,7 @@ impl SyntheticCoordinator {
         inputs.sort_by(|a, b| a.task.cmp(&b.task));
         Ok(inputs)
     }
-    async fn verify_tree(
+    pub(super) async fn verify_tree(
         &self,
         c: &mut SqliteConnection,
         root: &TaskRef,
@@ -132,7 +134,7 @@ impl SyntheticCoordinator {
         self.verify_many(c, vec![(root.clone(), digest.clone())])
             .await
     }
-    async fn verify_many(
+    pub(super) async fn verify_many(
         &self,
         c: &mut SqliteConnection,
         mut pending: Vec<(TaskRef, Digest)>,
@@ -162,7 +164,7 @@ impl SyntheticCoordinator {
             let manifest: Manifest =
                 serde_json::from_slice(&bytes).map_err(|_| OrchestrationError::InvalidArtifact)?;
             let planned = self.task(&task.task_id)?;
-            if manifest.format != 1
+            if !matches!(manifest.format, 1 | 2)
                 || manifest.task != task
                 || manifest.plan_hash.as_str() != self.plan.revision.fingerprint()
                 || manifest.context_hash.as_str() != planned.context.sha256
@@ -176,20 +178,31 @@ impl SyntheticCoordinator {
                     .lease
                     .as_ref()
                     .ok_or(OrchestrationError::InvalidArtifact)?;
-                let artifact = artifact_bytes(c, lease).await?;
-                let digest = manifest
-                    .artifact
-                    .as_ref()
-                    .ok_or(OrchestrationError::InvalidArtifact)?;
-                if hash(&artifact) != digest.as_str() {
-                    return Err(OrchestrationError::InvalidArtifact);
-                }
-                let job = job(c, lease).await?;
-                check_artifact(planned, &job, &artifact, digest)?;
-                if manifest.inputs != job.inputs || !manifest.children.is_empty() {
-                    return Err(OrchestrationError::InvalidInputs);
+                if manifest.coding.is_some() {
+                    self.verify_coding_in(c, &manifest).await?;
+                } else {
+                    if manifest.format != 1 {
+                        return Err(OrchestrationError::InvalidArtifact);
+                    }
+                    let artifact = artifact_bytes(c, lease).await?;
+                    let digest = manifest
+                        .artifact
+                        .as_ref()
+                        .ok_or(OrchestrationError::InvalidArtifact)?;
+                    if hash(&artifact) != digest.as_str() {
+                        return Err(OrchestrationError::InvalidArtifact);
+                    }
+                    let job = job(c, lease).await?;
+                    check_artifact(planned, &job, &artifact, digest)?;
+                    if manifest.inputs != job.inputs || !manifest.children.is_empty() {
+                        return Err(OrchestrationError::InvalidInputs);
+                    }
                 }
             } else {
+                if manifest.coding.is_some() || manifest.format != 1 {
+                    return Err(OrchestrationError::InvalidArtifact);
+                }
+
                 if manifest.lease.is_some()
                     || manifest.artifact.is_some()
                     || manifest.operation.is_some()
@@ -283,7 +296,7 @@ pub(super) async fn job(c: &mut SqliteConnection, l: &LeaseRef) -> Result<Job, O
     }
     Ok(job)
 }
-async fn accepted_digest(
+pub(super) async fn accepted_digest(
     c: &mut SqliteConnection,
     t: &TaskRef,
 ) -> Result<Digest, OrchestrationError> {
@@ -368,6 +381,7 @@ impl SyntheticResultValidator<'_> {
             criteria: task.acceptance_criteria.clone(),
             scope: task.scope.clone(),
             operation: Some(Digest::new(operation)?),
+            coding: None,
         };
         self.commit(&manifest, policy, clock).await
     }
@@ -424,6 +438,7 @@ impl SyntheticResultValidator<'_> {
             criteria: task.acceptance_criteria.clone(),
             scope: task.scope.clone(),
             operation: None,
+            coding: None,
         };
         self.commit(&manifest, policy, clock).await
     }
@@ -539,6 +554,16 @@ impl SyntheticCoordinator {
             return Err(OrchestrationError::ScopeMismatch);
         }
         let digest = accepted_digest(c, &l.task).await?;
+        let coding: bool = sqlx::query_scalar(
+            "SELECT EXISTS(SELECT 1 FROM coding_decisions WHERE project_id=? AND attempt_id=?)",
+        )
+        .bind(l.task.plan.project_id.as_str())
+        .bind(l.attempt_id.as_str())
+        .fetch_one(&mut *c)
+        .await?;
+        if coding {
+            return Err(OrchestrationError::ScopeMismatch);
+        }
         self.verify_tree(c, &l.task, &digest).await?;
         let exact:bool=sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM task_acceptances a JOIN task_fences f USING(project_id,plan_id,version,task_id) JOIN attempt_states s ON s.project_id=a.project_id AND s.attempt_id=a.attempt_id WHERE a.project_id=? AND a.plan_id=? AND a.version=? AND a.task_id=? AND a.attempt_id=? AND a.epoch=? AND f.current_attempt=a.attempt_id AND f.epoch=a.epoch AND s.state='succeeded')")
             .bind(l.task.plan.project_id.as_str()).bind(l.task.plan.plan_id.as_str()).bind(version(&l.task.plan)?).bind(l.task.task_id.as_str()).bind(l.attempt_id.as_str()).bind(l.epoch as i64).fetch_one(&mut *c).await?;

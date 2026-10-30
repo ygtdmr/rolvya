@@ -579,6 +579,10 @@ async fn final_ref_lookup_revocation_cannot_be_followed_by_visible_publication()
             .await
             .is_err()
     );
+    assert!(
+        f.world.attempts.load(Ordering::SeqCst) > 0,
+        "late-revocation fault must run after object writes, not during preflight"
+    );
     assert_eq!(
         f.world.ref_count().await,
         0,
@@ -943,3 +947,5 @@ async fn old_signed_revocation_replay_cannot_revoke_a_fresh_binding_with_same_we
     assert_eq!(f.count("git_webhook_deliveries").await, 1);
     f.prepare("task-a").await.unwrap();
 }
+
+mod coding;
