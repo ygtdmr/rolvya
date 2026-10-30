@@ -3162,3 +3162,95 @@ pub(in crate::controller_keys) async fn infrastructure_consent_on_existing(
     f.execute(&id, &action).await.unwrap();
     draft
 }
+
+/// Private G1 fixture; real sessions, current membership and fresh Argon2 proof.
+#[cfg(test)]
+pub(in crate::controller_keys) async fn git_consent_on_existing(
+    store: PlanStore,
+    path: std::path::PathBuf,
+    keys: std::path::PathBuf,
+    draft: &crate::controller_keys::github_app::RepositoryBinding,
+    signing: &[u8],
+    webhook: &[u8],
+    now: i64,
+) -> GitOwnerFixture {
+    let primary = super::super::super::tests::Fixture::from_existing(store, path, keys).await;
+    primary.advance(now - primary.now());
+    let sessions = SessionFixture::from_primary(primary).await;
+    let f = Fixture::from_session(sessions, draft.project.clone()).await;
+    for (r, p, value) in [
+        (&draft.signing_key, "github-app-signing", signing),
+        (&draft.webhook_secret, "github-webhook", webhook),
+    ] {
+        let mut tx = f.s.a.store.pool.begin().await.unwrap();
+        crate::controller_keys::secret_broker::fixture_record(
+            &mut tx,
+            &f.s.a.auth.key,
+            &r.scope(&draft.project, p).unwrap(),
+            &crate::controller_keys::secret_broker::SecretValue::new(value.to_vec()).unwrap(),
+        )
+        .await
+        .unwrap();
+        tx.commit().await.unwrap();
+    }
+    let action =
+        f.s.a
+            .auth
+            .prepare_git_repository(
+                &f.owner.handle,
+                &f.project,
+                draft,
+                &f.ctx(&f.owner, Operation::Write, 1),
+            )
+            .await
+            .unwrap();
+    let id = f.prepare(&action).await;
+    assert!(
+        f.execute(&id, &action).await.is_err(),
+        "session/Owner identity alone cannot bind remote Git"
+    );
+    f.prove(&id).await;
+    f.execute(&id, &action).await.unwrap();
+    GitOwnerFixture(f)
+}
+
+/// Test-only retained real human authority, never a production constructor.
+#[cfg(test)]
+pub(in crate::controller_keys) struct GitOwnerFixture(Fixture);
+impl GitOwnerFixture {
+    pub(in crate::controller_keys) async fn rotate_signing_record(
+        &self,
+        draft: &crate::controller_keys::github_app::RepositoryBinding,
+        signing: &[u8],
+    ) {
+        let f = &self.0;
+        let mut tx = f.s.a.store.pool.begin().await.unwrap();
+        crate::controller_keys::secret_broker::fixture_record(
+            &mut tx,
+            &f.s.a.auth.key,
+            &draft
+                .signing_key
+                .scope(&draft.project, "github-app-signing")
+                .unwrap(),
+            &crate::controller_keys::secret_broker::SecretValue::new(signing.to_vec()).unwrap(),
+        )
+        .await
+        .unwrap();
+        tx.commit().await.unwrap();
+        let action =
+            f.s.a
+                .auth
+                .prepare_git_repository(
+                    &f.owner.handle,
+                    &f.project,
+                    draft,
+                    &f.ctx(&f.owner, Operation::Write, 1),
+                )
+                .await
+                .unwrap();
+        let id = f.prepare(&action).await;
+        assert!(f.execute(&id, &action).await.is_err());
+        f.prove(&id).await;
+        f.execute(&id, &action).await.unwrap();
+    }
+}

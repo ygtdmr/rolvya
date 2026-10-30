@@ -26,6 +26,19 @@ impl HumanAuth {
         actor: &str,
     ) -> Result<(), AuthError> {
         match payload {
+            Payload::GitRepository { proposal, digest } => {
+                crate::controller_keys::github_app::consent::validate(
+                    tx,
+                    &self.key,
+                    proposal,
+                    digest,
+                    actor,
+                    project,
+                    self.now()?,
+                )
+                .await
+                .map_err(|_| AuthError::Denied)?;
+            }
             Payload::AwsInfrastructure { proposal, digest } => {
                 crate::controller_keys::worker_auth::aws_fargate::consent::validate(
                     tx,
@@ -345,6 +358,21 @@ impl HumanAuth {
             .min(expires)
             .min(r.try_get::<i64, _>("expires_at")?);
         let sequence = match &action.payload {
+            Payload::GitRepository { proposal, digest } => {
+                let deadline = crate::controller_keys::github_app::consent::apply(
+                    &mut tx,
+                    &self.key,
+                    proposal,
+                    digest,
+                    s.user()?,
+                    p,
+                    now,
+                )
+                .await
+                .map_err(|_| AuthError::Denied)?;
+                final_deadline = final_deadline.min(deadline);
+                None
+            }
             Payload::AwsInfrastructure { proposal, digest } => {
                 let deadline = crate::controller_keys::worker_auth::aws_fargate::consent::apply(
                     &mut tx,

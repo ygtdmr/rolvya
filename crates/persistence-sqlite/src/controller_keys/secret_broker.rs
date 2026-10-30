@@ -11,6 +11,7 @@ use std::{fmt, sync::Arc};
 use zeroize::Zeroizing;
 pub(in crate::controller_keys) mod aws_consumer;
 pub(in crate::controller_keys) mod crypto;
+pub(in crate::controller_keys) mod github_consumer;
 mod store;
 #[cfg(test)]
 pub(in crate::controller_keys) mod tests;

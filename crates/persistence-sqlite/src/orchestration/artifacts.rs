@@ -526,3 +526,29 @@ pub(super) fn supported_task(task: &PlannedTask) -> Result<(), OrchestrationErro
     }
     Ok(())
 }
+
+// Trusted publisher bridge: verifies actual accepted bytes in the caller's
+// authoritative transaction. No new acceptance or execution authority is issued.
+impl SyntheticCoordinator {
+    pub(crate) async fn publication_artifact_in(
+        &self,
+        c: &mut SqliteConnection,
+        l: &LeaseRef,
+    ) -> Result<(Vec<u8>, Digest, String), OrchestrationError> {
+        if l.task.plan != self.plan.content.key {
+            return Err(OrchestrationError::ScopeMismatch);
+        }
+        let digest = accepted_digest(c, &l.task).await?;
+        self.verify_tree(c, &l.task, &digest).await?;
+        let exact:bool=sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM task_acceptances a JOIN task_fences f USING(project_id,plan_id,version,task_id) JOIN attempt_states s ON s.project_id=a.project_id AND s.attempt_id=a.attempt_id WHERE a.project_id=? AND a.plan_id=? AND a.version=? AND a.task_id=? AND a.attempt_id=? AND a.epoch=? AND f.current_attempt=a.attempt_id AND f.epoch=a.epoch AND s.state='succeeded')")
+            .bind(l.task.plan.project_id.as_str()).bind(l.task.plan.plan_id.as_str()).bind(version(&l.task.plan)?).bind(l.task.task_id.as_str()).bind(l.attempt_id.as_str()).bind(l.epoch as i64).fetch_one(&mut *c).await?;
+        if !exact {
+            return Err(OrchestrationError::ScopeMismatch);
+        }
+        Ok((
+            artifact_bytes(c, l).await?,
+            digest,
+            self.plan.revision.fingerprint().into(),
+        ))
+    }
+}
