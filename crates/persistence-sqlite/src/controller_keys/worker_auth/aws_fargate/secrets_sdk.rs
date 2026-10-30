@@ -10,7 +10,6 @@ use aws_credential_types::Credentials;
 use aws_smithy_runtime_api::client::http::{SharedHttpClient, SharedHttpConnector, http_client_fn};
 use aws_smithy_types::body::SdkBody;
 use serde_json::{Value, json};
-#[cfg(test)]
 use zeroize::Zeroizing;
 
 pub(super) struct SecretSdk {
@@ -156,7 +155,6 @@ impl SecretSdk {
     /// Task-role consumption is intentionally private until trusted remote task
     /// credential loading and effective isolation can be established. Tests use
     /// the real SDK wire codec with an independently scoped private role fixture.
-    #[cfg(test)]
     pub(super) async fn fetch(&self, now: i64) -> Result<DeliveredPossession, AwsIdentityError> {
         let p = &self.plan;
         if now >= p.expires_at {

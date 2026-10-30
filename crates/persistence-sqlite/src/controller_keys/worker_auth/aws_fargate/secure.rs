@@ -123,7 +123,6 @@ impl DeliveredPossession {
         body.push_str("\"}");
         Ok(body)
     }
-    #[cfg(test)]
     pub(super) fn parse(
         plan: &ProtectedDelivery,
         bytes: &[u8],
@@ -313,6 +312,15 @@ impl SecureFargateBootstrap {
         )
         .await?;
         let e = &p.execution;
+        let allocation=sqlx::query("SELECT task_role,secret_arn,json_extract(record,'$.bootstrap.expires_at') AS expires FROM aws_launch_requests WHERE project_id=? AND attempt_id=?")
+            .bind(e.binding.task.plan.project_id.as_str()).bind(e.binding.attempt_id.as_str()).fetch_optional(&mut *tx).await?;
+        if let Some(row) = allocation
+            && (row.try_get::<&str, _>("task_role")? != p.task_role().as_str()
+                || row.try_get::<&str, _>("secret_arn")? != p.secret.as_str()
+                || p.expires_at > row.try_get::<i64, _>("expires")?)
+        {
+            return Err(AwsIdentityError::ScopeMismatch);
+        }
         let existing = self.load_plan_optional(&mut tx, &e.lease()).await?;
         if let Some(old) = existing {
             if old != *p {

@@ -1,5 +1,6 @@
 //! AWS-specific inspection and correlation, separate from permission to launch
 //! or proof that an HTTP caller possesses a particular ECS task's identity.
+pub mod execution;
 mod inspection;
 mod model;
 mod possession;
@@ -23,7 +24,9 @@ pub use store::{
 };
 pub use trusted::ControllerVerificationReceipt;
 #[cfg(test)]
-pub(super) use trusted::{fixture_account_expiry, fixture_open as reviewed_fixture_open};
+pub(super) use trusted::{
+    fixture_account_expiry, fixture_open as reviewed_fixture_open, fixture_receipt_open,
+};
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum AwsIdentityError {

@@ -16,7 +16,7 @@ use sqlx::{Row, SqliteConnection};
 use std::sync::Arc;
 #[derive(Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(deny_unknown_fields)]
-struct ControllerCheck {
+pub(super) struct ControllerCheck {
     format: u16,
     account_ref: EvidenceRef,
     project: ProjectId,
@@ -99,17 +99,12 @@ impl InfrastructureAuthority for ReviewedInfrastructure {
                     {
                         return Err(E::ScopeMismatch);
                     }
-                    // Owner consent and copied ECS metadata cannot fabricate a launch
-                    // receipt. Only the private protocol fixture supplies this port.
                     #[cfg(test)]
-                    if self.launch.as_ref() != Some(&r.expected) {
-                        return Err(E::UnverifiedControllerAuthority);
+                    if self.launch.as_ref() == Some(&r.expected) {
+                        return EvidenceRef::new(format!("human-{}", approved.actor))
+                            .map_err(|_| E::Integrity);
                     }
-                    #[cfg(not(test))]
-                    {
-                        let _ = r;
-                        return Err(E::UnverifiedControllerAuthority);
-                    }
+                    super::execution::verify_receipt(c, &self.key, r).await?;
                 }
                 AdministrativeOperation::Inspect {
                     account,
@@ -177,7 +172,7 @@ impl InfrastructureAuthority for ReviewedInfrastructure {
         self.http.clone()
     }
 }
-async fn load_check(
+pub(super) async fn load_check(
     c: &mut SqliteConnection,
     k: &ControllerKey,
     v: &consent::Consent,
@@ -311,12 +306,22 @@ pub(in crate::controller_keys::worker_auth) async fn fixture_open(
     expected: &ExpectedExecution,
     http: aws_smithy_runtime_api::client::http::SharedHttpClient,
 ) -> Arc<FargateIdentity> {
+    fixture_receipt_open(b, p, clock, Some(expected), http).await
+}
+#[cfg(test)]
+pub(in crate::controller_keys::worker_auth) async fn fixture_receipt_open(
+    b: &ControllerBootstrap,
+    p: Arc<dyn crate::admission::SchedulerPolicy>,
+    clock: Arc<dyn Clock>,
+    expected: Option<&ExpectedExecution>,
+    http: aws_smithy_runtime_api::client::http::SharedHttpClient,
+) -> Arc<FargateIdentity> {
     let mut guard = super::super::WorkerSecurity::open(b).await.unwrap();
     guard.policy = p;
     guard.clock = clock.clone();
     let mut authority = ReviewedInfrastructure::new(b, clock).await.unwrap();
     authority.http = Some(http);
-    authority.launch = Some(expected.clone());
+    authority.launch = expected.cloned();
     Arc::new(FargateIdentity {
         guard,
         authority: Arc::new(authority),
