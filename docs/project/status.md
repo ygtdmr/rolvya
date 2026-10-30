@@ -2,6 +2,12 @@
 
 Current authoritative decision cross-check: 2026-10-26 (see current ADRs; earlier sections are chronological historical checkpoints).
 
+## S2-06C protected AWS bootstrap possession (2026-10-30)
+
+[PR #30](https://github.com/ygtdmr/rolvya/pull/30) is confirmed merged at `2896bbd7b99c2c96ae6dd9a8137b73b5776b3d36`, matching its complete expected source. Branch `codex/aws-fargate-secure-bootstrap` adds exact Owner infrastructure consent, scoped encrypted Broker consumption, official SDK protected-delivery operations, per-attempt encrypted possession challenges and genuine client/server TLS exporter binding. The existing S2-04 issuer atomically consumes both one-use authorities; fresh renewal, current revocation and reduced stop handling preserve existing financial/fencing authority. Forward migration 0014 leaves 0001–0013 unchanged. See [implementation, executable evidence and production gates](../development/aws-fargate-bootstrap-possession.md).
+
+Production activation remains blocked by unavailable independently verified launch receipts, effective IAM/role exclusivity, real task credential loading, enforceable cloud cost bounds and restore fencing. Synthetic SDK/TLS success does not establish real AWS identity or permissions. Cleanup is intent only; arbitrary snapshot rollback is not automatically detected. No cloud resources, live credentials, paid operations, deployment, self-approval or merge. Fresh local verification passes 701 Rust tests, 21 native entries, 13 migration checks over 14 versions, 203 Node tests and 23 Python checks. Two independent read-only reviewers rechecked reproduced transaction/expiry/revocation/retry corrections. Exact commands, security-tool limitations and exact-head CI evidence are recorded in the PR. GitHub also reports an existing high-severity dependency alert on main whose details are inaccessible with the current connection; advisory triage remains unverified. The next slice is not started.
+
 ## S2-06B AWS Fargate identity foundation (2026-10-29)
 
 [PR #29](https://github.com/ygtdmr/rolvya/pull/29) is confirmed merged at `4563e915ea8910b203869ca8b170234427f43ee7`, with its complete expected source tree. Branch `codex/aws-fargate-worker-identity` adds official Rust AWS SDK read-only inspection, typed account/task/configuration correlation, MAC-authenticated versioned SQLite evidence (forward migration 0013), current R06/R08/S2-05 scope rechecks and a concrete S2-06A HTTPS AWS denial boundary. See [implementation, official sources and evidence limits](../development/aws-fargate-identity.md).

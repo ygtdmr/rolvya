@@ -188,6 +188,23 @@ arn!(AssumedRoleArn, "sts", false, |r: &str| {
                     .all(|b| b.is_ascii_alphanumeric() || b"_+=,.@-".contains(&b))
         })
 });
+arn!(SecretArn, "secretsmanager", true, |r: &str| r
+    .strip_prefix("secret:")
+    .is_some_and(|s| s.len() >= 8
+        && s.len() <= 512
+        && s.bytes().all(
+            |b| b.is_ascii_alphanumeric() || b"/_+=.@-".contains(&b)
+        )
+        && s.rsplit_once('-').is_some_and(
+            |(name, suffix)| !name.is_empty()
+                && suffix.len() == 6
+                && suffix.bytes().all(|b| b.is_ascii_alphanumeric())
+        )));
+impl SecretArn {
+    pub fn region(&self) -> &str {
+        self.parts().region
+    }
+}
 impl ClusterArn {
     pub fn region(&self) -> &str {
         self.parts().region

@@ -372,6 +372,7 @@ impl<P: SyntheticExecutionAuthority + 'static> Fixture<P> {
         security.transport = transport.clone();
         (
             Arc::new(HttpsWorkerServer {
+                secure_fargate: None,
                 security,
                 transport,
                 identity: self.cert.server(),
@@ -543,3 +544,6 @@ mod adversarial;
 
 #[path = "tests_aws.rs"]
 mod aws;
+
+#[path = "tests_secure_aws.rs"]
+mod secure_aws;

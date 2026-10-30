@@ -153,6 +153,30 @@ dependencies = [
 ]
 
 [[package]]
+name = "aws-sdk-secretsmanager"
+version = "1.100.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "26b0b2985427bb081e54e759468d3af89fa2ccb17fb8b9e5b704ae2f8da10a3b"
+dependencies = [
+ "aws-credential-types",
+ "aws-runtime",
+ "aws-smithy-async",
+ "aws-smithy-http",
+ "aws-smithy-json",
+ "aws-smithy-observability",
+ "aws-smithy-runtime",
+ "aws-smithy-runtime-api",
+ "aws-smithy-types",
+ "aws-types",
+ "bytes",
+ "fastrand",
+ "http 0.2.12",
+ "http 1.5.0",
+ "regex-lite",
+ "tracing",
+]
+
+[[package]]
 name = "aws-sdk-sts"
 version = "1.98.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1814,6 +1838,7 @@ dependencies = [
  "argon2",
  "aws-credential-types",
  "aws-sdk-ecs",
+ "aws-sdk-secretsmanager",
  "aws-sdk-sts",
  "aws-smithy-runtime-api",
  "aws-smithy-types",

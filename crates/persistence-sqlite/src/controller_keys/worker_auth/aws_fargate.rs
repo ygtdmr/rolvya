@@ -2,13 +2,28 @@
 //! or proof that an HTTP caller possesses a particular ECS task's identity.
 mod inspection;
 mod model;
+mod possession;
+mod protected;
+mod secure;
+pub(super) use secure::PossessionIdentity;
+pub use secure::{DeliveredPossession, SecureFargateBootstrap};
+pub(in crate::controller_keys) mod consent;
+pub(in crate::controller_keys) mod credential_use;
+mod delivery;
+pub use delivery::ProtectedDelivery;
+pub use possession::{PossessionChallenge, PossessionOperation};
 mod sdk;
+mod secrets_sdk;
 mod store;
+mod trusted;
 pub use inspection::{InspectionAssessment, ProductionGate};
 pub use model::*;
 pub use store::{
     AWS_PROVIDER, AccountEnrollment, ExecutionRegistration, FargateIdentity, InspectionRecord,
 };
+pub use trusted::ControllerVerificationReceipt;
+#[cfg(test)]
+pub(super) use trusted::{fixture_account_expiry, fixture_open as reviewed_fixture_open};
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum AwsIdentityError {
@@ -93,3 +108,10 @@ impl super::IdentityAuthority for HttpsIdentity {
 }
 #[cfg(test)]
 pub(in crate::controller_keys::worker_auth) use store::fixture;
+#[cfg(test)]
+pub(in crate::controller_keys) fn fixture_workload() -> FargateWorkload {
+    sdk::tests::expected("task-a").workload
+}
+
+#[cfg(test)]
+pub(in crate::controller_keys::worker_auth) use secure::fixture as secure_fixture;

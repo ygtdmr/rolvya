@@ -210,6 +210,7 @@ async fn https_process_fixture() {
             PrivatePkcs8KeyDer::from(config.tls_key).into(),
         );
         let server = Arc::new(HttpsWorkerServer {
+            secure_fargate: None,
             security,
             transport,
             identity,

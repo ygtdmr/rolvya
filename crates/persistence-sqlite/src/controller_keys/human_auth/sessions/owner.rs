@@ -5,6 +5,7 @@ use rolvya_domain::money::{Currency, Money};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 mod governance;
+mod infrastructure;
 mod invitations;
 mod providers;
 pub use email::{OwnerChallengeId, PreparedOwnerEmail};
@@ -18,6 +19,8 @@ mod email;
 mod step_up;
 #[cfg(test)]
 mod tests;
+#[cfg(test)]
+pub(in crate::controller_keys) use tests::infrastructure_consent_on_existing;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -63,6 +66,10 @@ pub struct OwnerAction {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "type", deny_unknown_fields)]
 enum Payload {
+    AwsInfrastructure {
+        proposal: String,
+        digest: String,
+    },
     ProviderConnection {
         proposal: String,
         digest: String,
@@ -139,7 +146,8 @@ impl OwnerAction {
     }
     fn validate(&self) -> Result<(), AuthError> {
         match &self.payload {
-            Payload::ProviderConnection { proposal, digest } => {
+            Payload::ProviderConnection { proposal, digest }
+            | Payload::AwsInfrastructure { proposal, digest } => {
                 SessionId::parse(proposal.clone())?;
                 if digest.len() != 64
                     || !digest
@@ -187,6 +195,11 @@ impl OwnerAction {
         // Fixed version + discriminant + length-framed fields. JSON is storage only.
         let mut out = b"rolvya/owner-action/v1\0".to_vec();
         let parts: Vec<Vec<u8>> = match &self.payload {
+            Payload::AwsInfrastructure { proposal, digest } => vec![
+                b"aws_infrastructure".to_vec(),
+                proposal.as_bytes().to_vec(),
+                digest.as_bytes().to_vec(),
+            ],
             Payload::ProviderConnection { proposal, digest } => vec![
                 b"provider_connection".to_vec(),
                 proposal.as_bytes().to_vec(),

@@ -49,6 +49,7 @@ impl ControllerEndpoint {
 }
 pub struct WorkerHttpClient {
     http: reqwest::Client,
+    tls_config: Arc<rustls::ClientConfig>,
     endpoint: ControllerEndpoint,
     credential: Option<WorkerCredential>,
     metadata: Option<WorkerCredentialMetadata>,
@@ -83,10 +84,43 @@ impl WorkerHttpClient {
             .map_err(|_| ClientError::TlsOrNetwork)?;
         Ok(Self {
             http,
+            tls_config: config,
             endpoint,
             credential: None,
             metadata: None,
         })
+    }
+    pub async fn prepare_possession(
+        &self,
+        id: RequestId,
+    ) -> Result<super::super::aws_fargate::PossessionChallenge, ClientError> {
+        let request = Request {
+            version: WIRE_VERSION,
+            request_id: id,
+            operation: Operation::PreparePossession {},
+        };
+        let body = self
+            .exchange(
+                &request,
+                self.credential
+                    .as_ref()
+                    .ok_or(ClientError::NotAuthenticated)?,
+                false,
+            )
+            .await?;
+        match serde_json::from_slice::<Response>(&body).map_err(|_| ClientError::Protocol)? {
+            Response::Possession { version, challenge }
+                if version == WIRE_VERSION
+                    && self.metadata.as_ref().is_some_and(|m| {
+                        challenge.execution.binding == m.binding
+                            && challenge.credential.as_ref() == Some(&m.id)
+                            && m.generation.checked_add(1) == Some(challenge.generation)
+                    }) =>
+            {
+                Ok(*challenge)
+            }
+            _ => Err(ClientError::Protocol),
+        }
     }
     pub fn metadata(&self) -> Option<&WorkerCredentialMetadata> {
         self.metadata.as_ref()
@@ -309,6 +343,7 @@ impl WorkerHttpClient {
     pub(super) fn fixture_stolen_credential(&self) -> Self {
         Self {
             http: self.http.clone(),
+            tls_config: self.tls_config.clone(),
             endpoint: ControllerEndpoint(self.endpoint.0.clone()),
             credential: self
                 .credential
@@ -316,6 +351,12 @@ impl WorkerHttpClient {
                 .map(|c| WorkerCredential::parse(c.0.to_string()).unwrap()),
             metadata: self.metadata.clone(),
         }
+    }
+    #[cfg(test)]
+    pub(super) fn fixture_restore_from(&mut self, source: &Self) {
+        let copy = source.fixture_stolen_credential();
+        self.credential = copy.credential;
+        self.metadata = copy.metadata;
     }
     #[cfg(test)]
     pub(super) async fn fixture_request(
@@ -510,3 +551,6 @@ mod tests {
         );
     }
 }
+
+#[path = "bound.rs"]
+mod bound;

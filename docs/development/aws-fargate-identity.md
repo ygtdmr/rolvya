@@ -1,5 +1,7 @@
 # S2-06B AWS Fargate inspection and bootstrap boundary
 
+Historical S2-06B scope. See [S2-06C protected possession](aws-fargate-bootstrap-possession.md) for the subsequent implementation and current activation gates.
+
 Base: merged [PR #29](https://github.com/ygtdmr/rolvya/pull/29), main `4563e915ea8910b203869ca8b170234427f43ee7`; its source tree matches `86b2a12ca40626ff999b6338c1ee1b384faa4779`.
 
 ## Implemented foundation
