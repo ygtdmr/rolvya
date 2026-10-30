@@ -248,3 +248,14 @@ pub(crate) async fn synthetic_worker_assignment(
     let job = artifacts::job(connection, lease).await?;
     Ok((job.binding, job.assignment, job.inputs))
 }
+// Test-only coordination seam: fixtures can stop after real R06 admission,
+// before selecting an external adapter, retaining the coordinator's exact IDs.
+#[cfg(test)]
+pub(crate) fn fixture_attempt_request(
+    key: &PlanKey,
+    task: &TaskId,
+    epoch: u64,
+    ordinal: u8,
+) -> Result<RequestId, OrchestrationError> {
+    id("attempt", &(key, task, epoch, ordinal))
+}

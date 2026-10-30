@@ -11,6 +11,9 @@ pub(in crate::controller_keys) enum InfrastructureOperation {
     VerifyController,
     InspectExecution,
     ProtectedDelivery,
+    LaunchExecution,
+    StopExecution,
+    ReconcileExecution,
 }
 impl InfrastructureOperation {
     pub(in crate::controller_keys) fn name(self) -> &'static str {
@@ -18,6 +21,9 @@ impl InfrastructureOperation {
             Self::VerifyController => "verify_controller",
             Self::InspectExecution => "inspect_execution",
             Self::ProtectedDelivery => "protected_delivery",
+            Self::LaunchExecution => "launch_execution",
+            Self::StopExecution => "stop_execution",
+            Self::ReconcileExecution => "reconcile_execution",
         }
     }
 }
@@ -73,7 +79,17 @@ impl VerifiedInfrastructureUse {
         let v = &self.consent;
         let r = &v.enrollment;
         let k = &r.credential;
-        let old=sqlx::query("SELECT account_ref,consent_generation,connection_id,record_id,version FROM aws_credential_uses WHERE project_id=? AND request_id=? AND operation=?").bind(r.project.as_str()).bind(self.request.as_str()).bind(self.operation.name()).fetch_optional(&mut *c).await?;
+        let table = if matches!(
+            self.operation,
+            InfrastructureOperation::LaunchExecution
+                | InfrastructureOperation::StopExecution
+                | InfrastructureOperation::ReconcileExecution
+        ) {
+            "aws_lifecycle_credential_uses"
+        } else {
+            "aws_credential_uses"
+        };
+        let old=sqlx::query(&format!("SELECT account_ref,consent_generation,connection_id,record_id,version FROM {table} WHERE project_id=? AND request_id=? AND operation=?")).bind(r.project.as_str()).bind(self.request.as_str()).bind(self.operation.name()).fetch_optional(&mut *c).await?;
         if let Some(old) = old {
             if old.try_get::<&str, _>("account_ref")? != r.account_ref.as_str()
                 || old.try_get::<i64, _>("consent_generation")? != v.generation
@@ -85,7 +101,7 @@ impl VerifiedInfrastructureUse {
             }
             return Ok(());
         }
-        let n = sqlx::query("INSERT INTO aws_credential_uses VALUES(?,?,?,?,?,?,?,?,?)")
+        let n = sqlx::query(&format!("INSERT INTO {table} VALUES(?,?,?,?,?,?,?,?,?)"))
             .bind(r.project.as_str())
             .bind(r.account_ref.as_str())
             .bind(v.generation)

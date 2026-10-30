@@ -122,6 +122,7 @@ The paths above are a **planned inventory**, not links to files that already exi
 - [S2-06A trusted worker HTTPS transport](development/worker-https-transport.md)
 - [S2-06B AWS Fargate identity foundation](development/aws-fargate-identity.md)
 - [S2-06C protected AWS bootstrap possession](development/aws-fargate-bootstrap-possession.md)
+- [S2-06D bounded AWS launch and recovery control](development/aws-fargate-launch-recovery.md)
 - [S2-03C project authorization and exact-action Owner approvals](development/human-owner-authorization.md)
 - [S2-03B human sessions and voluntary TOTP](development/human-sessions-totp.md)
 - [S2-02 encrypted SQLite Secret Broker](development/encrypted-secret-broker.md)

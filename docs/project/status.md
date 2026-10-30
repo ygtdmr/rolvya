@@ -2,6 +2,12 @@
 
 Current authoritative decision cross-check: 2026-10-26 (see current ADRs; earlier sections are chronological historical checkpoints).
 
+## S2-06D bounded AWS execution lifecycle (2026-10-30)
+
+PR #31 is verified merged as `85c65632957e9c6c9190aba09334e623376a09d8`, matching its complete source tree and migration 0014. Branch `codex/aws-fargate-launch-recovery` composes R08 dispatch with official SDK launch/inspection/stop protocols, immutable request commitments, durable receipts, protected bootstrap, checked exposure arithmetic and conservative recovery. Forward migration 0015 preserves 0001–0014. See [implementation, executable coverage, dependency triage and production gates](../development/aws-fargate-launch-recovery.md). Fresh local gates pass **727 workspace Rust tests**, **20 focused lifecycle entries** (including one private driver with ten SIGKILL boundaries), **14 migration tests over 15 versions**, **203 Node tests** and **23 Python checks**, plus formatting, Clippy, locked compilation, workflow linting and source secret scanning. Exact-head GitHub CI is recorded in the PR; no production activation or live AWS operation is authorized.
+
+Independent reviews identified and corrected preparation replay, interrupted stop recovery and a 90-second execution-horizon cap; overlapping submitting observations deliberately fail closed with holds retained. Dependabot #1 remains inaccessible/unresolved. A newly available pinned RustSec audit reports unpatched RSA in the lockfile (not compiled by the actual SQLite feature graph); Tokio's separate I/O-safety warning is patched. This is not a clean dependency audit or a production-readiness claim. Manual Owner review remains required.
+
 ## S2-06C protected AWS bootstrap possession (2026-10-30)
 
 [PR #30](https://github.com/ygtdmr/rolvya/pull/30) is confirmed merged at `2896bbd7b99c2c96ae6dd9a8137b73b5776b3d36`, matching its complete expected source. Branch `codex/aws-fargate-secure-bootstrap` adds exact Owner infrastructure consent, scoped encrypted Broker consumption, official SDK protected-delivery operations, per-attempt encrypted possession challenges and genuine client/server TLS exporter binding. The existing S2-04 issuer atomically consumes both one-use authorities; fresh renewal, current revocation and reduced stop handling preserve existing financial/fencing authority. Forward migration 0014 leaves 0001–0013 unchanged. See [implementation, executable evidence and production gates](../development/aws-fargate-bootstrap-possession.md).

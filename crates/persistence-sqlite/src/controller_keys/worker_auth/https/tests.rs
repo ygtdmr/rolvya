@@ -218,6 +218,12 @@ impl Fixture {
 }
 impl<P: SyntheticExecutionAuthority + 'static> Fixture<P> {
     async fn with_authority(authority: P) -> Self {
+        Self::with_authority_stage(authority, true, 60).await
+    }
+    async fn with_authority_runtime(authority: P, runtime: u32) -> Self {
+        Self::with_authority_stage(authority, false, runtime).await
+    }
+    async fn with_authority_stage(authority: P, launch: bool, runtime: u32) -> Self {
         let root = temporary();
         for p in ["data", "keys"] {
             fs::create_dir(root.path().join(p)).unwrap();
@@ -253,6 +259,11 @@ impl<P: SyntheticExecutionAuthority + 'static> Fixture<P> {
         c.dependencies = vec![common::task_ref(&g)];
         c.acceptance_criteria = vec![ARTIFACT_CRITERION.into(), INPUTS_CRITERION.into()];
         p.tasks = vec![g, a, b, c];
+        for task in &mut p.tasks {
+            if let Some(e) = &mut task.execution {
+                e.resources.timeout_seconds = runtime
+            }
+        }
         let valid = rolvya_plan_validator::validate(
             &p,
             &synthetic::Authority::default(),
@@ -322,24 +333,67 @@ impl<P: SyntheticExecutionAuthority + 'static> Fixture<P> {
         )
         .await
         .unwrap();
-        let pass = co
-            .pass(
-                policy.as_ref(),
-                clock.as_ref(),
-                PassLimits {
-                    admissions: 2,
-                    events: 0,
-                    validations: 0,
-                    groups: 0,
-                },
-            )
-            .await
-            .unwrap();
-        assert_eq!(
-            pass.admitted.len(),
-            2,
-            "both independent leaves admitted before either completes"
-        );
+        if launch {
+            let pass = co
+                .pass(
+                    policy.as_ref(),
+                    clock.as_ref(),
+                    PassLimits {
+                        admissions: 2,
+                        events: 0,
+                        validations: 0,
+                        groups: 0,
+                    },
+                )
+                .await
+                .unwrap();
+            assert_eq!(
+                pass.admitted.len(),
+                2,
+                "both independent leaves admitted before either completes"
+            );
+        } else {
+            for task in p
+                .tasks
+                .iter()
+                .filter(|t| matches!(t.kind, TaskKind::ExecutableLeaf) && t.dependencies.is_empty())
+            {
+                let assignment = policy.assignment(task, 1, synthetic::T).unwrap();
+                let lease = store
+                    .admit(
+                        &crate::admission::AdmissionRequest {
+                            task: common::task_ref(task),
+                            fingerprint: co.fingerprint().to_owned(),
+                            expected_epoch: 0,
+                            request_id: crate::orchestration::fixture_attempt_request(
+                                co.plan_key(),
+                                &task.id,
+                                0,
+                                1,
+                            )
+                            .unwrap(),
+                            actor: policy.actor(),
+                            permit: assignment.permit,
+                        },
+                        policy.as_ref(),
+                        clock.as_ref(),
+                        Limits::default(),
+                    )
+                    .await
+                    .unwrap()
+                    .lease;
+                worker_control::OutboxDispatcher::new(store.clone())
+                    .claim(
+                        &lease,
+                        &policy.actor(),
+                        policy.as_ref(),
+                        clock.as_ref(),
+                        Limits::default(),
+                    )
+                    .await
+                    .unwrap();
+            }
+        }
         Self {
             root,
             bootstrap,
@@ -547,3 +601,6 @@ mod aws;
 
 #[path = "tests_secure_aws.rs"]
 mod secure_aws;
+
+#[path = "tests_lifecycle.rs"]
+mod lifecycle;

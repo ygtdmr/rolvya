@@ -11,7 +11,7 @@ impl FinancialAuthorization for RiskOnly {
         )
     }
 }
-pub(super) async fn mark_unknown(
+pub(crate) async fn mark_unknown(
     c: &mut SqliteConnection,
     cmd: &LaunchCommand,
     o: &ProviderObservation,

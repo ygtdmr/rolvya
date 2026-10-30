@@ -13,8 +13,8 @@ pub use dispatch::*;
 pub(crate) use messages::receive_in;
 pub use messages::*;
 pub use provider::*;
-pub(crate) use recovery::recover_in;
 pub use recovery::*;
+pub(crate) use recovery::{mark_unknown, recover_in};
 /// Non-secret authoritative launch scope for the credential boundary. This is
 /// data, not an authentication capability, and is never worker-declared.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -137,6 +137,12 @@ impl LaunchCommand {
     pub fn binding(&self) -> &WorkerBinding {
         &self.binding
     }
+    pub(crate) fn reserved(&self) -> rolvya_domain::money::CostBreakdown {
+        self.admission.permit.maximum
+    }
+    pub(crate) fn financial_event(&self) -> i64 {
+        self.financial_event
+    }
     pub fn profile(&self) -> &ExecutionProfile {
         &self.profile
     }
@@ -149,7 +155,7 @@ impl LaunchCommand {
     pub fn digest(&self) -> Result<String, WorkerError> {
         Ok(hash(&json(self)?))
     }
-    fn lease(&self) -> LeaseRef {
+    pub(crate) fn lease(&self) -> LeaseRef {
         LeaseRef {
             task: self.binding.task.clone(),
             attempt_id: self.binding.attempt_id.clone(),
@@ -211,7 +217,7 @@ async fn audit(
     Ok(sqlx::query_scalar("INSERT INTO worker_events(project_id,attempt_id,kind,recorded_at,payload) VALUES(?,?,?,?,?) RETURNING sequence")
         .bind(l.task.plan.project_id.as_str()).bind(l.attempt_id.as_str()).bind(kind).bind(t).bind(json(payload)?).fetch_one(c).await?)
 }
-async fn command(
+pub(crate) async fn command(
     c: &mut SqliteConnection,
     l: &LeaseRef,
 ) -> Result<(LaunchCommand, DispatchState, i64), WorkerError> {
@@ -289,7 +295,7 @@ async fn financial_guard(c: &mut SqliteConnection, cmd: &LaunchCommand) -> Resul
     }
     Ok(())
 }
-async fn current<P: SchedulerPolicy + ?Sized>(
+pub(crate) async fn current<P: SchedulerPolicy + ?Sized>(
     c: &mut SqliteConnection,
     cmd: &LaunchCommand,
     policy: &P,
@@ -445,4 +451,13 @@ pub(crate) async fn broker_guard(
         return Err(WorkerError::ScopeMismatch);
     }
     current(c, &cmd, policy, now).await
+}
+
+pub(crate) async fn has_stop(c: &mut SqliteConnection, l: &LeaseRef) -> Result<bool, WorkerError> {
+    let (cmd, _, _) = command(c, l).await?;
+    match session(c, l, &cmd).await {
+        Ok(s) => Ok(s.stop.is_some()),
+        Err(WorkerError::UnknownAttempt) => Ok(false),
+        Err(e) => Err(e),
+    }
 }
