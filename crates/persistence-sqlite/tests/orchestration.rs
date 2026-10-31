@@ -1149,8 +1149,7 @@ async fn bounded_sixteen_leaf_workload_records_real_evidence_and_timing() {
         .await
         .unwrap();
     println!(
-        "R09 synthetic debug observation: 18 tasks, 17 workers (16 simultaneously active), 102 messages, {bytes} artifact bytes, {} passes, {elapsed:?}",
-        report.passes + 1
+        "R09 synthetic debug observation: 18 tasks, 17 workers (16 simultaneously active), 102 messages, {bytes} artifact bytes, {elapsed:?}"
     );
 }
 #[tokio::test]

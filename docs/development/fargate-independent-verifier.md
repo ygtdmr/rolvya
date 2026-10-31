@@ -32,6 +32,8 @@ Tests use real SQLite, protected controller keys, official AWS serializers/signi
 
 Regressions include role/image/workspace substitution, shared-role delivery denial, wrong key/AAD, cost overflow/scope mutation, TLS replay, current account revocation, concurrent submissions, ignored grant writes, stable redelivery, absolute IAM-proof expiry, lifecycle-inspection authority laundering, historical acceptance after termination and lost launch responses. Eight actual SIGKILL placements cover preparation, submitting, external effect, receipt and grant commits. Reopen checks preserve sibling acceptance and holds; a prior snapshot cannot erase the separate simulated external effect. Existing G1-03 work/report crash tests remain required regressions. Migration tests execute v18 upgrade/rollback and verify exact original journal text/MAC preservation and foreign keys. Final counts/commands and CI belong to the PR.
 
+Exact-head CodeQL also flagged a pre-existing test diagnostic of `RunReport.passes` as cleartext logging. Source review confirms a bounded `u16` simulation-loop count, with no credential input; its unnecessary interpolation was removed while preserving every assertion and byte/timing metrics. No alert dismissal or scan suppression was used.
+
 Two independent read-only source reviews found and reproduced historical-evidence invalidation and expired-IAM-proof refresh; both have focused regressions. Additional reproduced corrections cover ordinary descendants, uncertain financial state and stable protected-payload replay. Fixture comparisons are redacted on failure; no credential bytes belong in diagnostics. Persistence substring scans are limited evidence, not proof of absent memory or hardware traces.
 
 ## Not verified in AWS; production disabled
