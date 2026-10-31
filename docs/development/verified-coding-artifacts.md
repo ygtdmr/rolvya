@@ -50,4 +50,4 @@ Trusted isolated-runner attestation/execution, coding work distribution, real Ap
 
 Dependabot #1 remains inaccessible/unidentified (connector endpoint unsupported; configured CLI Forbidden). Separately, pinned cargo-audit 0.22.2 against RustSec `2295466c4e9df26647fd67d8fa1c705ac2fc7f81` reports unpatched locked `rsa 0.9.10 / RUSTSEC-2023-0071`, exit 1. The Linux all-feature normal/build graph has no RSA path; signing remains ring 0.17.14. No dependency or lockfile version changed, no advisory was suppressed and neither finding is described as resolved.
 
-Next dependency-ready work is a separately reviewed, independently isolated coding verification runner and authenticated source/work distribution, followed by separately authorized real-App validation. No next slice, deployment, protected merge, real credential or paid operation is authorized here.
+[G1-03](trusted-coding-work-execution.md) adds authenticated source/work distribution and separately authenticated offline execution. Production isolated-runner establishment and real-App validation remain gated. No next slice, deployment, protected merge, real credential or paid operation is authorized here.

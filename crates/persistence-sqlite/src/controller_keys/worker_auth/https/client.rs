@@ -555,4 +555,80 @@ mod tests {
 }
 
 #[path = "bound.rs"]
-mod bound;
+pub(super) mod bound;
+
+impl WorkerHttpClient {
+    pub async fn coding_work(
+        &self,
+        id: RequestId,
+        now: i64,
+    ) -> Result<crate::orchestration::coding::work::CodingWork, ClientError> {
+        let frame = Request {
+            version: 1,
+            request_id: id,
+            operation: Operation::CodingWork {},
+        };
+        let raw = self
+            .exchange(
+                &frame,
+                self.credential
+                    .as_ref()
+                    .ok_or(ClientError::NotAuthenticated)?,
+                true,
+            )
+            .await?;
+        match serde_json::from_slice::<Response>(&raw).map_err(|_| ClientError::Protocol)? {
+            Response::CodingWork { version: 1, work } => {
+                work.validate(
+                    &self
+                        .metadata
+                        .as_ref()
+                        .ok_or(ClientError::NotAuthenticated)?
+                        .binding,
+                    now,
+                )
+                .map_err(|_| ClientError::Protocol)?;
+                Ok(*work)
+            }
+            _ => Err(ClientError::Protocol),
+        }
+    }
+    pub async fn coding_source(
+        &self,
+        work: &crate::orchestration::coding::work::CodingWork,
+    ) -> Result<crate::controller_keys::github_app::PinnedSource, ClientError> {
+        use crate::orchestration::coding::work::SOURCE_CHUNK_BYTES;
+        let mut chunks = Vec::new();
+        for (i, f) in work.source.iter().enumerate() {
+            for offset in (0..(f.bytes as usize).max(1)).step_by(SOURCE_CHUNK_BYTES) {
+                let frame = Request {
+                    version: 1,
+                    request_id: RequestId::new(format!(
+                        "source-{}-{i}-{offset}",
+                        &work.identity.as_str()[..24]
+                    ))
+                    .map_err(|_| ClientError::Protocol)?,
+                    operation: Operation::CodingSource {
+                        work: work.identity.clone(),
+                        file: i as u16,
+                        offset: offset as u32,
+                    },
+                };
+                let raw = self
+                    .exchange(
+                        &frame,
+                        self.credential
+                            .as_ref()
+                            .ok_or(ClientError::NotAuthenticated)?,
+                        true,
+                    )
+                    .await?;
+                match serde_json::from_slice::<Response>(&raw).map_err(|_| ClientError::Protocol)? {
+                    Response::CodingSource { version: 1, chunk } => chunks.push(chunk),
+                    _ => return Err(ClientError::Protocol),
+                }
+            }
+        }
+        work.reconstruct(&chunks).map_err(|_| ClientError::Protocol)
+    }
+}

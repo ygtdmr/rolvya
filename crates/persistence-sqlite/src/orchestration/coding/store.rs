@@ -15,7 +15,7 @@ pub(crate) struct AcceptedCoding {
     pub resulting_tree_sha256: Digest,
     pub fingerprint: String,
 }
-fn decode<T: serde::de::DeserializeOwned>(
+pub(super) fn decode<T: serde::de::DeserializeOwned>(
     bytes: &[u8],
     max: usize,
 ) -> Result<T, OrchestrationError> {
@@ -24,7 +24,7 @@ fn decode<T: serde::de::DeserializeOwned>(
     }
     serde_json::from_slice(bytes).map_err(|_| OrchestrationError::InvalidArtifact)
 }
-fn same<T: PartialEq>(a: &T, b: &T) -> Result<(), OrchestrationError> {
+pub(super) fn same<T: PartialEq>(a: &T, b: &T) -> Result<(), OrchestrationError> {
     if a == b {
         Ok(())
     } else {
@@ -32,7 +32,7 @@ fn same<T: PartialEq>(a: &T, b: &T) -> Result<(), OrchestrationError> {
     }
 }
 impl SyntheticCoordinator {
-    fn context(
+    pub(super) fn context(
         &self,
         t: &TaskRef,
         context: &CodingContext,
@@ -150,7 +150,7 @@ impl SyntheticCoordinator {
         )?;
         Ok(())
     }
-    async fn coding_source(
+    pub(super) async fn coding_source(
         &self,
         c: &mut SqliteConnection,
         t: &TaskRef,
@@ -170,7 +170,7 @@ impl SyntheticCoordinator {
         same(&tree_commitment(&source.files)?, &context.source_sha256)?;
         Ok((context, source, v))
     }
-    async fn structural(
+    pub(super) async fn structural(
         &self,
         c: &mut SqliteConnection,
         l: &LeaseRef,
@@ -293,7 +293,7 @@ impl SyntheticCoordinator {
             change_set_sha256: commitment(&result.changes)?,
         })
     }
-    fn report(
+    pub(super) fn report(
         &self,
         result: &CodingResult,
         raw: &[u8],
@@ -344,7 +344,7 @@ impl SyntheticCoordinator {
         }
         Ok(())
     }
-    async fn chronology(
+    pub(super) async fn chronology(
         &self,
         c: &mut SqliteConnection,
         l: &LeaseRef,
@@ -381,16 +381,29 @@ impl SyntheticCoordinator {
         if report.completed_at > now {
             return Err(OrchestrationError::InvalidArtifact);
         }
+        let state = self
+            .store_coding_report_in(&mut tx, l, report, &raw)
+            .await?;
+        tx.commit().await?;
+        Ok(state)
+    }
+    pub(super) async fn store_coding_report_in(
+        &self,
+        c: &mut SqliteConnection,
+        l: &LeaseRef,
+        report: &VerificationReport,
+        raw: &[u8],
+    ) -> Result<CodingState, OrchestrationError> {
         let bytes = encode(report, 32768)?;
         let seal = self
             .coding_authority()?
-            .seal(b"evidence", &(l, hash(&raw), report))?;
+            .seal(b"evidence", &(l, hash(raw), report))?;
         if let Some(old) = sqlx::query_scalar::<_, Vec<u8>>(
             "SELECT evidence FROM coding_verifications WHERE project_id=? AND attempt_id=?",
         )
         .bind(l.task.plan.project_id.as_str())
         .bind(l.attempt_id.as_str())
-        .fetch_optional(&mut *tx)
+        .fetch_optional(&mut *c)
         .await?
         {
             same(&old, &bytes)?;
@@ -399,20 +412,19 @@ impl SyntheticCoordinator {
                 sqlx::query("INSERT INTO coding_verifications VALUES(?,?,?,?,?)")
                     .bind(l.task.plan.project_id.as_str())
                     .bind(l.attempt_id.as_str())
-                    .bind(hash(&raw))
+                    .bind(hash(raw))
                     .bind(&bytes)
                     .bind(seal)
-                    .execute(&mut *tx)
+                    .execute(&mut *c)
                     .await?
                     .rows_affected(),
             )?;
         }
-        tx.commit().await?;
         Ok(CodingState::IndependentlyVerified {
             evidence_sha256: Digest::new(hash(&bytes))?,
         })
     }
-    async fn coding_raw(
+    pub(super) async fn coding_raw(
         &self,
         c: &mut SqliteConnection,
         l: &LeaseRef,
@@ -454,6 +466,7 @@ impl SyntheticCoordinator {
         )?;
         self.report(&result, &raw, &context, &report)?;
         self.chronology(c, l, &report).await?;
+        self.authenticated_report_in(c, l, &report).await?;
         Ok((result, files, commitment(&(report, receipt))?))
     }
     pub async fn accept_coding_result(
@@ -473,6 +486,8 @@ impl SyntheticCoordinator {
                 .collect(),
         )
         .await?;
+        self.verifier_acceptance_current_in(&mut tx, l, policy, admission::at(clock)?)
+            .await?;
         let task = self.task(&l.task.task_id)?;
         let m = Manifest {
             format: 2,
@@ -547,12 +562,31 @@ impl SyntheticCoordinator {
             )?;
         }
         self.verify_coding_in(&mut tx, &m).await?;
+        let previously_accepted: bool = sqlx::query_scalar(
+            "SELECT EXISTS(SELECT 1 FROM task_acceptances WHERE project_id=? AND attempt_id=?)",
+        )
+        .bind(l.task.plan.project_id.as_str())
+        .bind(l.attempt_id.as_str())
+        .fetch_one(&mut *tx)
+        .await?;
+        let independent:bool=sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM coding_verifier_executions WHERE project_id=? AND attempt_id=?)").bind(l.task.plan.project_id.as_str()).bind(l.attempt_id.as_str()).fetch_one(&mut *tx).await?;
         self.coding_authority()?.checkpoint("accept-before");
+        let authority_checked_at = admission::at(clock)?;
+        self.verifier_acceptance_current_in(&mut tx, l, policy, authority_checked_at)
+            .await?;
+
         let sequence = self
             .store
             .accept_task_in(&mut tx, &self.plan, &request, policy, clock)
             .await?;
         self.coding_authority()?.checkpoint("accept-uncommitted");
+        // Success retires the coding credential inside this same transaction.
+        // Authority cannot change under the writer lock, but time can advance:
+        // conservatively retry across a clock tick rather than accept an expired
+        // entitlement/consent/verifier after the effect has changed runtime state.
+        if independent && !previously_accepted && admission::at(clock)? != authority_checked_at {
+            return Err(OrchestrationError::VerificationUnavailable);
+        }
         tx.commit().await?;
         self.coding_authority()?.checkpoint("accept-after");
         Ok(CodingState::Accepted(ValidationReceipt {
@@ -747,7 +781,7 @@ impl SyntheticCoordinator {
         }
         result
     }
-    async fn coding_rejection(
+    pub(crate) async fn coding_rejection(
         &self,
         l: &LeaseRef,
         phase: &str,

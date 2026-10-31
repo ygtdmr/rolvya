@@ -46,6 +46,12 @@ pub enum Operation {
         artifact: Option<ArtifactUpload>,
     },
     Assignment {},
+    CodingWork {},
+    CodingSource {
+        work: Digest,
+        file: u16,
+        offset: u32,
+    },
 }
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -101,6 +107,14 @@ pub enum Response {
         version: u16,
         assignment: Assignment,
     },
+    CodingWork {
+        version: u16,
+        work: Box<crate::orchestration::coding::work::CodingWork>,
+    },
+    CodingSource {
+        version: u16,
+        chunk: crate::orchestration::coding::work::SourceChunk,
+    },
     Possession {
         version: u16,
         challenge: Box<super::super::aws_fargate::PossessionChallenge>,
@@ -151,7 +165,10 @@ impl Request {
                     _ => return Err(ErrorCode::InvalidProtocol),
                 }
             }
-            Operation::Assignment {} | Operation::PreparePossession {} => {}
+            Operation::Assignment {}
+            | Operation::PreparePossession {}
+            | Operation::CodingWork {}
+            | Operation::CodingSource { .. } => {}
         }
         Ok(())
     }
