@@ -468,18 +468,30 @@ async fn coding_agent_sigkill_intent_and_observation_commits_preserve_holds() {
 }
 
 #[tokio::test]
+async fn coding_agent_transport_rejects_cleartext_before_connection() {
+    let s = Session::open(Some(0)).await;
+    assert!(agent::fixture::cleartext_denied(s.worker.work()).await);
+    s.close().await;
+}
+
+#[tokio::test]
+async fn coding_agent_transport_validates_hostname_ca_and_denies_redirect() {
+    let s = Session::open(Some(0)).await;
+    agent::fixture::tls_boundaries_denied(s.worker.work()).await;
+    s.close().await;
+}
+
+#[tokio::test]
 async fn coding_agent_lost_provider_response_records_uncertainty_without_retry() {
     use tokio::io::{AsyncReadExt, AsyncWriteExt};
     let mut s = Session::open(Some(0)).await;
-    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
-    let endpoint = format!(
-        "http://127.0.0.1:{}/v1/responses",
-        listener.local_addr().unwrap().port()
-    );
+    let (listener, endpoint) = agent::fixture::provider_listener().await;
+    let acceptor = endpoint.acceptor.clone();
     let count = Arc::new(std::sync::atomic::AtomicUsize::new(0));
     let observed = count.clone();
     let provider = tokio::spawn(async move {
-        let (mut socket, _) = listener.accept().await.unwrap();
+        let (socket, _) = listener.accept().await.unwrap();
+        let mut socket = acceptor.accept(socket).await.unwrap();
         let mut raw = Vec::new();
         let mut b = [0; 1024];
         loop {

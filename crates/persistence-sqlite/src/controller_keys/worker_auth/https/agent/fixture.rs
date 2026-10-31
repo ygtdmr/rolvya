@@ -8,11 +8,78 @@ use axum::{
     http::Request,
     routing::post,
 };
+use hyper_util::{rt::TokioIo, service::TowerToHyperService};
 use serde_json::{Value, json};
 use std::sync::{
     Arc,
     atomic::{AtomicUsize, Ordering},
 };
+
+/// Private DNS/CA capability only; requests retain literal provider HTTPS URLs,
+/// real hostname validation, and the production HTTPS-only client policy.
+#[derive(Clone)]
+pub(in crate::controller_keys) struct ProviderEndpoint {
+    pub address: std::net::SocketAddr,
+    pub acceptor: tokio_rustls::TlsAcceptor,
+    root: rustls::pki_types::CertificateDer<'static>,
+}
+impl ProviderEndpoint {
+    fn new(address: std::net::SocketAddr) -> Self {
+        Self::with_names(
+            address,
+            vec!["api.openai.com".into(), "api.anthropic.com".into()],
+        )
+    }
+    fn with_names(address: std::net::SocketAddr, names: Vec<String>) -> Self {
+        assert!(address.ip().is_loopback());
+        let key = rcgen::KeyPair::generate().unwrap();
+        let cert = rcgen::CertificateParams::new(names)
+            .unwrap()
+            .self_signed(&key)
+            .unwrap();
+        let root = cert.der().clone();
+        let identity = super::super::tls::ServerIdentity::fixture(
+            vec![root.clone()],
+            rustls::pki_types::PrivatePkcs8KeyDer::from(key.serialize_der()).into(),
+        );
+        Self {
+            address,
+            acceptor: tokio_rustls::TlsAcceptor::from(identity.config),
+            root,
+        }
+    }
+    fn transport(&self, adapter: Adapter, work: &CodingWork) -> api::ApiTransport {
+        api::ApiTransport::fixture(adapter, self.address, self.root.clone(), work)
+    }
+}
+pub(in crate::controller_keys) async fn provider_listener()
+-> (tokio::net::TcpListener, ProviderEndpoint) {
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let endpoint = ProviderEndpoint::new(listener.local_addr().unwrap());
+    (listener, endpoint)
+}
+async fn serve_provider(
+    listener: tokio::net::TcpListener,
+    endpoint: ProviderEndpoint,
+    routes: Router,
+) {
+    let mut connections = tokio::task::JoinSet::new();
+    loop {
+        tokio::select! {
+            incoming = listener.accept(), if connections.len() < 16 => {
+                let (socket, _) = incoming.unwrap();
+                let acceptor = endpoint.acceptor.clone();
+                let routes = routes.clone();
+                connections.spawn(async move {
+                    let Ok(Ok(tls)) = tokio::time::timeout(Duration::from_secs(5), acceptor.accept(socket)).await else { return; };
+                    let service = TowerToHyperService::new(routes);
+                    let _ = tokio::time::timeout(Duration::from_secs(30), hyper::server::conn::http1::Builder::new().serve_connection(TokioIo::new(tls), service)).await;
+                });
+            }
+            Some(_) = connections.join_next(), if !connections.is_empty() => {}
+        }
+    }
+}
 pub(crate) fn executable() -> PathBuf {
     static BIN: std::sync::OnceLock<(tempfile::TempDir, PathBuf)> = std::sync::OnceLock::new();
     BIN.get_or_init(||{
@@ -52,12 +119,14 @@ async fn handler(State(s): State<ApiFixture>, headers: HeaderMap, r: Request<Bod
     assert_eq!(request["model"], s.model);
     assert_eq!(request["stream"], false);
     if s.adapter == Adapter::OpenAiApi {
+        assert_eq!(headers["host"], "api.openai.com");
         assert_eq!(
             headers["authorization"],
             "Bearer synthetic-model-protocol-only"
         );
         assert_eq!(request["store"], false);
     } else {
+        assert_eq!(headers["host"], "api.anthropic.com");
         assert_eq!(headers["x-api-key"], "synthetic-model-protocol-only");
         assert_eq!(headers["anthropic-version"], "2023-06-01");
     }
@@ -170,16 +239,7 @@ pub(in crate::controller_keys) async fn execute_value(
             model: worker.work().profile.model.as_str().into(),
             count: count.clone(),
         };
-        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
-        let endpoint = format!(
-            "http://127.0.0.1:{}/v1/{}",
-            listener.local_addr().unwrap().port(),
-            if adapter == Adapter::OpenAiApi {
-                "responses"
-            } else {
-                "messages"
-            }
-        );
+        let (listener, endpoint) = provider_listener().await;
         let routes = Router::new()
             .route(
                 if adapter == Adapter::OpenAiApi {
@@ -190,11 +250,9 @@ pub(in crate::controller_keys) async fn execute_value(
                 post(handler),
             )
             .with_state(s);
-        let server = tokio::spawn(async move { axum::serve(listener, routes).await.unwrap() });
-        (
-            Some(api::ApiTransport::fixture(adapter, endpoint, worker.work())),
-            Some(server),
-        )
+        let transport = endpoint.transport(adapter, worker.work());
+        let server = tokio::spawn(serve_provider(listener, endpoint, routes));
+        (Some(transport), Some(server))
     } else {
         (None, None)
     };
@@ -223,22 +281,18 @@ pub(in crate::controller_keys) fn swapped_transport_denied(
     b: &CodingWork,
     now: i64,
 ) -> bool {
-    let endpoint = "http://127.0.0.1:9/v1/responses".to_owned();
+    let endpoint = ProviderEndpoint::new("127.0.0.1:9".parse().unwrap());
     let mut h = host(
         a,
         PathBuf::from("/unused-test-path"),
         Adapter::OpenAiApi,
-        Some(api::ApiTransport::fixture(
-            Adapter::OpenAiApi,
-            endpoint.clone(),
-            a,
-        )),
+        Some(endpoint.transport(Adapter::OpenAiApi, a)),
     );
     let other = host(
         b,
         PathBuf::from("/unused-test-path-b"),
         Adapter::OpenAiApi,
-        Some(api::ApiTransport::fixture(Adapter::OpenAiApi, endpoint, b)),
+        Some(endpoint.transport(Adapter::OpenAiApi, b)),
     );
     h.api = other.api;
     h.validate(a, now) == Err(AgentError::Scope)
@@ -262,7 +316,7 @@ pub(in crate::controller_keys) fn context_is_bounded(w: &CodingWork) -> bool {
 }
 pub(in crate::controller_keys) async fn execute_endpoint(
     worker: &mut super::super::coding_worker::CodingWorker,
-    endpoint: String,
+    endpoint: ProviderEndpoint,
     now: i64,
 ) -> Result<CodingResult, AgentError> {
     let root = tempfile::tempdir().unwrap();
@@ -270,11 +324,7 @@ pub(in crate::controller_keys) async fn execute_endpoint(
         worker.work(),
         root.path().join("runtime"),
         Adapter::OpenAiApi,
-        Some(api::ApiTransport::fixture(
-            Adapter::OpenAiApi,
-            endpoint,
-            worker.work(),
-        )),
+        Some(endpoint.transport(Adapter::OpenAiApi, worker.work())),
     );
     worker
         .execute_provider(h, "independent-fixture".into(), now)
@@ -289,11 +339,7 @@ pub(in crate::controller_keys) async fn execute_status(
 ) -> (Result<CodingResult, AgentError>, usize) {
     let count = Arc::new(AtomicUsize::new(0));
     let called = count.clone();
-    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
-    let endpoint = format!(
-        "http://127.0.0.1:{}/v1/responses",
-        listener.local_addr().unwrap().port()
-    );
+    let (listener, endpoint) = provider_listener().await;
     let routes = Router::new().route(
         "/v1/responses",
         post(move || {
@@ -309,10 +355,78 @@ pub(in crate::controller_keys) async fn execute_status(
             }
         }),
     );
-    let server = tokio::spawn(async move { axum::serve(listener, routes).await.unwrap() });
+    let server = tokio::spawn(serve_provider(listener, endpoint.clone(), routes));
     let result = execute_endpoint(worker, endpoint, now).await;
     server.abort();
     (result, count.load(Ordering::SeqCst))
+}
+pub(in crate::controller_keys) async fn cleartext_denied(work: &CodingWork) -> bool {
+    api::ApiTransport::fixture_http_denied(work).await
+}
+pub(in crate::controller_keys) async fn tls_boundaries_denied(work: &CodingWork) {
+    for wrong_hostname in [false, true] {
+        let (listener, mut endpoint) = provider_listener().await;
+        if wrong_hostname {
+            endpoint = ProviderEndpoint::with_names(endpoint.address, vec!["wrong.invalid".into()]);
+        }
+        let calls = Arc::new(AtomicUsize::new(0));
+        let received = calls.clone();
+        let routes = Router::new().route(
+            "/v1/responses",
+            post(move || {
+                received.fetch_add(1, Ordering::SeqCst);
+                async { "not reached" }
+            }),
+        );
+        let root = if wrong_hostname {
+            endpoint.root.clone()
+        } else {
+            ProviderEndpoint::new(endpoint.address).root
+        };
+        let transport =
+            api::ApiTransport::fixture(Adapter::OpenAiApi, endpoint.address, root, work);
+        let server = tokio::spawn(serve_provider(listener, endpoint, routes));
+        assert_eq!(
+            transport
+                .request(Adapter::OpenAiApi, &json!({}), 1024)
+                .await
+                .err(),
+            Some(AgentError::FinancialUncertainty)
+        );
+        assert_eq!(calls.load(Ordering::SeqCst), 0);
+        server.abort();
+    }
+    let (listener, endpoint) = provider_listener().await;
+    let redirected = Arc::new(AtomicUsize::new(0));
+    let called = redirected.clone();
+    let routes = Router::new()
+        .route(
+            "/v1/responses",
+            post(|| async {
+                (
+                    axum::http::StatusCode::FOUND,
+                    [("location", "https://api.openai.com/redirect-target")],
+                )
+            }),
+        )
+        .route(
+            "/redirect-target",
+            axum::routing::any(move || {
+                called.fetch_add(1, Ordering::SeqCst);
+                async { "not reached" }
+            }),
+        );
+    let transport = endpoint.transport(Adapter::OpenAiApi, work);
+    let server = tokio::spawn(serve_provider(listener, endpoint, routes));
+    assert_eq!(
+        transport
+            .request(Adapter::OpenAiApi, &json!({}), 1024)
+            .await
+            .err(),
+        Some(AgentError::InvalidResponse)
+    );
+    assert_eq!(redirected.load(Ordering::SeqCst), 0);
+    server.abort();
 }
 pub(in crate::controller_keys) fn host_substitutions_denied(w: &CodingWork, now: i64) -> bool {
     let create = || {
@@ -320,11 +434,10 @@ pub(in crate::controller_keys) fn host_substitutions_denied(w: &CodingWork, now:
             w,
             PathBuf::from("/unused-private-test"),
             Adapter::OpenAiApi,
-            Some(api::ApiTransport::fixture(
-                Adapter::OpenAiApi,
-                "http://127.0.0.1:9/v1/responses".into(),
-                w,
-            )),
+            Some(
+                ProviderEndpoint::new("127.0.0.1:9".parse().unwrap())
+                    .transport(Adapter::OpenAiApi, w),
+            ),
         )
     };
     let mut h = create();

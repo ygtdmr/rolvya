@@ -5,7 +5,6 @@ use workspace::Workspace;
 /// Serialize, model-visible tool, arbitrary URL, redirect or ambient proxy.
 pub(in crate::controller_keys) struct ApiTransport {
     client: reqwest::Client,
-    endpoint: String,
     credential: Zeroizing<String>,
     adapter: Adapter,
     work: Digest,
@@ -34,29 +33,30 @@ impl ApiTransport {
         {
             return Err(AgentError::Scope);
         }
-        let endpoint = match adapter {
-            Adapter::OpenAiApi => "https://api.openai.com/v1/responses",
-            Adapter::AnthropicApi => "https://api.anthropic.com/v1/messages",
-            _ => return Err(AgentError::Scope),
-        };
+        if !adapter.api() {
+            return Err(AgentError::Scope);
+        }
         let tls = super::super::tls::client().map_err(|_| AgentError::Unavailable)?;
-        let client = reqwest::Client::builder()
-            .use_preconfigured_tls((*tls).clone())
-            .retry(reqwest::retry::never())
-            .no_proxy()
-            .redirect(reqwest::redirect::Policy::none())
-            .timeout(Duration::from_secs(60))
-            .connect_timeout(Duration::from_secs(5))
+        let client = Self::client_builder(tls)
             .build()
             .map_err(|_| AgentError::Unavailable)?;
         Ok(Self {
             client,
-            endpoint: endpoint.into(),
             credential,
             adapter,
             work: work.identity.clone(),
             scope,
         })
+    }
+    fn client_builder(tls: std::sync::Arc<rustls::ClientConfig>) -> reqwest::ClientBuilder {
+        reqwest::Client::builder()
+            .use_preconfigured_tls((*tls).clone())
+            .https_only(true)
+            .retry(reqwest::retry::never())
+            .no_proxy()
+            .redirect(reqwest::redirect::Policy::none())
+            .timeout(Duration::from_secs(60))
+            .connect_timeout(Duration::from_secs(5))
     }
     pub fn matches(&self, adapter: Adapter, w: &CodingWork) -> Result<(), AgentError> {
         if self.adapter != adapter
@@ -80,10 +80,14 @@ impl ApiTransport {
         if raw.len() > 131072 {
             return Err(AgentError::ContextLimit);
         }
-        let request = self
-            .client
-            .post(&self.endpoint)
-            .header("content-type", "application/json");
+        // Destinations are literal provider protocol URLs, independent of any
+        // credential-bearing aggregate or caller-supplied work metadata.
+        let request = match adapter {
+            Adapter::OpenAiApi => self.client.post("https://api.openai.com/v1/responses"),
+            Adapter::AnthropicApi => self.client.post("https://api.anthropic.com/v1/messages"),
+            _ => return Err(AgentError::Scope),
+        }
+        .header("content-type", "application/json");
         let request = match adapter {
             Adapter::OpenAiApi => request.bearer_auth(self.credential.as_str()),
             Adapter::AnthropicApi => {
@@ -141,15 +145,42 @@ impl ApiTransport {
         Ok(out)
     }
     #[cfg(test)]
-    pub(crate) fn fixture(adapter: Adapter, endpoint: String, work: &CodingWork) -> Self {
+    pub(crate) async fn fixture_http_denied(work: &CodingWork) -> bool {
+        let t = Self::scoped(
+            Adapter::OpenAiApi,
+            Zeroizing::new("synthetic-model-protocol-only".into()),
+            work,
+        )
+        .unwrap();
+        t.client
+            .post("http://127.0.0.1:9/cleartext-forbidden")
+            .send()
+            .await
+            .is_err_and(|e| e.is_builder())
+    }
+    #[cfg(test)]
+    pub(crate) fn fixture(
+        adapter: Adapter,
+        address: std::net::SocketAddr,
+        root: rustls::pki_types::CertificateDer<'static>,
+        work: &CodingWork,
+    ) -> Self {
         let mut t = Self::scoped(
             adapter,
             Zeroizing::new("synthetic-model-protocol-only".into()),
             work,
         )
         .unwrap();
-        assert!(endpoint.starts_with("http://127.0.0.1:"));
-        t.endpoint = endpoint;
+        assert!(address.ip().is_loopback());
+        let domain = match adapter {
+            Adapter::OpenAiApi => "api.openai.com",
+            Adapter::AnthropicApi => "api.anthropic.com",
+            _ => unreachable!(),
+        };
+        t.client = Self::client_builder(super::super::tls::fixture_client(root))
+            .resolve(domain, address)
+            .build()
+            .unwrap();
         t
     }
 }
