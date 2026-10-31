@@ -212,7 +212,7 @@ pub(in crate::controller_keys) async fn fixture_registry_for(
             owner: None,
             provider: match id.as_str() {
                 "claude-a" | "claude-b" => "synthetic-anthropic",
-                "codex-c" => "synthetic-openai",
+                "codex-c" | "openai-api-a" | "openai-api-b" => "synthetic-openai",
                 _ => "synthetic-model-provider",
             }
             .into(),
@@ -222,14 +222,21 @@ pub(in crate::controller_keys) async fn fixture_registry_for(
                 format!("synthetic-account-{}", id.as_str())
             },
             mode: a.access_mode,
-            integration: "synthetic-test".into(),
+            integration: match id.as_str() {
+                "openai-api-a" | "openai-api-b" => "synthetic-openai-responses-v1",
+                "codex-c" => "synthetic-codex-exec-json-v1",
+                "claude-a" => "synthetic-anthropic-messages-v1",
+                "claude-b" => "synthetic-claude-print-json-v1",
+                _ => "synthetic-test",
+            }
+            .into(),
             deployment: "synthetic-remote".into(),
             version: 1,
             revoked: false,
             models: vec![a.model.clone()],
             entitlement: None,
         };
-        let existing=sqlx::query("SELECT c.connection_id,c.account_id,c.provider,s.record_id,s.purpose,s.current_version FROM secret_connections c JOIN secret_records s USING(project_id,connection_id) WHERE c.project_id=? AND (c.connection_id=? OR ?='synthetic-connection') AND c.state='active' ORDER BY c.connection_id,s.record_id LIMIT 1").bind(project.as_str()).bind(id.as_str()).bind(id.as_str()).fetch_optional(&mut *tx).await.unwrap();
+        let existing=sqlx::query("SELECT c.connection_id,c.account_id,c.provider,s.record_id,s.purpose,s.current_version FROM secret_connections c JOIN secret_records s USING(project_id,connection_id) WHERE c.project_id=? AND (c.connection_id=? OR (?='synthetic-connection' AND NOT EXISTS(SELECT 1 FROM provider_connections pc WHERE pc.provider=c.provider AND pc.account=c.account_id AND pc.connection_id<>?))) AND c.state='active' ORDER BY c.connection_id,s.record_id LIMIT 1").bind(project.as_str()).bind(id.as_str()).bind(id.as_str()).bind(id.as_str()).fetch_optional(&mut *tx).await.unwrap();
         let mut r = r;
         let k = if let Some(x) = existing {
             r.provider = x.get("provider");

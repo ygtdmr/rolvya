@@ -632,3 +632,38 @@ impl WorkerHttpClient {
         work.reconstruct(&chunks).map_err(|_| ClientError::Protocol)
     }
 }
+
+impl WorkerHttpClient {
+    pub(super) async fn agent_step(
+        &self,
+        operation: super::agent::AgentOperation,
+    ) -> Result<super::agent::StepReceipt, ClientError> {
+        use super::agent::AgentOperation;
+        let (step, phase) = match &operation {
+            AgentOperation::Start { step, .. } => (*step, "start"),
+            AgentOperation::Finish { step, .. } => (*step, "finish"),
+        };
+        let frame = Request {
+            version: 1,
+            request_id: RequestId::new(format!("provider-{step}-{phase}"))
+                .map_err(|_| ClientError::Protocol)?,
+            operation: Operation::CodingAgent { operation },
+        };
+        let raw = self
+            .exchange(
+                &frame,
+                self.credential
+                    .as_ref()
+                    .ok_or(ClientError::NotAuthenticated)?,
+                true,
+            )
+            .await?;
+        match serde_json::from_slice::<Response>(&raw).map_err(|_| ClientError::Protocol)? {
+            Response::CodingAgent {
+                version: 1,
+                receipt,
+            } => Ok(receipt),
+            _ => Err(ClientError::Protocol),
+        }
+    }
+}

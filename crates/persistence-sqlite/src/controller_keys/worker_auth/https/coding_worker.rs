@@ -1,4 +1,5 @@
-//! Reusable remote coding session. It performs no model invocation or OS commands.
+//! Reusable authenticated coding session. Optional provider execution lives in
+//! `agent` and requires an opaque, separately established remote capability.
 use super::client::{ClientError, WorkerHttpClient};
 use crate::controller_keys::github_app::PinnedSource;
 use crate::orchestration::coding::{work::CodingWork, *};
@@ -143,5 +144,33 @@ impl CodingWorker {
         .await?;
         self.stopped = true;
         Ok(r)
+    }
+}
+
+impl CodingWorker {
+    pub(super) async fn provider_step(
+        &self,
+        op: super::agent::AgentOperation,
+    ) -> Result<super::agent::StepReceipt, super::agent::AgentError> {
+        self.client
+            .agent_step(op)
+            .await
+            .map_err(|_| super::agent::AgentError::Scope)
+    }
+    pub(super) async fn during_provider<T>(
+        &mut self,
+        future: impl std::future::Future<Output = Result<T, super::agent::AgentError>>,
+        deadline: tokio::time::Instant,
+    ) -> Result<T, super::agent::AgentError> {
+        use super::agent::AgentError;
+        let mut interval = self.heartbeat_schedule().map_err(|_| AgentError::Scope)?;
+        tokio::pin!(future);
+        loop {
+            tokio::select! {
+                answer=&mut future=>return answer,
+                _=tokio::time::sleep_until(deadline)=>return Err(AgentError::Timeout),
+                _=interval.tick()=>self.heartbeat().await.map_err(|_|AgentError::Cancelled)?,
+            }
+        }
     }
 }

@@ -49,16 +49,18 @@ fn line(r: &mut impl BufRead) -> Option<Zeroizing<String>> {
     assert!(s.len() < 256 * 1024);
     if n == 0 { None } else { Some(s) }
 }
-struct Process {
+pub(super) struct Process {
     child: Child,
     input: ChildStdin,
     output: BufReader<ChildStdout>,
 }
 impl Process {
-    async fn new(role: &str, config: serde_json::Value) -> Self {
+    pub(super) async fn new(role: &str, config: serde_json::Value) -> Self {
         let mut child = Command::new(std::env::current_exe().unwrap())
             .args(["--exact", DRIVER, "--nocapture"])
             .env("ROLVYA_G103_PROCESS", role)
+            .env("OPENAI_API_KEY", "synthetic-ambient-never-consume")
+            .env("ANTHROPIC_API_KEY", "synthetic-ambient-never-consume")
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
             .stderr(Stdio::inherit())
@@ -75,13 +77,13 @@ impl Process {
         p.send(&config).await;
         p
     }
-    async fn send(&mut self, v: &impl Serialize) {
+    pub(super) async fn send(&mut self, v: &impl Serialize) {
         let mut b = Zeroizing::new(serde_json::to_vec(v).unwrap());
         b.push(b'\n');
         self.input.write_all(&b).await.unwrap();
         self.input.flush().await.unwrap();
     }
-    async fn recv(&mut self) -> serde_json::Value {
+    pub(super) async fn recv(&mut self) -> serde_json::Value {
         tokio::time::timeout(Duration::from_secs(30), async {
             loop {
                 let mut s = Zeroizing::new(String::new());
@@ -98,7 +100,7 @@ impl Process {
         .await
         .unwrap()
     }
-    async fn finish(mut self) {
+    pub(super) async fn finish(mut self) {
         drop(self.input);
         let status = tokio::time::timeout(Duration::from_secs(20), self.child.wait())
             .await
@@ -142,57 +144,67 @@ async fn coding_execution_process() {
             .unwrap();
         let work = worker.work().clone();
         let source = worker.source().clone();
-        let changes = if binding.task.task_id.as_str() == "task-a" {
-            vec![
-                FileChange::Modify {
-                    path: "src/alpha.rs".into(),
-                    original_sha256: commitment_bytes(
-                        &source
-                            .files
-                            .iter()
-                            .find(|f| f.path == "src/alpha.rs")
-                            .unwrap()
-                            .bytes,
-                    ),
-                    content: "pub fn alpha()->u8{11}\r\n".into(),
-                },
-                FileChange::Add {
-                    path: "src/added.rs".into(),
-                    content: "pub const ADDED:u8=4;\n".into(),
-                },
-                FileChange::Delete {
-                    path: "src/obsolete.rs".into(),
-                    original_sha256: commitment_bytes(
-                        &source
-                            .files
-                            .iter()
-                            .find(|f| f.path == "src/obsolete.rs")
-                            .unwrap()
-                            .bytes,
-                    ),
-                },
-            ]
-        } else {
-            vec![FileChange::Modify {
-                path: "src/beta.rs".into(),
-                original_sha256: commitment_bytes(
-                    &source
-                        .files
-                        .iter()
-                        .find(|f| f.path == "src/beta.rs")
-                        .unwrap()
-                        .bytes,
-                ),
-                content: "pub fn beta()->u8{22}\n".into(),
-            }]
-        };
-        let result = worker
-            .submit(
-                changes,
-                format!("independent-{}", binding.attempt_id.as_str()),
+        let result = if let Some(adapter) = config.get("agent_adapter").filter(|v| !v.is_null()) {
+            let adapter = serde_json::from_value(adapter.clone()).unwrap();
+            crate::controller_keys::worker_auth::https::agent::fixture::execute(
+                &mut worker,
+                adapter,
+                now,
             )
             .await
-            .unwrap();
+        } else {
+            let changes = if binding.task.task_id.as_str() == "task-a" {
+                vec![
+                    FileChange::Modify {
+                        path: "src/alpha.rs".into(),
+                        original_sha256: commitment_bytes(
+                            &source
+                                .files
+                                .iter()
+                                .find(|f| f.path == "src/alpha.rs")
+                                .unwrap()
+                                .bytes,
+                        ),
+                        content: "pub fn alpha()->u8{11}\r\n".into(),
+                    },
+                    FileChange::Add {
+                        path: "src/added.rs".into(),
+                        content: "pub const ADDED:u8=4;\n".into(),
+                    },
+                    FileChange::Delete {
+                        path: "src/obsolete.rs".into(),
+                        original_sha256: commitment_bytes(
+                            &source
+                                .files
+                                .iter()
+                                .find(|f| f.path == "src/obsolete.rs")
+                                .unwrap()
+                                .bytes,
+                        ),
+                    },
+                ]
+            } else {
+                vec![FileChange::Modify {
+                    path: "src/beta.rs".into(),
+                    original_sha256: commitment_bytes(
+                        &source
+                            .files
+                            .iter()
+                            .find(|f| f.path == "src/beta.rs")
+                            .unwrap()
+                            .bytes,
+                    ),
+                    content: "pub fn beta()->u8{22}\n".into(),
+                }]
+            };
+            worker
+                .submit(
+                    changes,
+                    format!("independent-{}", binding.attempt_id.as_str()),
+                )
+                .await
+                .unwrap()
+        };
         let raw = serde_json::to_vec(&result).unwrap();
         emit(
             &serde_json::json!({"pid":std::process::id(),"artifact":commitment_bytes(&raw),"work":work.identity,"source":tree_commitment(&source.files).unwrap(),"result":result}),
@@ -231,6 +243,12 @@ async fn coding_execution_process() {
         );
         let confirm: serde_json::Value = serde_json::from_str(&line(&mut input).unwrap()).unwrap();
         assert_eq!(confirm["submit"], true);
+        if config["expect_failure"] == true {
+            assert_eq!(report.report.terminal, VerificationTerminal::Failed);
+            assert!(client.submit(report).await.is_err());
+            emit(&json!({"failed":true,"pid":std::process::id()}));
+            return;
+        }
         let answer = client.submit(report.clone()).await.unwrap();
         let replay = client.submit(report).await.unwrap();
         assert_eq!(answer, replay);
@@ -239,14 +257,51 @@ async fn coding_execution_process() {
 }
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn coding_work_tls_two_worker_two_verifier_processes_r09_git() {
-    coding_work_end_to_end(false).await;
+    coding_work_end_to_end(false, None).await;
 }
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn fargate_verifier_tls_two_worker_two_execution_r09_git() {
-    coding_work_end_to_end(true).await;
+    coding_work_end_to_end(true, None).await;
 }
-async fn coding_work_end_to_end(fargate: bool) {
-    let f = if fargate {
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn coding_agents_openai_api_codex_cli_r09_git() {
+    coding_work_end_to_end(
+        false,
+        Some((
+            crate::controller_keys::worker_auth::https::agent::Adapter::OpenAiApi,
+            crate::controller_keys::worker_auth::https::agent::Adapter::CodexCli,
+        )),
+    )
+    .await;
+}
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn coding_agents_anthropic_api_claude_cli_r09_git() {
+    coding_work_end_to_end(
+        false,
+        Some((
+            crate::controller_keys::worker_auth::https::agent::Adapter::AnthropicApi,
+            crate::controller_keys::worker_auth::https::agent::Adapter::ClaudeCodeCli,
+        )),
+    )
+    .await;
+}
+async fn coding_work_end_to_end(
+    fargate: bool,
+    agents: Option<(
+        crate::controller_keys::worker_auth::https::agent::Adapter,
+        crate::controller_keys::worker_auth::https::agent::Adapter,
+    )>,
+) {
+    let f = if let Some((adapter, _)) = agents {
+        Fixture::new_coding_mode(
+            if adapter == crate::controller_keys::worker_auth::https::agent::Adapter::OpenAiApi {
+                "agents-openai"
+            } else {
+                "agents-anthropic"
+            },
+        )
+        .await
+    } else if fargate {
         Fixture::new_coding_fargate().await
     } else {
         Fixture::new_coding_execution().await
@@ -254,15 +309,19 @@ async fn coding_work_end_to_end(fargate: bool) {
     let leases = f.coding_admit().await;
     let before = f.store.financial_snapshot(&f.project).await.unwrap();
     let fingerprint = f.co.fingerprint().to_owned();
-    let co = f
+    let mut co = f
         .bootstrap
         .coding_coordinator(&f.project, &f.policy, Limits::default())
         .await
         .unwrap();
+    if agents.is_some() {
+        co.fixture_agent_enable(0);
+    }
     let net = CodingNetwork::new(
         &f.bootstrap,
         Arc::new(f.policy.fixture_reuse(synthetic::Authority {
             fargate,
+            coding_agents: agents.is_some(),
             ..Default::default()
         })),
         f.clock.clone(),
@@ -288,12 +347,12 @@ async fn coding_work_end_to_end(fargate: bool) {
     let b = net.bootstrap(&leases[1]).await;
     let mut pa = Process::new(
         "coding",
-        json!({"ca":net.ca,"url":url,"now":f.clock.now().unwrap(),"bootstrap":a}),
+        json!({"ca":net.ca,"url":url,"now":f.clock.now().unwrap(),"bootstrap":a,"agent_adapter":agents.map(|a|a.0)}),
     )
     .await;
     let mut pb = Process::new(
         "coding",
-        json!({"ca":net.ca,"url":url,"now":f.clock.now().unwrap(),"bootstrap":b}),
+        json!({"ca":net.ca,"url":url,"now":f.clock.now().unwrap(),"bootstrap":b,"agent_adapter":agents.map(|a|a.1)}),
     )
     .await;
     let (a, b) = tokio::join!(pa.recv(), pb.recv());
@@ -301,6 +360,18 @@ async fn coding_work_end_to_end(fargate: bool) {
     assert_ne!(a["artifact"], b["artifact"]);
     pa.finish().await;
     pb.finish().await;
+    if let Some((adapter, _)) = agents {
+        let expected =
+            if adapter == crate::controller_keys::worker_auth::https::agent::Adapter::OpenAiApi {
+                6
+            } else {
+                4
+            };
+        assert_eq!(f.count("coding_agent_calls").await, expected);
+        assert_eq!(f.count("coding_agent_observations").await, expected);
+        let accounts:Vec<String>=sqlx::query_scalar("SELECT DISTINCT account FROM provider_connections WHERE connection_id IN ('openai-api-a','codex-c','claude-a','claude-b')").fetch_all(&f.store.pool).await.unwrap();
+        assert_eq!(accounts.len(), 2);
+    }
     assert_eq!(f.count("task_acceptances").await, 0);
     assert!(f.remote.prepare_coding(&f.co, &leases[0]).await.is_err());
     let mut keys = Vec::new();
@@ -490,6 +561,7 @@ async fn coding_work_end_to_end(fargate: bool) {
     let snapshot = f.root.path().join("data/coding-execution-snapshot.sqlite");
     f.store.snapshot(&snapshot).await.unwrap();
     let mut protected_values = keys.clone();
+    protected_values.push(b"synthetic-model-protocol-only".to_vec());
     protected_values.extend(keys.iter().map(|k| {
         base64::engine::general_purpose::STANDARD
             .encode(k)

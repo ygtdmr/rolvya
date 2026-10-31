@@ -9,6 +9,7 @@
 //! ```
 pub mod execution;
 mod model;
+mod provider_execution;
 mod store;
 pub mod work;
 use super::*;
@@ -21,6 +22,8 @@ pub(crate) use store::{AcceptedCoding, stage_untrusted};
 use subtle::ConstantTimeEq;
 pub(crate) struct Authority {
     key: ControllerKey,
+    #[cfg(test)]
+    agent_maximum: Option<i64>,
     #[cfg(test)]
     runs: std::sync::Mutex<BTreeMap<String, VerificationReport>>,
     #[cfg(test)]
@@ -71,6 +74,8 @@ impl SyntheticCoordinator {
     pub(crate) fn attach_coding_key(&mut self, key: ControllerKey) {
         self.coding = Some(Authority {
             key,
+            #[cfg(test)]
+            agent_maximum: None,
             #[cfg(test)]
             runs: Default::default(),
             #[cfg(test)]

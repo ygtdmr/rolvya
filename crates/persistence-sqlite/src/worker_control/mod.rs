@@ -462,3 +462,19 @@ pub(crate) async fn has_stop(c: &mut SqliteConnection, l: &LeaseRef) -> Result<b
         Err(e) => Err(e),
     }
 }
+
+/// A model effect requires accepted lease execution, unlike pre-registration
+/// work/source inspection. Reuses the authoritative R08 session and fencing.
+pub(crate) async fn coding_provider_ready(
+    c: &mut SqliteConnection,
+    l: &LeaseRef,
+    now: i64,
+) -> Result<(), WorkerError> {
+    admission::live(c, l, now).await?;
+    let (cmd, state, _) = command(c, l).await?;
+    let s = session(c, l, &cmd).await?;
+    if state != DispatchState::Active || s.phase != SimulatedPhase::Executing {
+        return Err(WorkerError::Unauthorized);
+    }
+    financial_guard(c, &cmd).await
+}

@@ -469,7 +469,9 @@ impl VerifierHttpClient {
             .map_err(|_| ClientError::Protocol)
     }
 }
-fn hash_file(path: &std::path::Path) -> Result<rolvya_domain::worker::Digest, ClientError> {
+pub(super) fn hash_file(
+    path: &std::path::Path,
+) -> Result<rolvya_domain::worker::Digest, ClientError> {
     use sha2::Digest;
     use std::io::Read;
     let mut file = std::fs::File::open(path).map_err(|_| ClientError::Protocol)?;
@@ -630,7 +632,7 @@ fn verify_materialized_tree(
     Ok(())
 }
 
-async fn bounded_output(
+pub(super) async fn bounded_output(
     r: &mut (impl tokio::io::AsyncRead + Unpin),
     budget: &std::sync::atomic::AtomicUsize,
     max: usize,
@@ -687,7 +689,7 @@ impl VerifierHttpClient {
 // Best-effort bounded cleanup of ordinary descendants, including future
 // cancellation. Not a sandbox: a hostile setsid/host compromise still requires
 // provider-enforced task isolation and termination before production activation.
-struct CommandGroup(rustix::process::Pid);
+pub(super) struct CommandGroup(pub(super) rustix::process::Pid);
 impl Drop for CommandGroup {
     fn drop(&mut self) {
         let _ = rustix::process::kill_process_group(self.0, rustix::process::Signal::KILL);

@@ -844,3 +844,64 @@ pub(in crate::controller_keys) async fn fixture_record(
     )?;
     insert(c, &e).await
 }
+
+impl SecretBroker {
+    /// Trusted credential-proxy transport only. Never returns credential bytes.
+    /// Public construction still has unavailable production use authorities.
+    pub(in crate::controller_keys) async fn model_transport(
+        &self,
+        r: &SecretUseRequest,
+        adapter: crate::controller_keys::worker_auth::https::agent::Adapter,
+        work: &crate::orchestration::coding::work::CodingWork,
+    ) -> Result<crate::controller_keys::worker_auth::https::agent::api::ApiTransport, BrokerError>
+    {
+        use crate::controller_keys::worker_auth::https::agent::{Adapter, api::ApiTransport};
+        let provider = match adapter {
+            Adapter::OpenAiApi => "openai",
+            Adapter::AnthropicApi => "anthropic",
+            _ => return Err(BrokerError::Forbidden),
+        };
+        if r.operation != CredentialOperation::ProxyModelRequest
+            || r.scope.connection.mode != ProviderMode::ApiKey
+            || r.scope.connection.provider.as_str() != provider
+            || r.scope.purpose.as_str() != "model-api"
+        {
+            return Err(BrokerError::Forbidden);
+        }
+        let model = work.model_account.as_ref().ok_or(BrokerError::Forbidden)?;
+        if r.worker.as_ref().is_none_or(|w| w.binding != work.binding)
+            || r.scope.connection.project != work.binding.task.plan.project_id
+            || r.scope.connection.connection.as_str() != model.credential_connection
+            || r.scope.connection.account.as_str() != model.account
+            || r.scope.record.as_str() != model.credential_record
+            || r.scope.purpose.as_str() != model.credential_purpose
+            || r.version.get() != model.credential_version as u64
+        {
+            return Err(BrokerError::Forbidden);
+        }
+        let mut tx = self.store.pool.begin_with("BEGIN IMMEDIATE").await?;
+        self.use_authority(&mut tx, r, self.now()?).await?;
+        let envelope = load(&mut tx, &r.scope, r.version).await?;
+        let value = crypto::open(&self.key, &envelope)?;
+        let text = std::str::from_utf8(&value.0).map_err(|_| BrokerError::InvalidInput)?;
+        let transport = ApiTransport::scoped(adapter, Zeroizing::new(text.to_owned()), work)
+            .map_err(|_| BrokerError::InvalidInput)?;
+        self.use_authority(&mut tx, r, self.now()?).await?;
+        let admin = AdminRequest {
+            actor: PrincipalId::new("trusted-model-proxy")
+                .map_err(|_| BrokerError::InvalidInput)?,
+            request_id: r.request_id.clone(),
+        };
+        self.audit(
+            &mut tx,
+            &admin,
+            &r.scope.connection,
+            Some(&r.scope),
+            BrokerAction::Use,
+            "accepted",
+        )
+        .await?;
+        tx.commit().await?;
+        Ok(transport)
+    }
+}

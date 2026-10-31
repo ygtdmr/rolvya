@@ -7,6 +7,7 @@ pub mod wire;
 pub(in crate::controller_keys::worker_auth) mod context;
 pub use context::{Diagnostics, ResourceLimits};
 
+pub mod agent;
 mod coding;
 pub mod coding_worker;
 mod denial;

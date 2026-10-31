@@ -93,6 +93,13 @@ impl HttpsWorkerServer {
             Sha256::digest(serde_json::to_vec(op).map_err(|_| wire::ErrorCode::InvalidProtocol)?)
         );
         let answer = match op {
+            wire::Operation::CodingAgent { operation } => wire::Response::CodingAgent {
+                version: 1,
+                receipt: co
+                    .coding_agent_in(&mut tx, &e.lease(), operation, now)
+                    .await
+                    .map_err(error)?,
+            },
             wire::Operation::CodingWork {} => wire::Response::CodingWork {
                 version: 1,
                 work: Box::new(
@@ -115,28 +122,39 @@ impl HttpsWorkerServer {
             return Err(wire::ErrorCode::InvalidArtifact);
         }
         let response = format!("{:x}", Sha256::digest(&body));
-        let old=sqlx::query("SELECT digest,response_sha256 FROM coding_deliveries WHERE project_id=? AND attempt_id=? AND request_id=?").bind(e.scope.binding.task.plan.project_id.as_str()).bind(e.scope.binding.attempt_id.as_str()).bind(context.request_id.as_str()).fetch_optional(&mut *tx).await.map_err(|_|wire::ErrorCode::Unavailable)?;
-        if let Some(old) = old {
-            if old.get::<String, _>(0) != digest || old.get::<String, _>(1) != response {
-                return Err(wire::ErrorCode::ConflictingReplay);
+        if !matches!(op, wire::Operation::CodingAgent { .. }) {
+            let old=sqlx::query("SELECT digest,response_sha256 FROM coding_deliveries WHERE project_id=? AND attempt_id=? AND request_id=?").bind(e.scope.binding.task.plan.project_id.as_str()).bind(e.scope.binding.attempt_id.as_str()).bind(context.request_id.as_str()).fetch_optional(&mut *tx).await.map_err(|_|wire::ErrorCode::Unavailable)?;
+            if let Some(old) = old {
+                if old.get::<String, _>(0) != digest || old.get::<String, _>(1) != response {
+                    return Err(wire::ErrorCode::ConflictingReplay);
+                }
+            } else {
+                one(
+                    sqlx::query("INSERT INTO coding_deliveries VALUES(?,?,?,?,?,?)")
+                        .bind(e.scope.binding.task.plan.project_id.as_str())
+                        .bind(e.scope.binding.attempt_id.as_str())
+                        .bind(context.request_id.as_str())
+                        .bind(digest)
+                        .bind(response)
+                        .bind(now)
+                        .execute(&mut *tx)
+                        .await
+                        .map_err(|_| wire::ErrorCode::Unavailable)?
+                        .rows_affected(),
+                )
+                .map_err(auth_error)?;
             }
-        } else {
-            one(
-                sqlx::query("INSERT INTO coding_deliveries VALUES(?,?,?,?,?,?)")
-                    .bind(e.scope.binding.task.plan.project_id.as_str())
-                    .bind(e.scope.binding.attempt_id.as_str())
-                    .bind(context.request_id.as_str())
-                    .bind(digest)
-                    .bind(response)
-                    .bind(now)
-                    .execute(&mut *tx)
-                    .await
-                    .map_err(|_| wire::ErrorCode::Unavailable)?
-                    .rows_affected(),
-            )
-            .map_err(auth_error)?;
         }
-        co.coding_checkpoint("work-before")?;
+        let (before, after) = match op {
+            wire::Operation::CodingAgent {
+                operation: super::agent::AgentOperation::Start { .. },
+            } => ("provider-start-before", "provider-start-after"),
+            wire::Operation::CodingAgent {
+                operation: super::agent::AgentOperation::Finish { .. },
+            } => ("provider-observe-before", "provider-observe-after"),
+            _ => ("work-before", "work-after"),
+        };
+        co.coding_checkpoint(before)?;
         let end = self.security.now().map_err(auth_error)?;
         let fresh = self
             .security
@@ -176,7 +194,7 @@ impl HttpsWorkerServer {
         tx.commit()
             .await
             .map_err(|_| wire::ErrorCode::TransientStorage)?;
-        co.coding_checkpoint("work-after")?;
+        co.coding_checkpoint(after)?;
         Ok(answer)
     }
     async fn process_verifier(
