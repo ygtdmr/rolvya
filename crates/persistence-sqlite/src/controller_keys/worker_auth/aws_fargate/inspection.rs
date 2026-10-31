@@ -109,6 +109,23 @@ pub(super) fn correlate(
     definition: &TaskDefinition,
     now: i64,
 ) -> Result<InspectionAssessment, E> {
+    correlate_inner(expected, task, definition, now, false)
+}
+pub(super) fn correlate_verifier(
+    expected: &ExpectedExecution,
+    task: &Task,
+    definition: &TaskDefinition,
+    now: i64,
+) -> Result<InspectionAssessment, E> {
+    correlate_inner(expected, task, definition, now, true)
+}
+fn correlate_inner(
+    expected: &ExpectedExecution,
+    task: &Task,
+    definition: &TaskDefinition,
+    now: i64,
+    verifier: bool,
+) -> Result<InspectionAssessment, E> {
     expected.validate()?;
     let w = &expected.workload;
     // Status reconciliation may outlive worker authorization. The separately
@@ -174,7 +191,7 @@ pub(super) fn correlate(
         || runtime.cpu_architecture().map(|s| s.as_str()) != Some(w.architecture.as_str())
         || definition.pid_mode().is_some()
         || definition.ipc_mode().is_some()
-        || !definition.volumes().is_empty()
+        || (!verifier && !definition.volumes().is_empty())
     {
         return Err(E::IsolationMismatch);
     }
@@ -213,7 +230,7 @@ pub(super) fn correlate(
         || !c.entry_point().is_empty()
         || c.command() != w.command
         || !c.port_mappings().is_empty()
-        || !c.mount_points().is_empty()
+        || (!verifier && !c.mount_points().is_empty())
         || !c.volumes_from().is_empty()
         || !c.secrets().is_empty()
         || !c.environment().is_empty()
@@ -221,6 +238,9 @@ pub(super) fn correlate(
         || c.repository_credentials().is_some()
         || c.firelens_configuration().is_some()
     {
+        return Err(E::IsolationMismatch);
+    }
+    if verifier && !verifier_workspace(definition, c) {
         return Err(E::IsolationMismatch);
     }
     if let Some(linux) = c.linux_parameters()
@@ -280,4 +300,31 @@ fn assessment(
             ProductionGate::RealCloudValidation,
         ],
     }
+}
+
+/// Fargate-supported ephemeral bind volume only; no host/EFS/FSx, extra mounts
+/// or tmpfs assumptions. This validates configuration, not effective isolation.
+pub(super) fn verifier_workspace(
+    d: &TaskDefinition,
+    c: &aws_sdk_ecs::types::ContainerDefinition,
+) -> bool {
+    let volumes = d.volumes();
+    let mounts = c.mount_points();
+    volumes.len() == 1
+        && volumes[0].name() == Some("verifier-work")
+        && volumes[0].host().is_none()
+        && volumes[0].efs_volume_configuration().is_none()
+        && volumes[0]
+            .fsx_windows_file_server_volume_configuration()
+            .is_none()
+        && volumes[0].docker_volume_configuration().is_none()
+        && mounts.len() == 1
+        && mounts[0].source_volume() == Some("verifier-work")
+        && mounts[0].container_path() == Some("/workspace")
+        && mounts[0].read_only() != Some(true)
+        && c.linux_parameters().is_some_and(|p| {
+            p.init_process_enabled() == Some(true)
+                && p.capabilities()
+                    .is_some_and(|v| v.add().is_empty() && v.drop() == ["ALL"])
+        })
 }

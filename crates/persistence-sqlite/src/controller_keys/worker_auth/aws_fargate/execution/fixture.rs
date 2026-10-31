@@ -133,7 +133,9 @@ impl HttpConnector for Connector {
             if !target.ends_with("DescribeTaskDefinition") {
                 assert_eq!(b["cluster"], json!(e.workload.cluster));
             }
-            let task = json!({"taskArn":e.task,"clusterArn":e.workload.cluster,"taskDefinitionArn":e.workload.task_definition,"startedBy":e.started_by(),"launchType":"FARGATE","lastStatus":c.world.status.lock().unwrap().clone()});
+            let mut task = super::super::sdk::tests::task(e);
+            task["startedBy"] = json!(c.request.started_by());
+            task["lastStatus"] = json!(c.world.status.lock().unwrap().clone());
             let mode = c.world.behavior.load(Ordering::SeqCst);
             let body = match target {
                 "AmazonEC2ContainerServiceV20141113.DescribeTaskDefinition" => {
@@ -143,6 +145,20 @@ impl HttpConnector for Connector {
                         pause.1.notified().await;
                     }
                     let mut d = super::super::sdk::tests::definition(e);
+                    if c.request.verifier.is_some() {
+                        d["volumes"] = json!([{"name":"verifier-work"}]);
+                        d["containerDefinitions"][0]["mountPoints"] = json!([{"sourceVolume":"verifier-work","containerPath":"/workspace","readOnly":false}]);
+                        d["containerDefinitions"][0]["linuxParameters"] =
+                            json!({"initProcessEnabled":true,"capabilities":{"drop":["ALL"]}});
+                    }
+                    if mode == 9 {
+                        d["containerDefinitions"][0]["mountPoints"][0]["containerPath"] =
+                            json!("/etc");
+                    }
+                    if mode == 10 {
+                        d["containerDefinitions"][0]["image"] =
+                            json!("example.invalid/substituted:latest");
+                    }
                     if mode == 8 {
                         d["taskRoleArn"] = json!(e.workload.execution_role)
                     }
@@ -261,6 +277,8 @@ pub(in crate::controller_keys::worker_auth) fn kill_at(a: &mut FargateExecution,
         "stop-before" => Checkpoint::BeforeStop,
         "stop-after" => Checkpoint::AfterStop,
         "stop-effect-after" => Checkpoint::AfterStopEffect,
+        "grant-before" => Checkpoint::BeforeGrant,
+        "grant-after" => Checkpoint::AfterGrant,
         _ => panic!("unknown private fault"),
     };
     a.hook = Box::new(move |at| {

@@ -199,12 +199,29 @@ async fn coding_execution_process() {
         );
     } else if role == "verifier" {
         let exec = config["execution"].as_str().unwrap().to_owned();
-        let client = CodingNetwork::verifier(
-            url,
-            ca,
-            exec,
-            serde_json::from_value(config["pkcs"].clone()).unwrap(),
-        );
+        let client = if config.get("protected").is_some() {
+            let plan: crate::controller_keys::worker_auth::aws_fargate::ProtectedDelivery =
+                serde_json::from_value(config["delivery"].clone()).unwrap();
+            let credential=crate::controller_keys::worker_auth::aws_fargate::execution::verifier::VerifierCredential::fixture_parse(&plan,config["protected"].as_str().unwrap().as_bytes(),now).unwrap();
+            credential
+                .fixture_tls(
+                    crate::controller_keys::worker_auth::https::client::ControllerEndpoint::parse(
+                        url,
+                    )
+                    .unwrap(),
+                    crate::controller_keys::worker_auth::https::tls::fixture_client(
+                        rustls::pki_types::CertificateDer::from(ca),
+                    ),
+                )
+                .unwrap()
+        } else {
+            CodingNetwork::verifier(
+                url,
+                ca,
+                exec,
+                serde_json::from_value(config["pkcs"].clone()).unwrap(),
+            )
+        };
         let inputs = client.inputs(now).await.unwrap();
         let root = tempfile::tempdir().unwrap();
         let host = RemoteExecution::fixture(root.path().join("candidate"), &inputs, now);
@@ -222,7 +239,18 @@ async fn coding_execution_process() {
 }
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn coding_work_tls_two_worker_two_verifier_processes_r09_git() {
-    let f = Fixture::new_coding_execution().await;
+    coding_work_end_to_end(false).await;
+}
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn fargate_verifier_tls_two_worker_two_execution_r09_git() {
+    coding_work_end_to_end(true).await;
+}
+async fn coding_work_end_to_end(fargate: bool) {
+    let f = if fargate {
+        Fixture::new_coding_fargate().await
+    } else {
+        Fixture::new_coding_execution().await
+    };
     let leases = f.coding_admit().await;
     let before = f.store.financial_snapshot(&f.project).await.unwrap();
     let fingerprint = f.co.fingerprint().to_owned();
@@ -233,7 +261,10 @@ async fn coding_work_tls_two_worker_two_verifier_processes_r09_git() {
         .unwrap();
     let net = CodingNetwork::new(
         &f.bootstrap,
-        Arc::new(f.policy.fixture_reuse(synthetic::Authority::default())),
+        Arc::new(f.policy.fixture_reuse(synthetic::Authority {
+            fargate,
+            ..Default::default()
+        })),
         f.clock.clone(),
         co,
     )
@@ -273,23 +304,52 @@ async fn coding_work_tls_two_worker_two_verifier_processes_r09_git() {
     assert_eq!(f.count("task_acceptances").await, 0);
     assert!(f.remote.prepare_coding(&f.co, &leases[0]).await.is_err());
     let mut keys = Vec::new();
+    let mut configs = Vec::new();
+    let mut aws_executions = Vec::new();
     for (i, l) in leases.iter().enumerate() {
-        let key = pkcs();
-        let pair = Ed25519KeyPair::from_pkcs8(&key).unwrap();
-        f.co.fixture_verifier_execution(
-            l,
-            format!("private-offline-verifier-{i}"),
-            image(&f.contexts[&l.task.task_id].verification),
-            pair.public_key().as_ref().to_vec(),
-            &f.policy,
-            f.clock.now().unwrap(),
-        )
-        .await
-        .unwrap();
-        keys.push(key);
+        if fargate {
+            let mut execution = super::fargate::prepare(&f, l).await;
+            execution
+                .adapter
+                .launch_verifier(l, f.clock.as_ref())
+                .await
+                .unwrap();
+            execution.distribution(l).await;
+            execution.adapter.authorize_verifier(l).await.unwrap();
+            assert!(
+                execution
+                    .credential(l, f.clock.now().unwrap(), true)
+                    .await
+                    .is_err()
+            );
+            let (delivery, payload) = execution.task_payload(l, f.clock.now().unwrap()).await;
+            let value: serde_json::Value = serde_json::from_str(&payload).unwrap();
+            keys.push(
+                base64::engine::general_purpose::STANDARD
+                    .decode(value["pkcs8"].as_str().unwrap())
+                    .unwrap(),
+            );
+            configs.push(json!({"ca":net.ca,"url":url,"now":f.clock.now().unwrap(),"execution":format!("independent-{}",l.attempt_id.as_str()),"protected":payload.as_str(),"delivery":delivery}));
+            aws_executions.push(execution);
+        } else {
+            let key = pkcs();
+            let pair = Ed25519KeyPair::from_pkcs8(&key).unwrap();
+            f.co.fixture_verifier_execution(
+                l,
+                format!("private-offline-verifier-{i}"),
+                image(&f.contexts[&l.task.task_id].verification),
+                pair.public_key().as_ref().to_vec(),
+                &f.policy,
+                f.clock.now().unwrap(),
+            )
+            .await
+            .unwrap();
+            configs.push(json!({"ca":net.ca,"url":url,"now":f.clock.now().unwrap(),"execution":format!("independent-{}",l.attempt_id.as_str()),"pkcs":key}));
+            keys.push(key);
+        }
     }
-    let mut va=Process::new("verifier",json!({"ca":net.ca,"url":url,"now":f.clock.now().unwrap(),"execution":format!("independent-{}",leases[0].attempt_id.as_str()),"pkcs":keys[0]})).await;
-    let mut vb=Process::new("verifier",json!({"ca":net.ca,"url":url,"now":f.clock.now().unwrap(),"execution":format!("independent-{}",leases[1].attempt_id.as_str()),"pkcs":keys[1]})).await;
+    let mut va = Process::new("verifier", configs.remove(0)).await;
+    let mut vb = Process::new("verifier", configs.remove(0)).await;
     let (pending_a, pending_b) = tokio::join!(va.recv(), vb.recv());
     let completed = pending_a["completed_at"]
         .as_i64()
@@ -343,6 +403,9 @@ async fn coding_work_tls_two_worker_two_verifier_processes_r09_git() {
         .map(|f| (f.path, f.bytes))
         .collect::<BTreeMap<_, _>>();
         assert_eq!(published_files(&f, receipt).await, expected);
+    }
+    for execution in &aws_executions {
+        assert_eq!(execution.effects().await, 1);
     }
     assert_eq!(f.co.fingerprint(), fingerprint);
     let after = f.store.financial_snapshot(&f.project).await.unwrap();
@@ -476,6 +539,8 @@ pub(crate) fn fixture_command(task: &str) -> Vec<String> {
         let harness=r#"
 fn main(){
  let task=std::env::args().nth(1).unwrap();
+ if task=="fixture-descendant" {std::fs::write("descendant.pid",std::process::id().to_string()).unwrap();std::thread::sleep(std::time::Duration::from_secs(30));return;}
+
  if task=="task-a" {
   assert_eq!(std::fs::read("src/alpha.rs").unwrap(),b"pub fn alpha()->u8{11}\r\n");
   assert_eq!(std::fs::read("src/added.rs").unwrap(),b"pub const ADDED:u8=4;\n");
@@ -487,6 +552,7 @@ fn main(){
  let mode=std::env::args().nth(2).unwrap_or_default();
  if mode=="environment" {assert!(std::env::vars().next().is_none());}
  if mode=="extra" {std::fs::write("src/unauthorized.rs",b"unexpected").unwrap();}
+ if mode=="timeout-child" { let _child=std::process::Command::new(std::env::current_exe().unwrap()).arg("fixture-descendant").stdout(std::process::Stdio::null()).stderr(std::process::Stdio::null()).spawn().unwrap(); std::thread::sleep(std::time::Duration::from_secs(30)); }
  if mode=="timeout" {std::thread::sleep(std::time::Duration::from_secs(10));}
  if mode=="output" {print!("{}","x".repeat(65536));}
  if mode=="crash" {std::process::exit(22);}
@@ -1029,7 +1095,7 @@ async fn coding_recovery_hold_blocks_restored_verifier_and_source_without_releas
     );
 }
 
-async fn network(
+pub(super) async fn network(
     f: &Fixture,
     co: SyntheticCoordinator,
 ) -> (
@@ -1472,4 +1538,43 @@ async fn coding_authenticated_failed_verifier_report_records_only_redacted_rejec
     assert_eq!(reason, "invalid");
     stop.send(()).unwrap();
     task.await.unwrap();
+}
+
+#[tokio::test]
+async fn fargate_verifier_timeout_terminates_ordinary_descendant_group() {
+    let (f, _, inputs, client) = ready_inputs_mode("timeout-child").await;
+    let dir = tempfile::tempdir().unwrap();
+    let root = dir.path().join("candidate");
+    assert!(
+        client
+            .execute(
+                &inputs,
+                RemoteExecution::fixture(root.clone(), &inputs, f.clock.now().unwrap())
+            )
+            .await
+            .is_err()
+    );
+    let pid: u32 = std::fs::read_to_string(root.join("descendant.pid"))
+        .unwrap()
+        .parse()
+        .unwrap();
+    let mut active = true;
+    for _ in 0..100 {
+        active = std::fs::read_to_string(format!("/proc/{pid}/stat"))
+            .is_ok_and(|s| s.split_once(") ").is_some_and(|(_, v)| !v.starts_with('Z')));
+        if !active {
+            break;
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(5)).await;
+    }
+    if active {
+        let _ = rustix::process::kill_process(
+            rustix::process::Pid::from_raw(pid as i32).unwrap(),
+            rustix::process::Signal::KILL,
+        );
+    }
+    assert!(
+        !active,
+        "a timed-out verifier command left an ordinary descendant executing"
+    );
 }

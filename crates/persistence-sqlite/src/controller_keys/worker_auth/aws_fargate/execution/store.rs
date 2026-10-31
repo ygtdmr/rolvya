@@ -5,7 +5,7 @@ impl FargateExecution {
         c: &mut SqliteConnection,
         l: &LeaseRef,
     ) -> Result<Option<LaunchRequest>, E> {
-        let row=sqlx::query("SELECT record,record_mac,request_digest FROM aws_launch_requests WHERE project_id=? AND attempt_id=?").bind(l.task.plan.project_id.as_str()).bind(l.attempt_id.as_str()).fetch_optional(c).await?;
+        let row=sqlx::query("SELECT record,record_mac,request_digest FROM aws_launch_requests WHERE project_id=? AND attempt_id=? AND purpose=?").bind(l.task.plan.project_id.as_str()).bind(l.attempt_id.as_str()).bind(self.purpose).fetch_optional(c).await?;
         let Some(row) = row else { return Ok(None) };
         let text: &str = row.try_get("record")?;
         if text.len() > 32768
@@ -41,7 +41,7 @@ impl FargateExecution {
         c: &mut SqliteConnection,
         r: &LaunchRequest,
     ) -> Result<ExecutionStatus, E> {
-        let row=sqlx::query("SELECT revision,kind,recorded_at,record,record_mac FROM aws_execution_events WHERE project_id=? AND attempt_id=? ORDER BY revision DESC LIMIT 1").bind(r.binding.task.plan.project_id.as_str()).bind(r.binding.attempt_id.as_str()).fetch_one(c).await?;
+        let row=sqlx::query("SELECT revision,kind,recorded_at,record,record_mac FROM aws_execution_events WHERE project_id=? AND attempt_id=? AND purpose=? ORDER BY revision DESC LIMIT 1").bind(r.binding.task.plan.project_id.as_str()).bind(r.binding.attempt_id.as_str()).bind(self.purpose).fetch_one(c).await?;
         parse_event(&self.identity.guard.key, r, &row)
     }
     #[expect(
@@ -60,7 +60,7 @@ impl FargateExecution {
         cleanup: bool,
         now: i64,
     ) -> Result<ExecutionStatus, E> {
-        let revision:i64=sqlx::query_scalar("SELECT coalesce(max(revision),0)+1 FROM aws_execution_events WHERE project_id=? AND attempt_id=?").bind(r.binding.task.plan.project_id.as_str()).bind(r.binding.attempt_id.as_str()).fetch_one(&mut *c).await?;
+        let revision:i64=sqlx::query_scalar("SELECT coalesce(max(revision),0)+1 FROM aws_execution_events WHERE project_id=? AND attempt_id=? AND purpose=?").bind(r.binding.task.plan.project_id.as_str()).bind(r.binding.attempt_id.as_str()).bind(self.purpose).fetch_one(&mut *c).await?;
         let s = ExecutionStatus {
             revision: revision as u64,
             kind: kind.into(),
@@ -79,9 +79,10 @@ impl FargateExecution {
             &[h.as_bytes(), text.as_bytes()],
         );
         one(
-            sqlx::query("INSERT INTO aws_execution_events VALUES(?,?,?,?,?,?,?)")
+            sqlx::query("INSERT INTO aws_execution_events VALUES(?,?,?,?,?,?,?,?)")
                 .bind(r.binding.task.plan.project_id.as_str())
                 .bind(r.binding.attempt_id.as_str())
+                .bind(self.purpose)
                 .bind(revision)
                 .bind(kind)
                 .bind(now)
@@ -128,8 +129,12 @@ impl FargateExecution {
                 ProviderState::Unknown
             },
             unknown_exposure: s.unknown_exposure,
-            evidence: EvidenceRef::new(format!("aws-{}-{}", s.kind, s.revision))
-                .map_err(|_| E::Integrity)?,
+            evidence: EvidenceRef::new(if self.purpose == "coding" {
+                format!("aws-{}-{}", s.kind, s.revision)
+            } else {
+                format!("aws-verifier-{}-{}", s.kind, s.revision)
+            })
+            .map_err(|_| E::Integrity)?,
             revision: s.revision,
         })
     }
@@ -137,6 +142,9 @@ impl FargateExecution {
     /// provider effect. This does not grant worker authority: C still independently
     /// inspects Running/configuration and verifies secret possession on real TLS.
     pub async fn bind_receipt(&self, l: &LeaseRef) -> Result<ExpectedExecution, E> {
+        if self.purpose != "coding" {
+            return Err(E::ScopeMismatch);
+        }
         let mut tx = self.identity.guard.store.pool.begin().await?;
         let r = self.load(&mut tx, l).await?;
         let s = self.latest(&mut tx, &r).await?;
@@ -157,7 +165,7 @@ impl FargateExecution {
         Ok(e)
     }
 }
-fn parse_event(
+pub(super) fn parse_event(
     k: &crate::controller_keys::ControllerKey,
     r: &LaunchRequest,
     row: &sqlx::sqlite::SqliteRow,
@@ -192,10 +200,11 @@ pub(in crate::controller_keys::worker_auth::aws_fargate) async fn verify_receipt
     let p = e.binding.task.plan.project_id.as_str();
     let a = e.binding.attempt_id.as_str();
     let row = sqlx::query(
-        "SELECT record,record_mac FROM aws_launch_requests WHERE project_id=? AND attempt_id=?",
+        "SELECT record,record_mac FROM aws_launch_requests WHERE project_id=? AND attempt_id=? AND purpose=?",
     )
     .bind(p)
     .bind(a)
+    .bind("coding")
     .fetch_optional(&mut *c)
     .await?
     .ok_or(E::UnverifiedControllerAuthority)?;
@@ -212,7 +221,7 @@ pub(in crate::controller_keys::worker_auth::aws_fargate) async fn verify_receipt
     if r.expected(e.task.clone())? != *e || registration.receipt_reference.as_str() != r.digest()? {
         return Err(E::ScopeMismatch);
     }
-    let row=sqlx::query("SELECT revision,kind,recorded_at,record,record_mac FROM aws_execution_events WHERE project_id=? AND attempt_id=? AND kind='receipt' ORDER BY revision DESC LIMIT 1").bind(p).bind(a).fetch_optional(c).await?.ok_or(E::UnverifiedControllerAuthority)?;
+    let row=sqlx::query("SELECT revision,kind,recorded_at,record,record_mac FROM aws_execution_events WHERE project_id=? AND attempt_id=? AND purpose=? AND kind='receipt' ORDER BY revision DESC LIMIT 1").bind(p).bind(a).bind("coding").fetch_optional(c).await?.ok_or(E::UnverifiedControllerAuthority)?;
     let s = parse_event(k, &r, &row)?;
     if s.task.as_ref() != Some(&e.task) || s.unknown_exposure {
         return Err(E::UnknownExecution);
@@ -224,6 +233,9 @@ impl LaunchAdapter for FargateExecution {
         &self,
         cmd: &LaunchCommand,
     ) -> Result<ProviderObservation, crate::worker_simulation::WorkerError> {
+        if self.purpose != "coding" {
+            return Err(crate::worker_simulation::WorkerError::Unauthorized);
+        }
         let mut tx = self.identity.guard.store.pool.begin().await?;
         let r = self
             .load_optional(&mut tx, &cmd.lease())
@@ -260,7 +272,16 @@ impl FargateExecution {
         auth: &LaunchAuthorization,
         clock: &impl Clock,
     ) -> Result<LaunchResult, E> {
-        let cmd = auth.command();
+        if self.purpose != "coding" {
+            return Err(E::ScopeMismatch);
+        }
+        self.submit(auth.command(), clock).await
+    }
+    pub(super) async fn submit(
+        &self,
+        cmd: &LaunchCommand,
+        clock: &impl Clock,
+    ) -> Result<LaunchResult, E> {
         let l = cmd.lease();
         let mut tx = self
             .identity
@@ -280,7 +301,9 @@ impl FargateExecution {
         let (_, state, _) = worker_control::command(&mut tx, &l)
             .await
             .map_err(worker_error)?;
-        if state != worker_control::DispatchState::Launching {
+        if (self.purpose == "coding" && state != worker_control::DispatchState::Launching)
+            || (self.purpose == "verifier" && state != worker_control::DispatchState::Active)
+        {
             return Err(E::Conflict);
         }
         self.event(
@@ -379,9 +402,10 @@ impl FargateExecution {
                 &[r.digest()?.as_bytes(), text.as_bytes()],
             );
             one(
-                sqlx::query("INSERT INTO aws_sdk_receipts VALUES(?,?,?,?,?)")
+                sqlx::query("INSERT INTO aws_sdk_receipts VALUES(?,?,?,?,?,?)")
                     .bind(r.binding.task.plan.project_id.as_str())
                     .bind(r.binding.attempt_id.as_str())
+                    .bind(self.purpose)
                     .bind(s.revision as i64)
                     .bind(text)
                     .bind(mac.as_slice())
@@ -430,7 +454,7 @@ impl ExecutionAdapter for FargateExecution {
         if old.revision != expected_revision {
             return Err(E::Conflict);
         }
-        let stops:i64=sqlx::query_scalar("SELECT count(*) FROM aws_execution_events WHERE project_id=? AND attempt_id=? AND kind='stop_requested'").bind(l.task.plan.project_id.as_str()).bind(l.attempt_id.as_str()).fetch_one(&mut *tx).await?;
+        let stops:i64=sqlx::query_scalar("SELECT count(*) FROM aws_execution_events WHERE project_id=? AND attempt_id=? AND purpose=? AND kind='stop_requested'").bind(l.task.plan.project_id.as_str()).bind(l.attempt_id.as_str()).bind(self.purpose).fetch_one(&mut *tx).await?;
         if stops >= 3 {
             return Err(E::ResourceLimit);
         }

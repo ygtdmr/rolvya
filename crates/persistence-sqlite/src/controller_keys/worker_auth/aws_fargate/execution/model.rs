@@ -18,6 +18,8 @@ pub struct BootstrapAllocation {
 #[serde(deny_unknown_fields)]
 pub struct LaunchRequest {
     pub format: u16,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub verifier: Option<super::verifier::VerifierLaunch>,
     pub installation: String,
     pub account_ref: EvidenceRef,
     pub account_version: u64,
@@ -35,6 +37,27 @@ pub struct LaunchRequest {
     pub authorization_until: i64,
 }
 impl LaunchRequest {
+    pub fn purpose(&self) -> &'static str {
+        if self.verifier.is_some() {
+            "verifier"
+        } else {
+            "coding"
+        }
+    }
+    pub(super) fn expected_token(&self) -> Result<String, E> {
+        let base = operation_token(
+            &self.installation,
+            &self.account_ref,
+            self.account_version,
+            &self.binding,
+            &self.command_digest,
+            &self.workload,
+        )?;
+        match &self.verifier {
+            Some(v) => digest(&("rolvya/aws-independent-verifier/v1", base, v)),
+            None => Ok(base),
+        }
+    }
     pub fn digest(&self) -> Result<String, E> {
         digest(self)
     }
@@ -81,19 +104,15 @@ impl LaunchRequest {
             || s.account() != w.cluster.account()
             || s.partition() != w.cluster.partition()
             || s.region() != w.cluster.region()
-            || self.client_token
-                != operation_token(
-                    &self.installation,
-                    &self.account_ref,
-                    self.account_version,
-                    &self.binding,
-                    &self.command_digest,
-                    w,
-                )?
+            || self.client_token != self.expected_token()?
         {
             return Err(E::ScopeMismatch);
         }
-        let actual = self.exposure.upper_bound(w, now)?;
+        let mut actual = self.exposure.upper_bound(w, now)?;
+        if let Some(v) = &self.verifier {
+            v.validate(self, now)?;
+            actual = super::verifier::combined(actual, v.coding_maximum)?;
+        }
         self.maximum.validate().map_err(|_| E::FinancialRisk)?;
         for (a, m) in [
             actual.ai_api,

@@ -49,7 +49,7 @@ async fn migrations_replay_reopen_and_consistent_snapshot_restore() {
             .fetch_one(&raw)
             .await
             .unwrap(),
-        18
+        19
     );
     assert_eq!(
         sqlx::query_scalar::<_, String>("SELECT sqlite_version()")
@@ -123,8 +123,8 @@ async fn failed_migration_rolls_back_ddl_and_data() {
     let f = Fixture::new().await;
     let raw = f.raw().await;
     let scripts = tempfile::tempdir().unwrap();
-    std::fs::write(scripts.path().join("0019_injected_failure.sql"),"CREATE TABLE should_rollback(value TEXT); INSERT INTO should_rollback VALUES ('temporary'); SELECT absent_column FROM absent_table;").unwrap();
-    // Replay real migrations, then verify failing v19 executes and rolls back atomically.
+    std::fs::write(scripts.path().join("0020_injected_failure.sql"),"CREATE TABLE should_rollback(value TEXT); INSERT INTO should_rollback VALUES ('temporary'); SELECT absent_column FROM absent_table;").unwrap();
+    // Replay real migrations, then verify failing v20 executes and rolls back atomically.
     std::fs::write(
         scripts.path().join("0001_plan_store.sql"),
         include_str!("../migrations/0001_plan_store.sql"),
@@ -217,10 +217,15 @@ async fn failed_migration_rolls_back_ddl_and_data() {
         include_str!("../migrations/0018_coding_execution.sql"),
     )
     .unwrap();
+    std::fs::write(
+        scripts.path().join("0019_fargate_verifier.sql"),
+        include_str!("../migrations/0019_fargate_verifier.sql"),
+    )
+    .unwrap();
     let migrator = Migrator::new(scripts.path()).await.unwrap();
     let error = migrator.run(&raw).await.unwrap_err();
     assert!(
-        matches!(error, sqlx::migrate::MigrateError::ExecuteMigration(_, 19)),
+        matches!(error, sqlx::migrate::MigrateError::ExecuteMigration(_, 20)),
         "must execute the injected next migration, not reject migration metadata"
     );
     assert_eq!(
@@ -387,7 +392,7 @@ async fn real_v1_upgrade_preserves_projects_and_failed_v2_leaves_v1_intact() {
                 .fetch_one(&raw)
                 .await
                 .unwrap(),
-            18
+            19
         );
         assert_eq!(
             sqlx::query_scalar::<_, i64>("SELECT count(*) FROM financial_events")
@@ -1579,6 +1584,208 @@ async fn v17_data_survives_v18_execution_upgrade_and_injected_failure_rolls_back
                 .unwrap(),
             18
         );
+        assert!(
+            sqlx::query("PRAGMA foreign_key_check")
+                .fetch_all(&raw)
+                .await
+                .unwrap()
+                .is_empty()
+        );
+        raw.close().await;
+    }
+}
+
+#[tokio::test]
+async fn verifier_and_coding_share_the_execution_journal_with_separate_purpose_keys() {
+    let f = Fixture::new().await;
+    let raw = f.raw().await;
+    let columns: Vec<String> =
+        sqlx::query_scalar("SELECT name FROM pragma_table_info('aws_launch_requests')")
+            .fetch_all(&raw)
+            .await
+            .unwrap();
+    assert!(
+        columns.iter().any(|v| v == "purpose"),
+        "independent verifier must not overwrite coding execution"
+    );
+    for table in ["aws_execution_events", "aws_sdk_receipts"] {
+        let names: Vec<String> =
+            sqlx::query_scalar(&format!("SELECT name FROM pragma_table_info('{table}')"))
+                .fetch_all(&raw)
+                .await
+                .unwrap();
+        assert!(names.iter().any(|v| v == "purpose"));
+    }
+    f.store.check_integrity().await.unwrap();
+}
+
+#[tokio::test]
+async fn v18_data_survives_v19_fargate_verifier_upgrade_and_injected_failure_rolls_back() {
+    for fail in [false, true] {
+        let dir = tempfile::tempdir().unwrap();
+        let scripts = tempfile::tempdir().unwrap();
+        for entry in std::fs::read_dir(concat!(env!("CARGO_MANIFEST_DIR"), "/migrations")).unwrap()
+        {
+            let e = entry.unwrap();
+            if e.file_name().to_str().unwrap() < "0019" {
+                std::fs::copy(e.path(), scripts.path().join(e.file_name())).unwrap();
+            }
+        }
+        let raw = sqlx::SqlitePool::connect(&format!(
+            "sqlite:{}?mode=rwc",
+            dir.path().join("upgrade.sqlite").display()
+        ))
+        .await
+        .unwrap();
+        sqlx::query("PRAGMA foreign_keys=ON")
+            .execute(&raw)
+            .await
+            .unwrap();
+        Migrator::new(scripts.path())
+            .await
+            .unwrap()
+            .run(&raw)
+            .await
+            .unwrap();
+        sqlx::query("INSERT INTO projects(project_id,owner_actor) VALUES('execution-upgrade','legacy-not-a-human')").execute(&raw).await.unwrap();
+        let sql = include_str!("../migrations/0019_fargate_verifier.sql");
+        let path = scripts.path().join("0019_fargate_verifier.sql");
+        std::fs::write(
+            &path,
+            if fail {
+                format!("{sql}\nSELECT missing FROM absent;")
+            } else {
+                sql.into()
+            },
+        )
+        .unwrap();
+        let result = Migrator::new(scripts.path()).await.unwrap().run(&raw).await;
+        if fail {
+            assert!(matches!(
+                result.unwrap_err(),
+                sqlx::migrate::MigrateError::ExecuteMigration(_, 19)
+            ));
+            assert_eq!(
+                sqlx::query_scalar::<_, i64>(
+                    "SELECT count(*) FROM sqlite_schema WHERE name='aws_verifier_bootstrap'"
+                )
+                .fetch_one(&raw)
+                .await
+                .unwrap(),
+                0
+            );
+            std::fs::write(&path, sql).unwrap();
+            Migrator::new(scripts.path())
+                .await
+                .unwrap()
+                .run(&raw)
+                .await
+                .unwrap();
+        } else {
+            result.unwrap();
+        }
+        assert_eq!(
+            sqlx::query_scalar::<_, String>(
+                "SELECT owner_actor FROM projects WHERE project_id='execution-upgrade'"
+            )
+            .fetch_one(&raw)
+            .await
+            .unwrap(),
+            "legacy-not-a-human"
+        );
+        assert_eq!(
+            sqlx::query_scalar::<_, i64>("SELECT count(*) FROM _sqlx_migrations")
+                .fetch_one(&raw)
+                .await
+                .unwrap(),
+            19
+        );
+        assert!(
+            sqlx::query("PRAGMA foreign_key_check")
+                .fetch_all(&raw)
+                .await
+                .unwrap()
+                .is_empty()
+        );
+        raw.close().await;
+    }
+}
+
+#[tokio::test]
+async fn aws_journal_purpose_upgrade_preserves_exact_legacy_records_and_macs_on_rollback() {
+    for fail in [false, true] {
+        let raw = sqlx::sqlite::SqlitePoolOptions::new()
+            .max_connections(1)
+            .connect("sqlite::memory:")
+            .await
+            .unwrap();
+        sqlx::raw_sql("PRAGMA foreign_keys=ON; CREATE TABLE dispatch_operations(project_id TEXT,attempt_id TEXT,PRIMARY KEY(project_id,attempt_id));CREATE TABLE aws_infrastructure_account_versions(project_id TEXT,account_ref TEXT,version INTEGER,PRIMARY KEY(project_id,account_ref,version));CREATE TABLE aws_attempt_roles(project_id TEXT,attempt_id TEXT,task_role TEXT,secret_arn TEXT);INSERT INTO dispatch_operations VALUES('p','a');INSERT INTO aws_infrastructure_account_versions VALUES('p','infra',1);").execute(&raw).await.unwrap();
+        sqlx::raw_sql(include_str!(
+            "../migrations/0015_aws_execution_lifecycle.sql"
+        ))
+        .execute(&raw)
+        .await
+        .unwrap();
+        let request=serde_json::json!({"binding":{"task":{"plan":{"project_id":"p"}},"attempt_id":"a"},"account_ref":"infra","account_version":1,"client_token":"1".repeat(64),"workload":{"task_role":"isolated-role"},"bootstrap":{"secret":"isolated-resource"}}).to_string();
+        let event = "{\"kind\":\"receipt\",\"revision\":1}";
+        let receipt = "{\"task\":\"synthetic-external-execution\"}";
+        let mac: Vec<u8> = (0u8..32).collect();
+        sqlx::query("INSERT INTO aws_launch_requests VALUES('p','a','infra',1,?,?,?,?,'isolated-role','isolated-resource',1)").bind("1".repeat(64)).bind("2".repeat(64)).bind(&request).bind(&mac).execute(&raw).await.unwrap();
+        sqlx::query("INSERT INTO aws_execution_events VALUES('p','a',1,'receipt',1,?,?)")
+            .bind(event)
+            .bind(&mac)
+            .execute(&raw)
+            .await
+            .unwrap();
+        sqlx::query("INSERT INTO aws_sdk_receipts VALUES('p','a',1,?,?)")
+            .bind(receipt)
+            .bind(&mac)
+            .execute(&raw)
+            .await
+            .unwrap();
+        let sql = include_str!("../migrations/0019_fargate_verifier.sql");
+        if fail {
+            let mut tx = raw.begin().await.unwrap();
+            sqlx::raw_sql(sql).execute(&mut *tx).await.unwrap();
+            assert!(
+                sqlx::query("SELECT absent FROM missing")
+                    .execute(&mut *tx)
+                    .await
+                    .is_err()
+            );
+            tx.rollback().await.unwrap();
+            assert_eq!(sqlx::query_scalar::<_,i64>("SELECT count(*) FROM pragma_table_info('aws_launch_requests') WHERE name='purpose'").fetch_one(&raw).await.unwrap(),0);
+            assert_eq!(
+                sqlx::query_scalar::<_, String>("SELECT record FROM aws_launch_requests")
+                    .fetch_one(&raw)
+                    .await
+                    .unwrap(),
+                request
+            );
+        }
+        let mut tx = raw.begin().await.unwrap();
+        sqlx::raw_sql(sql).execute(&mut *tx).await.unwrap();
+        tx.commit().await.unwrap();
+        for (table, text) in [
+            ("aws_launch_requests", request.as_str()),
+            ("aws_execution_events", event),
+            ("aws_sdk_receipts", receipt),
+        ] {
+            let row = sqlx::query(&format!("SELECT record,record_mac,purpose FROM {table}"))
+                .fetch_one(&raw)
+                .await
+                .unwrap();
+            use sqlx::Row;
+            assert_eq!(row.get::<String, _>(0), text);
+            assert_eq!(row.get::<Vec<u8>, _>(1), mac);
+            assert_eq!(row.get::<String, _>(2), "coding");
+            assert!(
+                sqlx::query(&format!("DELETE FROM {table}"))
+                    .execute(&raw)
+                    .await
+                    .is_err()
+            );
+        }
         assert!(
             sqlx::query("PRAGMA foreign_key_check")
                 .fetch_all(&raw)

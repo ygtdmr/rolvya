@@ -37,6 +37,7 @@ pub fn caps() -> DeclaredCapabilities {
 pub struct Authority {
     pub behaviors: BTreeMap<TaskId, FakeBehavior>,
     pub revoked: bool,
+    pub fargate: bool,
 }
 impl AssignmentPolicy for Authority {
     fn check(&self, a: &ExecutionAssignment) -> Result<(), AssignmentDenial> {
@@ -50,7 +51,13 @@ impl SchedulerPolicy for Authority {
         }
         match a {
             SchedulerAction::Admit { request, .. } => {
-                request.actor == *owner && request.permit.provider.as_str() == "synthetic"
+                request.actor == *owner
+                    && request.permit.provider.as_str()
+                        == if self.fargate {
+                            "aws-ecs-fargate"
+                        } else {
+                            "synthetic"
+                        }
             }
             SchedulerAction::Dispatch { request, .. } => request.actor == *owner,
             SchedulerAction::Validate { request, .. } => {
@@ -95,8 +102,16 @@ impl SyntheticExecutionAuthority for Authority {
         Ok(SyntheticAssignment {
             permit: ExecutionPermit {
                 id: e(&format!("cap-{}-{ordinal}", t.id.as_str())),
-                provider: e("synthetic"),
-                account: e("synthetic-account"),
+                provider: e(if self.fargate {
+                    "aws-ecs-fargate"
+                } else {
+                    "synthetic"
+                }),
+                account: e(if self.fargate && t.id.as_str() == "task-b" {
+                    "synthetic-account-b"
+                } else {
+                    "synthetic-account"
+                }),
                 pool: e("synthetic-pool"),
                 executor: PrincipalId::new("synthetic-worker").unwrap(),
                 maximum: costs(),

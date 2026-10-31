@@ -46,6 +46,19 @@ impl World {
         );
         client.fetch(now).await
     }
+    pub(in crate::controller_keys::worker_auth) async fn verifier_as_role(
+        &self,
+        role: &RoleArn,
+        p: &ProtectedDelivery,
+        now: i64,
+    ) -> Result<zeroize::Zeroizing<String>, AwsIdentityError> {
+        let sdk = super::super::secrets_sdk::SecretSdk::fixture(
+            p,
+            super::super::sdk::tests::credentials(),
+            self.http(p, Some(role.clone())),
+        );
+        sdk.fetch_payload(now).await
+    }
     fn http(
         &self,
         p: &ProtectedDelivery,
@@ -64,6 +77,27 @@ impl World {
     }
 }
 impl RestrictedDistribution for World {
+    fn publish_verifier<'a>(
+        &'a self,
+        p: &'a ProtectedDelivery,
+        body: zeroize::Zeroizing<String>,
+    ) -> AwsFuture<'a, ()> {
+        Box::pin(async move {
+            self.verify(p, p.execution.authorized_at).await?;
+            let sdk = super::super::secrets_sdk::SecretSdk::fixture(
+                p,
+                super::super::sdk::tests::credentials(),
+                self.http(p, None),
+            );
+            self.publication_calls.fetch_add(1, Ordering::SeqCst);
+            sdk.publish_payload(body, std::slice::from_ref(&p.version_id))
+                .await?;
+            if self.lost_ack.load(Ordering::SeqCst) {
+                return Err(AwsIdentityError::Transient);
+            }
+            Ok(())
+        })
+    }
     fn current(&self, p: &ProtectedDelivery, _: i64) -> Result<(), AwsIdentityError> {
         if self.revoked.load(Ordering::SeqCst) {
             return Err(AwsIdentityError::Revoked);
@@ -210,7 +244,10 @@ impl aws_smithy_runtime_api::client::http::HttpConnector for SecretConnector {
                     let mut v = c.world.values.lock().unwrap();
                     let value = b["SecretString"].as_str().unwrap().as_bytes();
                     if let Some(old) = v.get(&c.plan.version_id) {
-                        assert_eq!(old.as_slice(), value);
+                        assert!(
+                            old.as_slice() == value,
+                            "protected value replay changed payload"
+                        );
                     } else {
                         v.insert(
                             c.plan.version_id.clone(),

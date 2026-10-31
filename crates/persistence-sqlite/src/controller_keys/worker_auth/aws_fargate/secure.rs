@@ -21,7 +21,7 @@ enum ProofOrigin {
 }
 #[derive(Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
-struct DeliveryVerification {
+pub(super) struct DeliveryVerification {
     format: u16,
     origin: ProofOrigin,
     revision: EvidenceRef,
@@ -31,7 +31,7 @@ struct DeliveryVerification {
 }
 /// Sealed independent effective-IAM/role-exclusivity gate. A generated policy,
 /// Owner consent, STS response or copied ARN cannot construct production success.
-trait RestrictedDistribution: Send + Sync {
+pub(super) trait RestrictedDistribution: Send + Sync {
     fn verify<'a>(
         &'a self,
         plan: &'a ProtectedDelivery,
@@ -43,9 +43,16 @@ trait RestrictedDistribution: Send + Sync {
         material: &'a DeliveredPossession,
     ) -> AwsFuture<'a, ()>;
     fn current(&self, plan: &ProtectedDelivery, now: i64) -> Result<(), AwsIdentityError>;
+    fn publish_verifier<'a>(
+        &'a self,
+        _p: &'a ProtectedDelivery,
+        _body: zeroize::Zeroizing<String>,
+    ) -> AwsFuture<'a, ()> {
+        Box::pin(async { Err(AwsIdentityError::SecureDeliveryUnverified) })
+    }
 }
-struct UnavailableDistribution {
-    identity: Arc<FargateIdentity>,
+pub(super) struct UnavailableDistribution {
+    pub(super) identity: Arc<FargateIdentity>,
 }
 impl RestrictedDistribution for UnavailableDistribution {
     fn current(&self, _: &ProtectedDelivery, _: i64) -> Result<(), AwsIdentityError> {
@@ -57,6 +64,45 @@ impl RestrictedDistribution for UnavailableDistribution {
         _: i64,
     ) -> AwsFuture<'a, DeliveryVerification> {
         Box::pin(async { Err(AwsIdentityError::SecureDeliveryUnverified) })
+    }
+    fn publish_verifier<'a>(
+        &'a self,
+        p: &'a ProtectedDelivery,
+        body: zeroize::Zeroizing<String>,
+    ) -> AwsFuture<'a, ()> {
+        Box::pin(async move {
+            self.current(p, self.identity.now()?)?;
+            let mut tx = self
+                .identity
+                .guard
+                .store
+                .pool
+                .begin_with("BEGIN IMMEDIATE")
+                .await?;
+            let scope = credential_use::VerifiedInfrastructureUse::authorize(
+                &mut tx,
+                &self.identity.guard.key,
+                &p.execution.binding.task.plan.project_id,
+                &p.execution.account_ref,
+                &RequestId::new(format!("verifier-secret-{}", p.version_id))
+                    .map_err(|_| AwsIdentityError::InvalidInput)?,
+                credential_use::InfrastructureOperation::ProtectedDelivery,
+                self.identity.now()?,
+            )
+            .await?;
+            let loaded = crate::controller_keys::secret_broker::aws_consumer::consume(
+                &mut tx,
+                &self.identity.guard.key,
+                &scope,
+                self.identity.now()?,
+            )
+            .await?;
+            tx.commit().await?;
+            self.current(p, self.identity.now()?)?;
+            super::secrets_sdk::SecretSdk::new(p, loaded.credentials)?
+                .publish_payload(body, std::slice::from_ref(&p.version_id))
+                .await
+        })
     }
     fn publish<'a>(
         &'a self,
@@ -312,7 +358,7 @@ impl SecureFargateBootstrap {
         )
         .await?;
         let e = &p.execution;
-        let allocation=sqlx::query("SELECT task_role,secret_arn,json_extract(record,'$.bootstrap.expires_at') AS expires FROM aws_launch_requests WHERE project_id=? AND attempt_id=?")
+        let allocation=sqlx::query("SELECT task_role,secret_arn,json_extract(record,'$.bootstrap.expires_at') AS expires FROM aws_launch_requests WHERE project_id=? AND attempt_id=? AND purpose='coding'")
             .bind(e.binding.task.plan.project_id.as_str()).bind(e.binding.attempt_id.as_str()).fetch_optional(&mut *tx).await?;
         if let Some(row) = allocation
             && (row.try_get::<&str, _>("task_role")? != p.task_role().as_str()
@@ -1260,3 +1306,21 @@ impl IdentityAuthority for PossessionIdentity {
 #[cfg(test)]
 #[path = "secure_fixture.rs"]
 pub(in crate::controller_keys::worker_auth) mod fixture;
+
+impl DeliveryVerification {
+    pub(super) fn check(&self, p: &ProtectedDelivery, now: i64) -> Result<(), AwsIdentityError> {
+        if self.format != 1
+            || self.plan_digest != plan_digest(p)?
+            || self.collected_at > now
+            || now >= self.expires_at
+            || self.expires_at - self.collected_at > 15
+        {
+            return Err(AwsIdentityError::ExpiredEvidence);
+        }
+        match self.origin {
+            #[cfg(test)]
+            ProofOrigin::SyntheticAwsProtocolFixture => Ok(()),
+            _ => Err(AwsIdentityError::SecureDeliveryUnverified),
+        }
+    }
+}

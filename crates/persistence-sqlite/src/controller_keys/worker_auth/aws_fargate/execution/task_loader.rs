@@ -12,6 +12,29 @@ use aws_smithy_runtime_api::client::{
 use aws_smithy_types::body::SdkBody;
 use std::time::Duration;
 use zeroize::Zeroizing;
+pub struct VerifierTaskLoader {
+    _private: (),
+}
+impl VerifierTaskLoader {
+    pub fn from_verified_fargate() -> Result<Self, E> {
+        Err(E::SecureDeliveryUnverified)
+    }
+    pub async fn load(
+        &self,
+        p: &ProtectedDelivery,
+        now: i64,
+    ) -> Result<super::verifier::VerifierCredential, E> {
+        let source = TaskRoleSource::capture()?;
+        let http = SharedHttpConnector::new(MetadataOnly::new(source.path.clone())?);
+        let credentials = source
+            .credentials(http_client_fn(move |_, _| http.clone()))
+            .await?;
+        let bytes = super::super::secrets_sdk::SecretSdk::new(p, credentials)?
+            .fetch_payload(now)
+            .await?;
+        super::verifier::VerifierCredential::parse(p, bytes.as_bytes(), now)
+    }
+}
 struct TaskRoleSource {
     path: String,
 }

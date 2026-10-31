@@ -118,3 +118,22 @@ pub(in crate::controller_keys) fn fixture_workload() -> FargateWorkload {
 
 #[cfg(test)]
 pub(in crate::controller_keys::worker_auth) use secure::fixture as secure_fixture;
+
+#[cfg(test)]
+pub(crate) struct FixtureVerifierCipher(protected::Envelope);
+#[cfg(test)]
+pub(crate) fn fixture_seal_verifier(
+    k: &crate::controller_keys::ControllerKey,
+    scope: &str,
+    value: &[u8],
+) -> FixtureVerifierCipher {
+    FixtureVerifierCipher(protected::seal_verifier(k, scope, value).unwrap())
+}
+#[cfg(test)]
+pub(crate) fn fixture_open_verifier(
+    k: &crate::controller_keys::ControllerKey,
+    scope: &str,
+    value: &FixtureVerifierCipher,
+) -> Result<zeroize::Zeroizing<Vec<u8>>, AwsIdentityError> {
+    protected::open_verifier(k, scope, &value.0)
+}

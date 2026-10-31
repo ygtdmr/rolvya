@@ -36,3 +36,5 @@ A lost report response never mints a replacement authority. Current-authority re
 Dependabot #1 is still inaccessible/unidentified (connector unsupported; configured CLI Forbidden). Independently, cargo-audit 0.22.2 against freshly fetched RustSec `2295466c4e9df26647fd67d8fa1c705ac2fc7f81` reports unpatched locked `rsa 0.9.10 / RUSTSEC-2023-0071`, exit 1. The actual Linux all-feature normal/build graph is checked separately; no new dependency, RSA signing, advisory suppression or clean-audit claim is introduced. Exact test counts, final-head CI/CodeQL and independent review evidence belong to the PR.
 
 Next dependency-ready work: separately reviewed Fargate verifier identity/isolation and expense/recovery enforcement, followed by explicitly authorized operational validation and real-App integration. No next slice, live credentials, cloud/model/mail operation, user-repository write, protected merge or spending is performed here.
+
+[G1-04](fargate-independent-verifier.md) adds the separately scoped Fargate verifier request/identity/delivery integration and offline protocol evidence. Effective hostile-code isolation and production establishment remain disabled.

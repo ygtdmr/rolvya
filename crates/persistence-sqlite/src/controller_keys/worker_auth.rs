@@ -462,23 +462,9 @@ impl WorkerSecurity {
         }
     }
     fn mac(&self, domain: &[u8], fields: &[&[u8]]) -> [u8; 32] {
-        let mut h = <Hmac<Sha256> as Mac>::new_from_slice(&self.key.material[..])
-            .expect("HMAC accepts every key length");
-        h.update(b"rolvya/worker-authority/v1\0");
-        for part in [
-            &self.key.metadata.installation.0[..],
-            &self.key.metadata.key.0[..],
-            &self.key.metadata.key_version.to_be_bytes()[..],
-            domain,
-        ]
-        .into_iter()
-        .chain(fields.iter().copied())
-        {
-            h.update(&(part.len() as u64).to_be_bytes());
-            h.update(part);
-        }
-        h.finalize().into_bytes().into()
+        self.key.worker_record_mac(domain, fields)
     }
+
     async fn scope(
         &self,
         c: &mut SqliteConnection,
@@ -650,3 +636,24 @@ fn no_bearer_reference(secret: &WorkerCredential, fields: &[&[u8]]) -> Result<()
 
 #[cfg(test)]
 pub(in crate::controller_keys) use tests::FixtureWorker;
+
+impl ControllerKey {
+    pub(crate) fn worker_record_mac(&self, domain: &[u8], fields: &[&[u8]]) -> [u8; 32] {
+        let mut h = <Hmac<Sha256> as Mac>::new_from_slice(&self.material[..])
+            .expect("HMAC accepts every key length");
+        h.update(b"rolvya/worker-authority/v1\0");
+        for part in [
+            &self.metadata.installation.0[..],
+            &self.metadata.key.0[..],
+            &self.metadata.key_version.to_be_bytes()[..],
+            domain,
+        ]
+        .into_iter()
+        .chain(fields.iter().copied())
+        {
+            h.update(&(part.len() as u64).to_be_bytes());
+            h.update(part);
+        }
+        h.finalize().into_bytes().into()
+    }
+}
