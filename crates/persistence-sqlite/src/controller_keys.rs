@@ -173,6 +173,34 @@ pub struct ControllerBootstrap {
     #[cfg(test)]
     entropy: fn(&mut [u8]) -> Result<(), BootstrapError>,
 }
+impl ControllerKey {
+    pub(crate) async fn coding_repository_current(
+        &self,
+        c: &mut sqlx::SqliteConnection,
+        project: &rolvya_domain::ids::ProjectId,
+        version: i64,
+        context: &crate::orchestration::coding::CodingContext,
+        now: i64,
+    ) -> Result<(), crate::orchestration::OrchestrationError> {
+        use crate::orchestration::OrchestrationError as E;
+        let consent = github_app::consent::current(c, self, project, now)
+            .await
+            .map_err(|_| E::ScopeMismatch)?;
+        if consent.version != version
+            || consent.binding.repository != context.repository
+            || context.paths.iter().any(|p| {
+                !consent
+                    .binding
+                    .allowed_prefixes
+                    .iter()
+                    .any(|prefix| p.starts_with(prefix))
+            })
+        {
+            return Err(E::ScopeMismatch);
+        }
+        Ok(())
+    }
+}
 impl ControllerBootstrap {
     /// Opens R09 with protected coding-evidence verification. No production runner
     /// authority is installed; independent coding acceptance stays fail closed.

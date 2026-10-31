@@ -5,10 +5,10 @@ use hyper::{body::Incoming, client::conn::http1::SendRequest};
 use hyper_util::rt::TokioIo;
 use sha2::{Digest as _, Sha256};
 use tokio::{net::TcpStream, task::JoinHandle};
-struct Channel {
+pub(in crate::controller_keys::worker_auth::https) struct Channel {
     sender: SendRequest<axum::body::Body>,
     driver: JoinHandle<()>,
-    exporter: [u8; 32],
+    pub(in crate::controller_keys::worker_auth::https) exporter: [u8; 32],
     authority: String,
 }
 impl Drop for Channel {
@@ -17,7 +17,7 @@ impl Drop for Channel {
     }
 }
 impl Channel {
-    async fn connect(
+    pub(in crate::controller_keys::worker_auth::https) async fn connect(
         endpoint: &ControllerEndpoint,
         tls: Arc<rustls::ClientConfig>,
     ) -> Result<Self, ClientError> {
@@ -218,5 +218,46 @@ impl WorkerHttpClient {
             let _ = a.exchange(&frame, &secret.0).await?;
         }
         Ok(())
+    }
+}
+
+impl Channel {
+    pub(in crate::controller_keys::worker_auth::https) async fn verifier_exchange(
+        &mut self,
+        request: &crate::orchestration::coding::execution::VerifierRequest,
+    ) -> Result<Zeroizing<Vec<u8>>, ClientError> {
+        let bytes = Zeroizing::new(serde_json::to_vec(request).map_err(|_| ClientError::Protocol)?);
+        if bytes.len() > MAX_HTTP_BODY {
+            return Err(ClientError::Protocol);
+        }
+        let req = http::Request::builder()
+            .method("POST")
+            .uri("/v1/verifier")
+            .header(http::header::HOST, &self.authority)
+            .header(http::header::CONTENT_TYPE, "application/json")
+            .body(axum::body::Body::from(axum::body::Bytes::from_owner(
+                tls::SecretBytes(bytes),
+            )))
+            .map_err(|_| ClientError::Protocol)?;
+        tokio::time::timeout(Duration::from_secs(10), async {
+            let reply = self
+                .sender
+                .send_request(req)
+                .await
+                .map_err(|_| ClientError::TlsOrNetwork)?;
+            let status = reply.status();
+            let bytes =
+                axum::body::to_bytes(axum::body::Body::new(reply.into_body()), MAX_RESPONSE_BODY)
+                    .await
+                    .map_err(|_| ClientError::ResponseTooLarge)?;
+            if !status.is_success() {
+                let e: ErrorResponse =
+                    serde_json::from_slice(&bytes).map_err(|_| ClientError::Protocol)?;
+                return Err(ClientError::Rejected(e.code));
+            }
+            Ok(Zeroizing::new(bytes.to_vec()))
+        })
+        .await
+        .map_err(|_| ClientError::TlsOrNetwork)?
     }
 }

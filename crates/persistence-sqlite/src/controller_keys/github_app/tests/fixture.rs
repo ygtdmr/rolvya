@@ -516,15 +516,21 @@ impl Drop for Fixture {
 }
 impl Fixture {
     pub async fn new() -> Self {
-        Self::new_kind(false, false).await
+        Self::new_kind(false, false, false, "").await
     }
     pub async fn new_coding() -> Self {
-        Self::new_kind(true, false).await
+        Self::new_kind(true, false, false, "").await
+    }
+    pub async fn new_coding_execution() -> Self {
+        Self::new_kind(true, false, true, "").await
     }
     pub async fn new_coding_overlap() -> Self {
-        Self::new_kind(true, true).await
+        Self::new_kind(true, true, false, "").await
     }
-    async fn new_kind(coding: bool, overlap: bool) -> Self {
+    pub async fn new_coding_mode(mode: &str) -> Self {
+        Self::new_kind(true, false, true, mode).await
+    }
+    async fn new_kind(coding: bool, overlap: bool, execution: bool, mode: &str) -> Self {
         let root = tempfile::tempdir_in("/workspace/scratch")
             .or_else(|_| tempfile::tempdir())
             .unwrap();
@@ -559,8 +565,8 @@ impl Fixture {
                     ("src/beta.rs", b"pub fn beta()->u8{2}\n"),
                     ("src/shared.rs", b"pub const SHARED:u8=3;\n"),
                     ("src/obsolete.rs", b"// delete me\n"),
-                    ("tests/alpha_test.rs", b"// alpha test fixture\n"),
-                    ("tests/beta_test.rs", b"// beta test fixture\n"),
+                    ("tests/alpha_test.rs", if execution { b"#[path=\"../src/alpha.rs\"] mod alpha; #[test] fn alpha_value(){assert_eq!(alpha::alpha(),11); }\n".as_slice() } else { b"// alpha test fixture\n".as_slice() }),
+                    ("tests/beta_test.rs", if execution { b"#[path=\"../src/beta.rs\"] mod beta; #[test] fn beta_value(){assert_eq!(beta::beta(),22); }\n".as_slice() } else { b"// beta test fixture\n".as_slice() }),
                 ],
             )
             .await
@@ -586,8 +592,8 @@ impl Fixture {
                 ("src/beta.rs", b"pub fn beta()->u8{2}\n".as_slice()),
                 ("src/shared.rs", b"pub const SHARED:u8=3;\n".as_slice()),
                 ("src/obsolete.rs", b"// delete me\n".as_slice()),
-                ("tests/alpha_test.rs", b"// alpha test fixture\n".as_slice()),
-                ("tests/beta_test.rs", b"// beta test fixture\n".as_slice()),
+                ("tests/alpha_test.rs", if execution { b"#[path=\"../src/alpha.rs\"] mod alpha; #[test] fn alpha_value(){assert_eq!(alpha::alpha(),11); }\n".as_slice() } else { b"// alpha test fixture\n".as_slice() }),
+                ("tests/beta_test.rs", if execution { b"#[path=\"../src/beta.rs\"] mod beta; #[test] fn beta_value(){assert_eq!(beta::beta(),22); }\n".as_slice() } else { b"// beta test fixture\n".as_slice() }),
             ]
             .into_iter()
             .map(|(p, b)| SourceFile {
@@ -624,9 +630,20 @@ impl Fixture {
                     paths: paths.clone(),
                     verification: VerificationPolicy {
                         identity: "private-synthetic-verification-policy".into(),
-                        commands: vec![vec!["cargo".into(), "test".into(), "--locked".into()]],
+                        commands: if execution {
+                            vec![{
+                                let mut c =
+                                    super::coding::execution::fixture_command(t.id.as_str());
+                                if !mode.is_empty() {
+                                    c.push(mode.into());
+                                }
+                                c
+                            }]
+                        } else {
+                            vec![vec!["cargo".into(), "test".into(), "--locked".into()]]
+                        },
                         required_tests: vec![format!("{}-test", t.id.as_str())],
-                        timeout_seconds: 60,
+                        timeout_seconds: if mode == "timeout" { 1 } else { 60 },
                         cpu_millis: 1000,
                         memory_mib: 512,
                         max_output_bytes: 1024,

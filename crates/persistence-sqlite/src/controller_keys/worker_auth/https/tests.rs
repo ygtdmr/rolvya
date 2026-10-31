@@ -446,6 +446,7 @@ impl<P: SyntheticExecutionAuthority + 'static> Fixture<P> {
         security.transport = transport.clone();
         (
             Arc::new(HttpsWorkerServer {
+                coding: None,
                 secure_fargate: None,
                 security,
                 transport,
@@ -743,4 +744,132 @@ async fn real_tls_coding_upload_above_legacy_size_is_atomic_untrusted_evidence()
     );
     stop.send(()).unwrap();
     task.await.unwrap();
+}
+
+/// Cross-component private TLS fixture. No such constructor exists in production.
+pub(crate) struct CodingNetwork {
+    pub server: Arc<HttpsWorkerServer>,
+    pub ca: Vec<u8>,
+    provider: Arc<SignedProvider>,
+    key: Ed25519KeyPair,
+}
+impl CodingNetwork {
+    pub(crate) async fn new(
+        bootstrap: &ControllerBootstrap,
+        policy: Arc<dyn SchedulerPolicy>,
+        clock: Arc<dyn Clock>,
+        co: SyntheticCoordinator,
+    ) -> Self {
+        let cert = Certificate::new("localhost", false);
+        let key = signing_key();
+        let mut security = WorkerSecurity::open(bootstrap).await.unwrap();
+        security.policy = policy;
+        security.clock = clock.clone();
+        let transport = context::HttpTransport::new(ResourceLimits::default(), clock);
+        let provider = Arc::new(SignedProvider {
+            public: key.public_key().as_ref().to_vec(),
+            transport: transport.clone(),
+            prepare: Mutex::new(BTreeMap::new()),
+            pause: Mutex::new(None),
+        });
+        security.identity = provider.clone();
+        security.transport = transport.clone();
+        let server = Arc::new(HttpsWorkerServer {
+            coding: Some(Arc::new(co)),
+            security,
+            transport,
+            identity: cert.server(),
+            secure_fargate: None,
+        });
+        Self {
+            server,
+            ca: cert.cert.as_ref().to_vec(),
+            provider,
+            key,
+        }
+    }
+    pub(crate) async fn bootstrap(&self, l: &LeaseRef) -> serde_json::Value {
+        let s = &self.server;
+        let r = PrepareBootstrap {
+            lease: l.clone(),
+            request_id: RequestId::new(format!("coding-prepare-{}", l.task.task_id.as_str()))
+                .unwrap(),
+            evidence: synthetic::e("signed-prepare"),
+        };
+        let mut tx = s.security.store.pool.begin().await.unwrap();
+        let scope = s
+            .security
+            .scope(
+                &mut tx,
+                l,
+                s.security.now().unwrap(),
+                worker_control::CredentialScopeUse::Bootstrap,
+            )
+            .await
+            .unwrap();
+        tx.commit().await.unwrap();
+        let controller = s.security.controller();
+        let check = IdentityCheck {
+            controller: &controller,
+            stage: VerificationStage::Prepare,
+            request: &r.request_id,
+            evidence: &r.evidence,
+            binding: &scope.binding,
+            challenge: None,
+            credential: None,
+            provider: &scope.provider,
+            account: &scope.account,
+            pool: &scope.pool,
+            command_digest: &scope.command_digest,
+        };
+        self.provider
+            .prepare
+            .lock()
+            .unwrap()
+            .insert(r.request_id.as_str().into(), sign(&self.key, check.scope()));
+        let ticket = s.security.prepare_bootstrap(&r).await.unwrap();
+        s.transport
+            .bootstrap_destinations
+            .lock()
+            .unwrap()
+            .insert(r.request_id.as_str().into(), (r.clone(), None));
+        s.security.deliver_bootstrap(&r, &ticket).await.unwrap();
+        let secret = s
+            .transport
+            .bootstrap_destinations
+            .lock()
+            .unwrap()
+            .remove(r.request_id.as_str())
+            .unwrap()
+            .1
+            .unwrap();
+        let id = RequestId::new(format!("coding-claim-{}", l.task.task_id.as_str())).unwrap();
+        let mut signed = check.scope();
+        signed.stage = VerificationStage::Bootstrap;
+        signed.request = id.clone();
+        signed.evidence = synthetic::e("signed-bootstrap");
+        signed.challenge = Some(ticket.id.clone());
+        serde_json::json!({"challenge":ticket.id,"secret":std::str::from_utf8(secret.as_ref()).unwrap(),"request":id,"proof":sign(&self.key,signed),"binding":scope.binding})
+    }
+    pub(crate) fn worker(url: &str, ca: Vec<u8>) -> WorkerHttpClient {
+        WorkerHttpClient::with_tls(
+            ControllerEndpoint::parse(url).unwrap(),
+            tls::fixture_client(CertificateDer::from(ca)),
+        )
+        .unwrap()
+    }
+    pub(crate) fn verifier(
+        url: &str,
+        ca: Vec<u8>,
+        execution: String,
+        pkcs: Vec<u8>,
+    ) -> super::verifier::VerifierHttpClient {
+        super::verifier::VerifierHttpClient::with_tls(
+            ControllerEndpoint::parse(url).unwrap(),
+            execution,
+            Zeroizing::new(pkcs),
+            tls::fixture_client(CertificateDer::from(ca)),
+        )
+        .unwrap()
+    }
 }

@@ -13,6 +13,16 @@ use std::collections::BTreeMap;
 
 use std::sync::atomic::Ordering;
 
+#[tokio::test]
+async fn coding_work_is_derived_from_authoritative_source_and_attempt() {
+    let f = Fixture::new_coding().await;
+    let leases = f.coding_admit().await;
+    let mut tx = f.store.pool.begin_with("BEGIN IMMEDIATE").await.unwrap();
+    f.co.coding_work_in(&mut tx, &leases[0], f.clock.now().unwrap())
+        .await
+        .unwrap();
+}
+
 impl Fixture {
     pub async fn coding_admit(&self) -> Vec<LeaseRef> {
         let plan = self
@@ -1204,3 +1214,5 @@ async fn coding_prepared_snapshot_checks_existing_ref_before_any_repeated_object
     server.abort();
     restored.close().await;
 }
+
+pub(super) mod execution;

@@ -517,6 +517,15 @@ pub struct RegistryPolicy<P> {
     registry: Arc<ProviderRegistry>,
     inner: P,
 }
+#[cfg(test)]
+impl<P> RegistryPolicy<P> {
+    pub(crate) fn fixture_reuse<Q>(&self, inner: Q) -> RegistryPolicy<Q> {
+        RegistryPolicy {
+            registry: self.registry.clone(),
+            inner,
+        }
+    }
+}
 impl<P: SchedulerPolicy> AssignmentPolicy for RegistryPolicy<P> {
     fn check(&self, a: &ExecutionAssignment) -> Result<(), AssignmentDenial> {
         self.inner.check(a)

@@ -27,6 +27,7 @@ pub struct HttpsWorkerServer {
     pub(super) security: WorkerSecurity,
     pub(super) transport: Arc<HttpTransport>,
     pub(super) identity: ServerIdentity,
+    pub(super) coding: Option<Arc<crate::orchestration::SyntheticCoordinator>>,
     pub(super) secure_fargate: Option<Arc<super::super::aws_fargate::SecureFargateBootstrap>>,
 }
 impl HttpsWorkerServer {
@@ -47,6 +48,7 @@ impl HttpsWorkerServer {
             transport,
             identity,
             secure_fargate: None,
+            coding: None,
         }))
     }
     /// Selects the concrete read-only AWS correlation boundary. Production
@@ -155,6 +157,7 @@ impl HttpsWorkerServer {
                         };
                         let router = Router::new()
                             .route("/v1/worker", post(handle))
+                            .route("/v1/verifier",post(super::coding::handle_verifier))
                             .fallback(not_found)
                             .layer(Extension(channel))
                             .with_state(state.clone());
@@ -194,7 +197,7 @@ impl HttpsWorkerServer {
 async fn not_found() -> Response<Body> {
     error_response(wire::ErrorCode::InvalidProtocol, StatusCode::NOT_FOUND)
 }
-fn response(body: SecretBytes, status: StatusCode) -> Response<Body> {
+pub(super) fn response(body: SecretBytes, status: StatusCode) -> Response<Body> {
     let mut r = Response::new(Body::from(Bytes::from_owner(body)));
     *r.status_mut() = status;
     r.headers_mut().insert(
@@ -213,7 +216,7 @@ fn response(body: SecretBytes, status: StatusCode) -> Response<Body> {
     );
     r
 }
-fn error_response(code: wire::ErrorCode, status: StatusCode) -> Response<Body> {
+pub(super) fn error_response(code: wire::ErrorCode, status: StatusCode) -> Response<Body> {
     let body = serde_json::to_vec(&wire::ErrorResponse {
         version: wire::WIRE_VERSION,
         code,
@@ -221,7 +224,7 @@ fn error_response(code: wire::ErrorCode, status: StatusCode) -> Response<Body> {
     .unwrap_or_else(|_| b"{\"version\":1,\"code\":\"unavailable\"}".to_vec());
     response(SecretBytes(Zeroizing::new(body)), status)
 }
-fn status(code: wire::ErrorCode) -> StatusCode {
+pub(super) fn status(code: wire::ErrorCode) -> StatusCode {
     use wire::ErrorCode::*;
     match code {
         Unauthenticated | ExpiredCredential | RevokedCredential => StatusCode::UNAUTHORIZED,
@@ -373,7 +376,9 @@ impl HttpsWorkerServer {
             wire::Operation::Message { message, .. } => {
                 crate::worker_simulation::controller::operation(&message.body)
             }
-            wire::Operation::Assignment {} => WorkerOperation::Claim,
+            wire::Operation::Assignment {}
+            | wire::Operation::CodingWork {}
+            | wire::Operation::CodingSource { .. } => WorkerOperation::Claim,
         };
         let guard = self
             .transport
@@ -494,6 +499,14 @@ impl HttpsWorkerServer {
                     },
                 })
                 .map_err(|_| E::Unavailable)?;
+                Ok(response(SecretBytes(Zeroizing::new(body)), StatusCode::OK))
+            }
+            op @ (wire::Operation::CodingWork {} | wire::Operation::CodingSource { .. }) => {
+                let answer = self.coding_fetch(&credential, &guard.context, &op).await?;
+                let body = serde_json::to_vec(&answer).map_err(|_| E::Unavailable)?;
+                if body.len() > wire::MAX_RESPONSE_BODY {
+                    return Err(E::Unavailable);
+                }
                 Ok(response(SecretBytes(Zeroizing::new(body)), StatusCode::OK))
             }
             wire::Operation::Assignment {} => {

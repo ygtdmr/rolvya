@@ -7,8 +7,10 @@
 //! ```compile_fail
 //! use rolvya_persistence_sqlite::orchestration::coding::AcceptedCoding;
 //! ```
+pub mod execution;
 mod model;
 mod store;
+pub mod work;
 use super::*;
 use crate::controller_keys::{
     ControllerKey,
@@ -96,5 +98,24 @@ impl SyntheticCoordinator {
     }
     pub(crate) fn fixture_coding_hook(&mut self, hook: Box<dyn Fn(&str) + Send + Sync>) {
         self.coding.as_mut().unwrap().hook = hook;
+    }
+}
+
+impl SyntheticCoordinator {
+    pub(crate) fn coding_installation(
+        &self,
+    ) -> Result<String, crate::controller_keys::worker_auth::WorkerAuthError> {
+        self.coding_authority()
+            .map(|a| a.installation())
+            .map_err(|_| crate::controller_keys::worker_auth::WorkerAuthError::KeyUnavailable)
+    }
+    pub(crate) fn coding_checkpoint(
+        &self,
+        p: &str,
+    ) -> Result<(), crate::controller_keys::worker_auth::https::wire::ErrorCode> {
+        self.coding_authority()
+            .map_err(|_| crate::controller_keys::worker_auth::https::wire::ErrorCode::Unavailable)?
+            .checkpoint(p);
+        Ok(())
     }
 }

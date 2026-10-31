@@ -82,6 +82,7 @@ async fn secure_aws_process_fixture() {
         Ok(())
     });
     let server = Arc::new(HttpsWorkerServer {
+        coding: None,
         security,
         transport,
         identity: cert.server(),
