@@ -45,7 +45,7 @@ impl VerifierHttpClient {
             tls::client().map_err(|_| ClientError::TlsOrNetwork)?,
         )
     }
-    pub(super) fn with_tls(
+    pub(in crate::controller_keys) fn with_tls(
         endpoint: ControllerEndpoint,
         execution: String,
         pkcs8: Zeroizing<Vec<u8>>,
@@ -356,12 +356,17 @@ impl VerifierHttpClient {
                 .args(&argv[1..])
                 .current_dir(root)
                 .env_clear()
+                .process_group(0)
                 .stdin(Stdio::null())
                 .stdout(Stdio::piped())
                 .stderr(Stdio::piped())
                 .kill_on_drop(true)
                 .spawn()
                 .map_err(|_| ClientError::Protocol)?;
+            let _group = CommandGroup(
+                rustix::process::Pid::from_raw(child.id().ok_or(ClientError::Protocol)? as i32)
+                    .ok_or(ClientError::Protocol)?,
+            );
             let mut stdout = child.stdout.take().ok_or(ClientError::Protocol)?;
             let mut stderr = child.stderr.take().ok_or(ClientError::Protocol)?;
             let remaining = (policy.max_output_bytes as usize)
@@ -676,5 +681,15 @@ impl VerifierHttpClient {
         self.endpoint = ControllerEndpoint::parse(url).unwrap();
         self.tls = tls::fixture_client(rustls::pki_types::CertificateDer::from(ca));
         self
+    }
+}
+
+// Best-effort bounded cleanup of ordinary descendants, including future
+// cancellation. Not a sandbox: a hostile setsid/host compromise still requires
+// provider-enforced task isolation and termination before production activation.
+struct CommandGroup(rustix::process::Pid);
+impl Drop for CommandGroup {
+    fn drop(&mut self) {
+        let _ = rustix::process::kill_process_group(self.0, rustix::process::Signal::KILL);
     }
 }

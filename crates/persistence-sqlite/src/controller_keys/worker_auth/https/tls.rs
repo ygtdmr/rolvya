@@ -81,7 +81,9 @@ fn client_with_roots(roots: RootCertStore) -> Result<Arc<ClientConfig>, ErrorCod
     Ok(Arc::new(config))
 }
 #[cfg(test)]
-pub(super) fn fixture_client(root: CertificateDer<'static>) -> Arc<ClientConfig> {
+pub(in crate::controller_keys) fn fixture_client(
+    root: CertificateDer<'static>,
+) -> Arc<ClientConfig> {
     let mut r = RootCertStore::empty();
     r.add(root).unwrap();
     client_with_roots(r).unwrap()

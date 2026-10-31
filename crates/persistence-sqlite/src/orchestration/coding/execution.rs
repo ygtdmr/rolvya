@@ -9,7 +9,16 @@ use ring::signature::{ED25519, Ed25519KeyPair, KeyPair, UnparsedPublicKey};
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
+pub struct FargateProofReference {
+    pub launch: Digest,
+    pub revision: u64,
+    pub commitment: Digest,
+}
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct VerifierExecution {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub fargate: Option<FargateProofReference>,
     pub version: u16,
     pub installation: String,
     pub binding: WorkerBinding,
@@ -189,7 +198,7 @@ impl SyntheticCoordinator {
     ) -> Result<VerifierExecution, OrchestrationError> {
         Err(OrchestrationError::VerificationUnavailable)
     }
-    async fn verifier_grant_in(
+    pub(crate) async fn verifier_grant_in(
         &self,
         c: &mut SqliteConnection,
         id: &str,
@@ -201,7 +210,20 @@ impl SyntheticCoordinator {
         let g: VerifierExecution = decode(&r.get::<Vec<u8>, _>(2), 16384)?;
         self.coding_authority()?
             .verify(b"verifier-grant", &g, &r.get::<Vec<u8>, _>(3))?;
-        g.trusted()?;
+        if g.authority == "private-fargate-verifier-v1" || g.authority == "aws-fargate-verifier-v1"
+        {
+            crate::controller_keys::worker_auth::aws_fargate::execution::verifier::grant_in(
+                c,
+                &self.coding_authority()?.key,
+                &g,
+                g.issued_at,
+                true,
+            )
+            .await
+            .map_err(|_| OrchestrationError::VerificationUnavailable)?;
+        } else {
+            g.trusted()?;
+        }
         if g.execution != id
             || g.installation != self.coding_authority()?.installation()
             || g.binding.task.plan != *self.plan_key()
@@ -220,6 +242,18 @@ impl SyntheticCoordinator {
         policy: &dyn SchedulerPolicy,
         now: i64,
     ) -> Result<(), OrchestrationError> {
+        if g.authority == "private-fargate-verifier-v1" || g.authority == "aws-fargate-verifier-v1"
+        {
+            crate::controller_keys::worker_auth::aws_fargate::execution::verifier::grant_in(
+                c,
+                &self.coding_authority()?.key,
+                g,
+                now,
+                false,
+            )
+            .await
+            .map_err(|_| OrchestrationError::VerificationUnavailable)?;
+        }
         if now < g.issued_at || now >= g.expires_at {
             return Err(OrchestrationError::VerificationUnavailable);
         }
@@ -455,6 +489,7 @@ impl SyntheticCoordinator {
         let raw = self.coding_raw(&mut tx, l).await?;
         let (r, _, ctx) = self.structural(&mut tx, l, &raw).await?;
         let g = VerifierExecution {
+            fargate: None,
             version: 1,
             installation: ctx.installation,
             binding: r.binding,
@@ -492,5 +527,88 @@ impl SyntheticCoordinator {
 impl std::fmt::Debug for VerifierReply {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_str("VerifierReply [bounded content redacted]")
+    }
+}
+
+impl SyntheticCoordinator {
+    // A proposal contains no trusted execution. Only the sealed Fargate delivery
+    // path may persist a grant after current provider inspection and possession.
+    pub(crate) async fn fargate_verifier_proposal_in(
+        &self,
+        c: &mut SqliteConnection,
+        l: &LeaseRef,
+        now: i64,
+    ) -> Result<(CodingWork, VerifierExecution), OrchestrationError> {
+        let w = self.coding_work_in(c, l, now).await?;
+        let raw = self.coding_raw(c, l).await?;
+        let (r, _, ctx) = self.structural(c, l, &raw).await?;
+        let (_, receipt, _) = crate::worker_control::coding_receipt_in(c, l).await?;
+        if receipt.as_str() != hash(&raw) {
+            return Err(OrchestrationError::InvalidArtifact);
+        }
+        let g = VerifierExecution {
+            fargate: None,
+            version: 1,
+            installation: ctx.installation,
+            binding: r.binding,
+            work: w.identity.clone(),
+            artifact: receipt,
+            resulting_tree: r.resulting_tree_sha256,
+            policy: commitment(&ctx.verification)?,
+            execution: r.verification_execution,
+            subject: "pending-fargate-possession".into(),
+            image: commitment(&ctx.verification.commands)?,
+            public_key: vec![],
+            issued_at: now,
+            expires_at: w.expires_at.min(
+                now.checked_add(120)
+                    .ok_or(OrchestrationError::LimitExceeded)?,
+            ),
+            authority: "aws-fargate-verifier-v1".into(),
+        };
+        Ok((w, g))
+    }
+    pub(crate) async fn install_fargate_verifier_in(
+        &self,
+        c: &mut SqliteConnection,
+        g: &VerifierExecution,
+        now: i64,
+    ) -> Result<(), OrchestrationError> {
+        // The caller is the private AWS path; authenticate its durable authority
+        // again rather than trusting a DTO or the call-site alone.
+        crate::controller_keys::worker_auth::aws_fargate::execution::verifier::grant_in(
+            c,
+            &self.coding_authority()?.key,
+            g,
+            now,
+            false,
+        )
+        .await
+        .map_err(|_| OrchestrationError::VerificationUnavailable)?;
+        if let Some(row) = sqlx::query(
+            "SELECT body,seal FROM coding_verifier_executions WHERE project_id=? AND attempt_id=?",
+        )
+        .bind(g.binding.task.plan.project_id.as_str())
+        .bind(g.binding.attempt_id.as_str())
+        .fetch_optional(&mut *c)
+        .await?
+        {
+            let old: VerifierExecution = decode(&row.get::<Vec<u8>, _>(0), 16384)?;
+            self.coding_authority()?
+                .verify(b"verifier-grant", &old, &row.get::<Vec<u8>, _>(1))?;
+            same(&old, g)?;
+            return Ok(());
+        }
+        one(
+            sqlx::query("INSERT INTO coding_verifier_executions VALUES(?,?,?,?,?)")
+                .bind(g.binding.task.plan.project_id.as_str())
+                .bind(g.binding.attempt_id.as_str())
+                .bind(&g.execution)
+                .bind(encode(g, 16384)?)
+                .bind(self.coding_authority()?.seal(b"verifier-grant", g)?)
+                .execute(c)
+                .await?
+                .rows_affected(),
+        )
     }
 }

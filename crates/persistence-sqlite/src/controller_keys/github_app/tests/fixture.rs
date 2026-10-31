@@ -524,6 +524,9 @@ impl Fixture {
     pub async fn new_coding_execution() -> Self {
         Self::new_kind(true, false, true, "").await
     }
+    pub async fn new_coding_fargate() -> Self {
+        Self::new_kind(true, false, true, "fargate").await
+    }
     pub async fn new_coding_overlap() -> Self {
         Self::new_kind(true, true, false, "").await
     }
@@ -634,7 +637,7 @@ impl Fixture {
                             vec![{
                                 let mut c =
                                     super::coding::execution::fixture_command(t.id.as_str());
-                                if !mode.is_empty() {
+                                if !mode.is_empty() && mode != "fargate" {
                                     c.push(mode.into());
                                 }
                                 c
@@ -643,7 +646,11 @@ impl Fixture {
                             vec![vec!["cargo".into(), "test".into(), "--locked".into()]]
                         },
                         required_tests: vec![format!("{}-test", t.id.as_str())],
-                        timeout_seconds: if mode == "timeout" { 1 } else { 60 },
+                        timeout_seconds: if mode == "timeout" || mode == "timeout-child" {
+                            1
+                        } else {
+                            60
+                        },
                         cpu_millis: 1000,
                         memory_mib: 512,
                         max_output_bytes: 1024,
@@ -662,7 +669,10 @@ impl Fixture {
             }
         }
         plan.tasks = vec![group, a, b, c];
-        let authority = synthetic::Authority::default();
+        let authority = synthetic::Authority {
+            fargate: mode == "fargate",
+            ..Default::default()
+        };
         let valid = rolvya_plan_validator::validate(&plan, &authority, Limits::default()).unwrap();
         store
             .create_project(&plan.key.project_id, &common::owner())
@@ -706,7 +716,11 @@ impl Fixture {
         let registry = provider_accounts::fixture_registry_for(
             &bootstrap,
             synthetic::T,
-            "synthetic",
+            if mode == "fargate" {
+                "aws-ecs-fargate"
+            } else {
+                "synthetic"
+            },
             "synthetic-account",
         )
         .await;

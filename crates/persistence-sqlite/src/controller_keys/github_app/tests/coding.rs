@@ -1216,3 +1216,5 @@ async fn coding_prepared_snapshot_checks_existing_ref_before_any_repeated_object
 }
 
 pub(super) mod execution;
+
+mod fargate;

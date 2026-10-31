@@ -833,3 +833,10 @@ pub(super) fn auth_error(e: WorkerAuthError) -> E {
 #[cfg(test)]
 #[path = "store_fixture.rs"]
 pub(in crate::controller_keys::worker_auth) mod fixture;
+
+#[cfg(test)]
+impl AccountRecord {
+    pub(super) fn origin_is_reviewed(&self) -> bool {
+        self.origin == Origin::ReviewedControllerRegistration
+    }
+}

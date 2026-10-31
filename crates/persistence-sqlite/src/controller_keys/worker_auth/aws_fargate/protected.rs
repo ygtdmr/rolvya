@@ -78,3 +78,66 @@ pub(super) fn open(
     let text = std::str::from_utf8(&plain).map_err(|_| E::Integrity)?;
     BootstrapSecret::parse(text.to_owned()).map_err(|_| E::Integrity)
 }
+
+// Same reviewed KEK/DEK primitive, separately domain-bound to an immutable verifier
+// launch. This is private credential custody, never a Broker plaintext API.
+pub(super) fn seal_verifier(k: &ControllerKey, request: &str, plain: &[u8]) -> Result<Envelope, E> {
+    if plain.is_empty() || plain.len() > 4096 {
+        return Err(E::ResourceLimit);
+    }
+    let d = random::<32>().map_err(|_| E::KeyUnavailable)?;
+    let dn = *random::<24>().map_err(|_| E::KeyUnavailable)?;
+    let wn = *random::<24>().map_err(|_| E::KeyUnavailable)?;
+    if dn == wn {
+        return Err(E::KeyUnavailable);
+    }
+    let a = verifier_aad(k, request)?;
+    let ciphertext = encrypt(&d, &dn, &a, plain).map_err(|_| E::Integrity)?;
+    let wrapped =
+        encrypt(&k.material, &wn, &wrap(&a, &dn, &ciphertext), &d[..]).map_err(|_| E::Integrity)?;
+    Ok(Envelope {
+        dn,
+        wn,
+        wrapped,
+        ciphertext,
+    })
+}
+pub(super) fn open_verifier(
+    k: &ControllerKey,
+    request: &str,
+    e: &Envelope,
+) -> Result<Zeroizing<Vec<u8>>, E> {
+    if e.dn == e.wn || e.wrapped.len() != 48 || !(17..=4112).contains(&e.ciphertext.len()) {
+        return Err(E::Integrity);
+    }
+    let a = verifier_aad(k, request)?;
+    let dek = decrypt(
+        &k.material,
+        &e.wn,
+        &wrap(&a, &e.dn, &e.ciphertext),
+        &e.wrapped,
+    )
+    .map_err(|_| E::Integrity)?;
+    let d: &[u8; 32] = dek.as_slice().try_into().map_err(|_| E::Integrity)?;
+    decrypt(d, &e.dn, &a, &e.ciphertext).map_err(|_| E::Integrity)
+}
+fn verifier_aad(k: &ControllerKey, request: &str) -> Result<Vec<u8>, E> {
+    if request.len() != 64
+        || !request
+            .bytes()
+            .all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b))
+    {
+        return Err(E::Integrity);
+    }
+    let mut a = b"rolvya/fargate-independent-verifier/credential/v1\0".to_vec();
+    for v in [
+        &k.metadata.installation.0[..],
+        &k.metadata.key.0[..],
+        &k.metadata.key_version.to_be_bytes()[..],
+        request.as_bytes(),
+    ] {
+        a.extend_from_slice(&(v.len() as u32).to_be_bytes());
+        a.extend_from_slice(v);
+    }
+    Ok(a)
+}

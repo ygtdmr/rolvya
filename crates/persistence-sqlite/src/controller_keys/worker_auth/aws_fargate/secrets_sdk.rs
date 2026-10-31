@@ -72,6 +72,18 @@ impl SecretSdk {
         {
             return Err(AwsIdentityError::ScopeMismatch);
         }
+        self.publish_payload(material.payload()?, allowed_versions)
+            .await
+    }
+    pub(super) async fn publish_payload(
+        &self,
+        body: Zeroizing<String>,
+        allowed_versions: &[String],
+    ) -> Result<(), AwsIdentityError> {
+        if body.is_empty() || body.len() > 16384 {
+            return Err(AwsIdentityError::ResourceLimit);
+        }
+        let p = &self.plan;
         let metadata = self
             .client
             .describe_secret()
@@ -135,7 +147,6 @@ impl SecretSdk {
         {
             return Err(AwsIdentityError::SecureDeliveryUnverified);
         }
-        let body = material.payload()?;
         let value = self
             .client
             .put_secret_value()
@@ -156,6 +167,13 @@ impl SecretSdk {
     /// credential loading and effective isolation can be established. Tests use
     /// the real SDK wire codec with an independently scoped private role fixture.
     pub(super) async fn fetch(&self, now: i64) -> Result<DeliveredPossession, AwsIdentityError> {
+        let bytes = self.fetch_payload(now).await?;
+        DeliveredPossession::parse(&self.plan, bytes.as_bytes(), now)
+    }
+    pub(super) async fn fetch_payload(
+        &self,
+        now: i64,
+    ) -> Result<Zeroizing<String>, AwsIdentityError> {
         let p = &self.plan;
         if now >= p.expires_at {
             return Err(AwsIdentityError::ExpiredEvidence);
@@ -180,7 +198,10 @@ impl SecretSdk {
                 .take()
                 .ok_or(AwsIdentityError::Integrity)?,
         );
-        DeliveredPossession::parse(p, bytes.as_bytes(), now)
+        if bytes.len() > 16384 {
+            return Err(AwsIdentityError::ResourceLimit);
+        }
+        Ok(bytes)
     }
     #[cfg(test)]
     pub(super) fn fixture(p: &ProtectedDelivery, c: Credentials, http: SharedHttpClient) -> Self {

@@ -6,6 +6,7 @@ mod model;
 mod sdk;
 mod store;
 mod task_loader;
+pub mod verifier;
 use super::{AwsIdentityError as E, store::AccountRecord, *};
 use crate::controller_keys::ControllerBootstrap;
 use crate::{
@@ -24,7 +25,7 @@ pub use model::{BootstrapAllocation, ExecutionStatus, LaunchRequest, StopReason}
 use model::{encode, operation_token};
 use sqlx::{Row, SqliteConnection};
 use std::sync::Arc;
-pub use task_loader::TaskBootstrapLoader;
+pub use task_loader::{TaskBootstrapLoader, VerifierTaskLoader};
 /// Provider-neutral lifecycle complement to the existing R08 LaunchAdapter.
 /// Stop is derived from controller state, never worker-supplied authority.
 pub trait ExecutionAdapter: LaunchAdapter {
@@ -43,6 +44,10 @@ pub trait ExecutionAdapter: LaunchAdapter {
 pub struct FargateExecution {
     identity: Arc<FargateIdentity>,
     boot: String,
+    purpose: &'static str,
+    distribution: Arc<dyn super::secure::RestrictedDistribution>,
+    coordinator: Option<Arc<crate::orchestration::SyntheticCoordinator>>,
+    verifier_configuration: Option<verifier::VerifierConfiguration>,
     #[cfg(test)]
     fixture: Option<Arc<fixture::World>>,
     #[cfg(test)]
@@ -60,6 +65,8 @@ enum Checkpoint {
     BeforeStop,
     AfterStop,
     AfterStopEffect,
+    BeforeGrant,
+    AfterGrant,
 }
 impl FargateExecution {
     pub async fn open(b: &ControllerBootstrap, p: Arc<dyn SchedulerPolicy>) -> Result<Self, E> {
@@ -91,9 +98,16 @@ impl FargateExecution {
                 .rows_affected(),
         )?;
         tx.commit().await?;
+        let distribution = Arc::new(super::secure::UnavailableDistribution {
+            identity: identity.clone(),
+        });
         Ok(Self {
             identity,
+            distribution,
             boot,
+            purpose: "coding",
+            coordinator: None,
+            verifier_configuration: None,
             #[cfg(test)]
             fixture: None,
             #[cfg(test)]
@@ -144,8 +158,9 @@ impl FargateExecution {
         let admission = crate::admission::live(&mut tx, lease, now)
             .await
             .map_err(|_| E::Revoked)?;
-        if admission.permit.provider.as_str() != AWS_PROVIDER
-            || admission.permit.account != *account
+        if (self.purpose == "coding"
+            && (admission.permit.provider.as_str() != AWS_PROVIDER
+                || admission.permit.account != *account))
             || a.revoked
             || now >= a.valid_until
         {
@@ -162,7 +177,9 @@ impl FargateExecution {
             tx.commit().await?;
             return Ok(old);
         }
-        let r = LaunchRequest {
+        let (verifier, pkcs) = self.verifier_proposal(&mut tx, lease, &a, now).await?;
+        let mut r = LaunchRequest {
+            verifier,
             format: 1,
             installation: self.identity.guard.controller().installation,
             account_ref: account.clone(),
@@ -203,6 +220,9 @@ impl FargateExecution {
                     .ok_or(E::InvalidInput)?,
                 ),
         };
+        if r.verifier.is_some() {
+            r.client_token = r.expected_token()?;
+        }
         r.validate(now)?;
         self.activation(&r, now)?;
         self.authority(&mut tx, &r, &cmd, now).await?;
@@ -213,9 +233,10 @@ impl FargateExecution {
             &[text.as_bytes()],
         );
         one(
-            sqlx::query("INSERT INTO aws_launch_requests VALUES(?,?,?,?,?,?,?,?,?,?,?)")
+            sqlx::query("INSERT INTO aws_launch_requests VALUES(?,?,?,?,?,?,?,?,?,?,?,?)")
                 .bind(lease.task.plan.project_id.as_str())
                 .bind(lease.attempt_id.as_str())
+                .bind(self.purpose)
                 .bind(account.as_str())
                 .bind(a.version as i64)
                 .bind(&r.client_token)
@@ -229,6 +250,8 @@ impl FargateExecution {
                 .await?
                 .rows_affected(),
         )?;
+        self.prepare_verifier_secret(&mut tx, &r, pkcs.as_deref().map(|v| v.as_slice()))
+            .await?;
         self.event(
             &mut tx,
             &r,
@@ -264,13 +287,15 @@ impl FargateExecution {
         {
             return Err(E::ScopeMismatch);
         }
-        if u64::from(cmd.profile().resources.cpu_millis)
-            > u64::from(r.workload.cpu_units) * 1000 / 1024
-            || cmd.profile().resources.memory_mib > r.workload.memory_mib
-            || r.workload.runtime_seconds > cmd.profile().resources.timeout_seconds
+        if r.verifier.is_none()
+            && (u64::from(cmd.profile().resources.cpu_millis)
+                > u64::from(r.workload.cpu_units) * 1000 / 1024
+                || cmd.profile().resources.memory_mib > r.workload.memory_mib
+                || r.workload.runtime_seconds > cmd.profile().resources.timeout_seconds)
         {
             return Err(E::IsolationMismatch);
         }
+        self.verifier_authority(c, r, cmd, now).await?;
         worker_control::current(c, cmd, self.identity.guard.policy.as_ref(), now)
             .await
             .map_err(worker_error)?;

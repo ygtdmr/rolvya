@@ -2,6 +2,12 @@
 
 Current authoritative decision cross-check: 2026-10-26 (see current ADRs; earlier sections are chronological historical checkpoints).
 
+## G1-04 independent Fargate verification (2026-10-31)
+
+PR #35 is verified merged as `a3f951fbe4a541bec1b5e7f49f023a6a5823c715`, with its exact submitted tree and migration 0018. Branch `codex/fargate-independent-verifier` composes separately scoped verifier execution, protected delivery and current provider proofs with the existing AWS journal, original financial reservation, genuine TLS verifier protocol, R09 acceptance and trusted Git publisher. Forward 0019 preserves published migration files and historical request/MAC bytes. [Implementation and precise gates](../development/fargate-independent-verifier.md) distinguish offline execution from unverified AWS isolation and production activation.
+
+Focused tests exercise two independent coding/verifier subprocess pairs, actual harmless Rust commands, eight new SIGKILL boundaries, migration upgrade/rollback, uncertainty, revocation, concurrency, authenticated evidence and isolated Git publication. Independent read-only reviewers' historical-evidence and expired-IAM-proof findings have reproduced regression fixes. Complete final-head counts/CI are recorded in the submitted PR after execution. Production launch, verifier establishment, task credential loading and live publication remain disabled; neither inaccessible Dependabot #1 nor the separate RSA RustSec advisory is resolved. The merged base now has an actual successful CodeQL run; new PR analysis is independently required. No live credentials, paid operations, cloud resources, self-approval or merge are performed.
+
 ## G1-03 authenticated coding work and independent execution (2026-10-31)
 
 PR #34 is verified squash-merged as `6d91991639bf2a82af0c6f72cb1d03d35324eff3`, with its complete expected tree and migration 0017. Branch `codex/trusted-coding-work-execution` implements immutable authenticated work packages, bounded pinned-source delivery, a reusable remote coding client, distinct execution-scoped verifier authentication and atomic report composition with existing R09 coding acceptance. Forward migration 0018 preserves 0001–0017; no dependency version or existing accounting/publication authority changes. See [implemented interfaces, executable evidence and production gates](../development/trusted-coding-work-execution.md).

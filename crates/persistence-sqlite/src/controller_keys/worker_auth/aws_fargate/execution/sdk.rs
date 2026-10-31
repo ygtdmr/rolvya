@@ -83,7 +83,7 @@ impl EcsSdk {
         }
         if d.pid_mode().is_some()
             || d.ipc_mode().is_some()
-            || !d.volumes().is_empty()
+            || (r.verifier.is_none() && !d.volumes().is_empty())
             || d.runtime_platform().is_none_or(|p| {
                 p.operating_system_family().map(|s| s.as_str()) != Some("LINUX")
                     || p.cpu_architecture().map(|s| s.as_str()) != Some(w.architecture.as_str())
@@ -101,7 +101,7 @@ impl EcsSdk {
             || !c.entry_point().is_empty()
             || c.command() != w.command
             || !c.port_mappings().is_empty()
-            || !c.mount_points().is_empty()
+            || (r.verifier.is_none() && !c.mount_points().is_empty())
             || !c.volumes_from().is_empty()
             || !c.secrets().is_empty()
             || !c.environment().is_empty()
@@ -115,6 +115,9 @@ impl EcsSdk {
                     || p.capabilities().is_some_and(|c| !c.add().is_empty())
             })
         {
+            return Err(E::IsolationMismatch);
+        }
+        if r.verifier.is_some() && !super::super::inspection::verifier_workspace(d, c) {
             return Err(E::IsolationMismatch);
         }
         Ok(())
@@ -201,6 +204,42 @@ impl EcsSdk {
             return Err(E::ScopeMismatch);
         }
         Ok(EcsLifecycle::from_status(t.last_status().unwrap_or("")))
+    }
+    pub(super) async fn inspect_verifier(
+        &self,
+        r: &LaunchRequest,
+        task: &TaskArn,
+        now: i64,
+    ) -> Result<InspectionAssessment, E> {
+        let response = self
+            .client
+            .describe_tasks()
+            .cluster(r.workload.cluster.as_str())
+            .tasks(task.as_str())
+            .send()
+            .await
+            .map_err(|_| E::UnknownExecution)?;
+        let definition = self
+            .client
+            .describe_task_definition()
+            .task_definition(r.workload.task_definition.as_str())
+            .send()
+            .await
+            .map_err(|_| E::UnknownExecution)?;
+        let expected = r.expected(task.clone())?;
+        let task = super::super::inspection::task_record(&expected, &response)?;
+        let assessment = super::super::inspection::correlate_verifier(
+            &expected,
+            task,
+            definition
+                .task_definition()
+                .ok_or(E::TaskDefinitionMismatch)?,
+            now,
+        )?;
+        if !assessment.configuration_correlated || assessment.lifecycle != EcsLifecycle::Running {
+            return Err(E::TaskNotRunning);
+        }
+        Ok(assessment)
     }
     pub(super) async fn discover(&self, r: &LaunchRequest) -> Result<Vec<TaskArn>, E> {
         let mut token = None;
