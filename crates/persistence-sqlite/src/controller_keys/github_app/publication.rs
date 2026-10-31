@@ -30,6 +30,8 @@ pub(super) struct AcceptedChange {
     fingerprint: String,
     path: String,
     pub(super) bytes: Vec<u8>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    coding: Option<crate::orchestration::coding::AcceptedCoding>,
 }
 #[derive(Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(deny_unknown_fields)]
@@ -171,7 +173,95 @@ impl GitHubRemote {
             fingerprint,
             path: path.into(),
             bytes,
+            coding: None,
         };
+        self.prepare_change(co, l, base, b, change, None).await
+    }
+    /// Only R09-accepted coding artifacts can enter this path. No caller-provided
+    /// accepted manifest, destination branch or file bytes are accepted.
+    pub async fn prepare_coding(
+        &self,
+        co: &SyntheticCoordinator,
+        l: &LeaseRef,
+    ) -> Result<PublicationReceipt, GitError> {
+        self.http.active()?;
+        let mut tx = self.store.pool.begin().await?;
+        let b = consent::current(&mut tx, &self.key, &l.task.plan.project_id, self.now()?).await?;
+        let (coding, source, _) = co
+            .coding_publication_in(&mut tx, l)
+            .await
+            .map_err(|_| GitError::Unaccepted)?;
+        if coding.repository != b.binding.repository {
+            return Err(GitError::Denied);
+        }
+        for c in &coding.changes {
+            model::allowed(&b.binding, c.path())?;
+        }
+        tx.commit().await?;
+        let base = coding.base.clone();
+        let change = AcceptedChange {
+            lease: l.clone(),
+            acceptance: coding.acceptance.as_str().into(),
+            fingerprint: coding.fingerprint.clone(),
+            path: String::new(),
+            bytes: vec![],
+            coding: Some(coding),
+        };
+        self.prepare_change(co, l, &base, b, change, Some(source))
+            .await
+    }
+    /// Fetches the complete trusted source matching context committed in the frozen
+    /// plan. Public PinnedSource values cannot install source provenance.
+    pub async fn pin_coding_source(
+        &self,
+        co: &SyntheticCoordinator,
+        task: &rolvya_domain::plan::TaskRef,
+        context: &crate::orchestration::coding::CodingContext,
+    ) -> Result<(), GitError> {
+        self.http.active()?;
+        let mut tx = self.store.pool.begin().await?;
+        let b = consent::current(&mut tx, &self.key, &task.plan.project_id, self.now()?).await?;
+        if context.installation != hex(&self.key.metadata.installation.0)
+            || context.repository != b.binding.repository
+            || context.repository_location != b.binding.location
+        {
+            return Err(GitError::Denied);
+        }
+        for p in &context.paths {
+            if p.ends_with('/') {
+                model::allowed(&b.binding, &format!("{p}scope-check.rs"))?;
+            } else {
+                model::allowed(&b.binding, p)?;
+            }
+        }
+        tx.commit().await?;
+        let token = self.token(&b, "read").await?;
+        let source = self
+            .http
+            .source(&token, &b.binding, &context.base_commit)
+            .await?;
+        let mut tx = self.store.pool.begin_with("BEGIN IMMEDIATE").await?;
+        let current =
+            consent::current(&mut tx, &self.key, &task.plan.project_id, self.now()?).await?;
+        if current.version != b.version {
+            return Err(GitError::Revoked);
+        }
+        co.pin_coding_source_in(&mut tx, task, context, &source, b.version)
+            .await
+            .map_err(|_| GitError::Integrity)?;
+        tx.commit().await?;
+        Ok(())
+    }
+    async fn prepare_change(
+        &self,
+        co: &SyntheticCoordinator,
+        l: &LeaseRef,
+        base: &GitSha,
+        b: consent::Consent,
+        change: AcceptedChange,
+        expected_source: Option<PinnedSource>,
+    ) -> Result<PublicationReceipt, GitError> {
+        let p = &l.task.plan.project_id;
         let operation = hash(
             encode(&(
                 hex(&self.key.metadata.installation.0),
@@ -191,6 +281,9 @@ impl GitHubRemote {
         }
         let token = self.token(&b, "read").await?;
         let source = self.http.source(&token, &b.binding, base).await?;
+        if expected_source.as_ref().is_some_and(|s| s != &source) {
+            return Err(GitError::Conflict);
+        }
         let (trees, tree) = changed_trees(&source, &change)?;
         let created_at = self.now()?;
         let target = model::target(
@@ -288,17 +381,38 @@ impl GitHubRemote {
         {
             return Err(GitError::Denied);
         }
-        model::allowed(&b.binding, &i.change.path)?;
-        let (bytes, digest, fingerprint) = co
-            .publication_artifact_in(c, &i.lease)
-            .await
-            .map_err(|_| GitError::StaleAttempt)?;
-        if bytes != i.change.bytes
-            || digest.as_str() != i.change.acceptance
-            || fingerprint != i.change.fingerprint
-            || i.change.lease != i.lease
-        {
-            return Err(GitError::Unaccepted);
+        if let Some(coding) = &i.change.coding {
+            for c in &coding.changes {
+                model::allowed(&b.binding, c.path())?;
+            }
+            let (actual, _, _) = co
+                .coding_publication_in(c, &i.lease)
+                .await
+                .map_err(|_| GitError::Unaccepted)?;
+            if &actual != coding
+                || actual.repository != i.repository
+                || actual.base != i.base
+                || i.change.lease != i.lease
+                || !i.change.path.is_empty()
+                || !i.change.bytes.is_empty()
+                || actual.acceptance.as_str() != i.change.acceptance
+                || actual.fingerprint != i.change.fingerprint
+            {
+                return Err(GitError::Unaccepted);
+            }
+        } else {
+            model::allowed(&b.binding, &i.change.path)?;
+            let (bytes, digest, fingerprint) = co
+                .publication_artifact_in(c, &i.lease)
+                .await
+                .map_err(|_| GitError::StaleAttempt)?;
+            if bytes != i.change.bytes
+                || digest.as_str() != i.change.acceptance
+                || fingerprint != i.change.fingerprint
+                || i.change.lease != i.lease
+            {
+                return Err(GitError::Unaccepted);
+            }
         }
         Ok(())
     }
@@ -375,17 +489,35 @@ impl GitHubRemote {
     ) -> Result<(), GitError> {
         let prefix = format!("/repos/{}", t.location);
         self.boundary(co, i, t).await?;
-        let blob = model::object("blob", &i.change.bytes);
-        let reply = self
-            .http
-            .post(
-                t,
-                &format!("{prefix}/git/blobs"),
-                json!({"content":STANDARD.encode(&i.change.bytes),"encoding":"base64"}),
-            )
-            .await?;
-        if http::sha(&reply["sha"])? != blob {
-            return Err(GitError::Integrity);
+        let blobs: Vec<&[u8]> = if let Some(coding) = &i.change.coding {
+            coding
+                .changes
+                .iter()
+                .filter_map(|c| match c {
+                    crate::orchestration::coding::FileChange::Add { content, .. }
+                    | crate::orchestration::coding::FileChange::Modify { content, .. } => {
+                        Some(content.as_bytes())
+                    }
+                    _ => None,
+                })
+                .collect()
+        } else {
+            vec![&i.change.bytes]
+        };
+        for bytes in blobs {
+            self.boundary(co, i, t).await?;
+            let blob = model::object("blob", bytes);
+            let reply = self
+                .http
+                .post(
+                    t,
+                    &format!("{prefix}/git/blobs"),
+                    json!({"content":STANDARD.encode(bytes),"encoding":"base64"}),
+                )
+                .await?;
+            if http::sha(&reply["sha"])? != blob {
+                return Err(GitError::Integrity);
+            }
         }
         for tree in &i.trees {
             self.boundary(co, i, t).await?;
@@ -614,6 +746,13 @@ impl RemoteGit for GitHubRemote {
         }
         let b = self.current_binding(p, i.binding_version).await?;
         let t = self.token(&b, "publication").await?;
+        // A restored prepared snapshot may predate an already-visible effect.
+        // Inspect first, including divergence, before repeating any object write.
+        let existing = self.http.reference(&t, &i.target).await?;
+        self.boundary(co, &i, &t).await?;
+        if existing.is_some() {
+            return self.reconcile(co, p, op).await;
+        }
         self.checkpoint("submit-before");
         let mut tx = self.store.pool.begin_with("BEGIN IMMEDIATE").await?;
         self.check_in(&mut tx, co, &i).await?;
@@ -947,18 +1086,47 @@ fn changed_trees(
     if trees(&root, &mut Vec::new())? != source.tree {
         return Err(GitError::Integrity);
     }
-    let mut patched: Vec<_> = source
-        .files
-        .iter()
-        .filter(|f| f.path != c.path)
-        .cloned()
-        .collect();
-    patched.push(SourceFile {
-        path: c.path.clone(),
-        mode: "100644".into(),
-        sha: model::object("blob", &c.bytes),
-        bytes: c.bytes.clone(),
-    });
+    let patched = if let Some(coding) = &c.coding {
+        if source.repository != coding.repository
+            || source.commit != coding.base
+            || source.tree != coding.base_tree
+            || crate::orchestration::coding::tree_commitment(&source.files)
+                .map_err(|_| GitError::Integrity)?
+                != coding.source_sha256
+        {
+            return Err(GitError::Integrity);
+        }
+        let files = crate::orchestration::coding::apply_changes(
+            source,
+            &coding.changes,
+            &coding
+                .changes
+                .iter()
+                .map(|c| c.path().to_owned())
+                .collect::<Vec<_>>(),
+        )
+        .map_err(|_| GitError::Integrity)?;
+        if crate::orchestration::coding::tree_commitment(&files).map_err(|_| GitError::Integrity)?
+            != coding.resulting_tree_sha256
+        {
+            return Err(GitError::Integrity);
+        }
+        files
+    } else {
+        let mut patched: Vec<_> = source
+            .files
+            .iter()
+            .filter(|f| f.path != c.path)
+            .cloned()
+            .collect();
+        patched.push(SourceFile {
+            path: c.path.clone(),
+            mode: "100644".into(),
+            sha: model::object("blob", &c.bytes),
+            bytes: c.bytes.clone(),
+        });
+        patched
+    };
     let mut root = Node::default();
     for f in patched {
         add(&mut root, &f.path, &f.mode, f.sha)?;
@@ -966,4 +1134,34 @@ fn changed_trees(
     let mut all = Vec::new();
     let sha = trees(&root, &mut all)?;
     Ok((all, sha))
+}
+
+pub(super) fn validate_source(source: &PinnedSource) -> Result<(), GitError> {
+    let mut root = Node::default();
+    for f in &source.files {
+        if model::object("blob", &f.bytes) != f.sha {
+            return Err(GitError::Integrity);
+        }
+        add(&mut root, &f.path, &f.mode, f.sha.clone())?;
+    }
+    if trees(&root, &mut Vec::new())? != source.tree {
+        return Err(GitError::Unsupported);
+    }
+    Ok(())
+}
+
+#[cfg(test)]
+pub(super) fn fixture_trees(files: &[SourceFile]) -> (GitSha, Vec<(GitSha, serde_json::Value)>) {
+    let mut root = Node::default();
+    for f in files {
+        add(&mut root, &f.path, &f.mode, f.sha.clone()).unwrap();
+    }
+    let mut all = Vec::new();
+    let sha = trees(&root, &mut all).unwrap();
+    (
+        sha,
+        all.into_iter()
+            .map(|t| (t.sha, serde_json::to_value(t.entries).unwrap()))
+            .collect(),
+    )
 }

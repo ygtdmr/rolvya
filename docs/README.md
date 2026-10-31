@@ -117,6 +117,8 @@ The paths above are a **planned inventory**, not links to files that already exi
 
 ## Engineering and agent execution specifications
 
+- [G1-02 verified multi-file coding artifacts](development/verified-coding-artifacts.md)
+
 - [G1-01 trusted GitHub App remote publication](development/github-app-trusted-publication.md)
 
 - [S2-04 verified worker bootstrap and scoped credentials](development/verified-worker-bootstrap.md)

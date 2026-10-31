@@ -221,6 +221,9 @@ impl Fixture {
         Self::with_provider_limit(None).await
     }
     async fn with_provider_limit(until: Option<i64>) -> Self {
+        Self::with_kind(until, false).await
+    }
+    async fn with_kind(until: Option<i64>, coding: bool) -> Self {
         let root = temporary();
         let data = root.path().join("data");
         let keys = root.path().join("keys");
@@ -241,7 +244,19 @@ impl Fixture {
             )
             .await
             .unwrap();
-        let content = common::plan();
+        let mut content = common::plan();
+        if coding {
+            let task = &mut content.tasks[0];
+            task.acceptance_criteria = vec![crate::orchestration::coding::CODING_CRITERION.into()];
+            task.scope = vec!["src/a.rs".into()];
+            task.execution.as_mut().unwrap().write_scope =
+                rolvya_domain::plan::WriteScope::Remote {
+                    repository: "fixture/repository".into(),
+                    git_ref: "refs/heads/rolvya/planned/task-a".into(),
+                    paths: task.scope.clone(),
+                };
+        }
+
         let policy = synthetic::Authority::default();
         let validated =
             rolvya_plan_validator::validate(&content, &policy, Limits::default()).unwrap();
@@ -1027,3 +1042,76 @@ async fn provider_deadline_caps_initial_lease_and_authenticated_heartbeat_withou
 
 mod provider_fixture;
 pub(in crate::controller_keys) use provider_fixture::FixtureWorker;
+
+#[tokio::test]
+async fn coding_denied_message_cannot_pin_immutable_artifact_bytes() {
+    use crate::controller_keys::github_app::{GitSha, RepositoryId};
+    use crate::orchestration::coding::*;
+    let f = Fixture::with_kind(None, true).await;
+    let token = f.issued().await;
+    f.executing(&token).await;
+    let d = || Digest::new("1".repeat(64)).unwrap();
+    let artifact = CodingResult {
+        format: CodingFormat::V1,
+        installation: f
+            .bootstrap
+            .load_existing()
+            .await
+            .unwrap()
+            .coding_installation(),
+        binding: f.binding.clone(),
+        repository: RepositoryId::new(99).unwrap(),
+        base_commit: GitSha::parse("1".repeat(40)).unwrap(),
+        base_tree: GitSha::parse("2".repeat(40)).unwrap(),
+        source_sha256: d(),
+        inputs: vec![],
+        financial_event: 1,
+        operation: d(),
+        changes: vec![FileChange::Add {
+            path: "src/a.rs".into(),
+            content: "untrusted candidate".into(),
+        }],
+        resulting_tree_sha256: d(),
+        worker_execution: "private-synthetic-worker".into(),
+        verification_execution: "private-synthetic-run".into(),
+    };
+    let raw = serde_json::to_vec(&artifact).unwrap();
+    let message = f.message(
+        99,
+        WorkerBody::SubmitResult {
+            outcome: ExecutionOutcome::Succeeded {
+                manifest_sha256: Digest::new(format!("{:x}", Sha256::digest(&raw))).unwrap(),
+            },
+        },
+    );
+    let context = f.context("coding-denied-result", WorkerOperation::SubmitResult);
+    assert!(
+        f.security
+            .receive_receipt_with_artifact(
+                &token.secret,
+                &encode_worker_message(&message).unwrap(),
+                &context,
+                Some(&raw)
+            )
+            .await
+            .is_err()
+    );
+    assert_eq!(
+        f.rows("coding_artifacts").await,
+        0,
+        "denied message must not retain immutable artifact bytes"
+    );
+    let good = f.message(4, message.body.clone());
+    let context = f.context("coding-valid-result", WorkerOperation::SubmitResult);
+    f.security
+        .receive_receipt_with_artifact(
+            &token.secret,
+            &encode_worker_message(&good).unwrap(),
+            &context,
+            Some(&raw),
+        )
+        .await
+        .unwrap();
+    assert_eq!(f.rows("coding_artifacts").await, 1);
+    assert_eq!(f.rows("task_acceptances").await, 0);
+}

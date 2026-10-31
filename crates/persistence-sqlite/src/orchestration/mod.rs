@@ -1,5 +1,6 @@
 //! R09 bounded synthetic orchestration, not a cloud service or new state authority.
 mod artifacts;
+pub mod coding;
 mod coordinator;
 mod observability;
 use crate::{
@@ -36,6 +37,7 @@ pub enum OrchestrationError {
     RecoveryRequired,
     FailureClassification,
     Disconnected,
+    VerificationUnavailable,
     ExecutionFailed(FailureClass),
 }
 impl From<StoreError> for OrchestrationError {
@@ -230,6 +232,7 @@ pub struct SyntheticCoordinator {
     positions: BTreeMap<TaskId, usize>,
     children: BTreeMap<TaskId, Vec<TaskId>>,
     limits: Limits,
+    coding: Option<coding::Authority>,
 }
 
 /// Read-only immutable synthetic work for the authenticated HTTPS adapter. The

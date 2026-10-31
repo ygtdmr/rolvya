@@ -449,14 +449,21 @@ impl HttpsWorkerServer {
                 if message.binding != binding {
                     return Err(E::UnauthorizedScope);
                 }
-                if let Some(artifact) = artifact {
-                    self.artifact(&binding, &artifact).await?;
-                }
+                let coding_artifact = if let Some(artifact) = artifact {
+                    self.artifact(&binding, &artifact).await?
+                } else {
+                    None
+                };
                 let bytes = crate::worker_simulation::encode_worker_message(&message)
                     .map_err(|_| E::InvalidProtocol)?;
                 let (answer, replayed) = match self
                     .security
-                    .receive_receipt(&credential, &bytes, &guard.context)
+                    .receive_receipt_with_artifact(
+                        &credential,
+                        &bytes,
+                        &guard.context,
+                        coding_artifact.as_deref(),
+                    )
                     .await
                 {
                     Ok(a) => a,
@@ -519,12 +526,27 @@ impl HttpsWorkerServer {
         &self,
         b: &WorkerBinding,
         a: &wire::ArtifactUpload,
-    ) -> Result<(), wire::ErrorCode> {
+    ) -> Result<Option<Vec<u8>>, wire::ErrorCode> {
         use wire::ErrorCode as E;
         let bytes = base64::engine::general_purpose::STANDARD
             .decode(&a.data)
             .map_err(|_| E::InvalidArtifact)?;
-        if bytes.len() > 8192 || format!("{:x}", Sha256::digest(&bytes)) != a.sha256.as_str() {
+        if bytes.len() > crate::orchestration::coding::MAX_CODING_BYTES
+            || format!("{:x}", Sha256::digest(&bytes)) != a.sha256.as_str()
+        {
+            return Err(E::InvalidArtifact);
+        }
+        // The existing versioned upload frame already binds opaque artifact bytes
+        // to SubmitResult.sha256. Coding uploads remain untrusted staged evidence.
+        if let Ok(result) =
+            serde_json::from_slice::<crate::orchestration::coding::CodingResult>(&bytes)
+        {
+            if result.binding != *b {
+                return Err(E::InvalidArtifact);
+            }
+            return Ok(Some(bytes));
+        }
+        if bytes.len() > 8192 {
             return Err(E::InvalidArtifact);
         }
         let row = sqlx::query(
@@ -547,7 +569,7 @@ impl HttpsWorkerServer {
         {
             return Err(E::InvalidArtifact);
         }
-        Ok(())
+        Ok(None)
     }
     async fn assignment(
         &self,

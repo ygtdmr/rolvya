@@ -29,6 +29,7 @@ impl SyntheticCoordinator {
             plan,
             positions,
             limits,
+            coding: None,
         })
     }
     pub fn plan_key(&self) -> &PlanKey {

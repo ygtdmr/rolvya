@@ -54,7 +54,10 @@ impl SchedulerPolicy for Authority {
             }
             SchedulerAction::Dispatch { request, .. } => request.actor == *owner,
             SchedulerAction::Validate { request, .. } => {
-                request.actor.as_str() == "synthetic-validator"
+                matches!(
+                    request.actor.as_str(),
+                    "synthetic-validator" | "coding-validator"
+                )
             }
             SchedulerAction::Fence(r) => r.actor == *owner,
             SchedulerAction::Recover(r) => r.actor == *owner,

@@ -918,28 +918,45 @@ impl PlanStore {
             return Err(AdmissionError::InvalidInput);
         }
         let plan = self.load(&r.task.plan, policy, limits).await?;
-        let task = task_in(&plan, &r.task, &r.fingerprint)?;
+        let mut tx = self.pool.begin_with("BEGIN IMMEDIATE").await?;
+        let seq = self
+            .accept_task_in(&mut tx, &plan, r, policy, clock)
+            .await?;
+        tx.commit().await?;
+        Ok(seq)
+    }
+    /// Caller composes verified evidence and R06 acceptance in this one transaction.
+    pub(crate) async fn accept_task_in<P: SchedulerPolicy>(
+        &self,
+        tx: &mut SqliteConnection,
+        plan: &StoredPlan,
+        r: &ValidationRequest,
+        policy: &P,
+        clock: &impl Clock,
+    ) -> Result<i64, AdmissionError> {
+        if !valid_hash(&r.manifest_sha256) {
+            return Err(AdmissionError::InvalidInput);
+        }
+        let task = task_in(plan, &r.task, &r.fingerprint)?;
         if r.lease.as_ref().is_some_and(|l| l.task != r.task) {
             return Err(AdmissionError::StaleFence);
         }
-        let mut tx = self.pool.begin_with("BEGIN IMMEDIATE").await?;
         let t = at(clock)?;
-        let owner = owner(&mut tx, &r.task.plan.project_id).await?;
-        recheck(&mut tx, &plan, task).await?;
+        let owner = owner(tx, &r.task.plan.project_id).await?;
+        recheck(tx, plan, task).await?;
         if !policy.permits(&owner, SchedulerAction::Validate { request: r, task }, t) {
             return Err(AdmissionError::Forbidden);
         }
         let body = payload("validate", r)?;
-        if let Some(seq) = existing(&mut tx, &r.task.plan.project_id, &r.request_id, &body).await? {
+        if let Some(seq) = existing(tx, &r.task.plan.project_id, &r.request_id, &body).await? {
             let saved:bool=sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM task_acceptances WHERE project_id=? AND plan_id=? AND version=? AND task_id=? AND event_sequence=?)")
                 .bind(r.task.plan.project_id.as_str()).bind(r.task.plan.plan_id.as_str()).bind(version(&r.task.plan)?).bind(r.task.task_id.as_str()).bind(seq).fetch_one(&mut *tx).await?;
-            if !saved || !accepted(&mut tx, &r.task, &r.fingerprint).await? {
+            if !saved || !accepted(tx, &r.task, &r.fingerprint).await? {
                 return Err(StoreError::Integrity.into());
             }
-            tx.commit().await?;
             return Ok(seq);
         }
-        dependencies(&mut tx, task, &r.fingerprint).await?;
+        dependencies(tx, task, &r.fingerprint).await?;
         if task.kind == TaskKind::Group {
             if r.lease.is_some() {
                 return Err(AdmissionError::NotEligible);
@@ -950,14 +967,14 @@ impl PlanStore {
                 return Err(AdmissionError::DependencyIncomplete);
             }
             if !matches!(
-                state(&mut tx, &r.task).await?.as_str(),
+                state(tx, &r.task).await?.as_str(),
                 "planned" | "waiting" | "ready"
             ) {
                 return Err(AdmissionError::NotEligible);
             }
         } else {
             let l = r.lease.as_ref().ok_or(AdmissionError::StaleFence)?;
-            let admission = live(&mut tx, l, t).await?;
+            let admission = live(tx, l, t).await?;
             if admission.permit.executor == r.actor {
                 return Err(AdmissionError::Forbidden);
             }
@@ -968,12 +985,12 @@ impl PlanStore {
             .bind(l.attempt_id.as_str())
             .fetch_one(&mut *tx)
             .await?;
-            if !claimed || state(&mut tx, &r.task).await? != "running" {
+            if !claimed || state(tx, &r.task).await? != "running" {
                 return Err(AdmissionError::NotEligible);
             }
         }
         let seq = event(
-            &mut tx,
+            tx,
             &r.task.plan.project_id,
             &r.request_id,
             "validate",
@@ -1000,23 +1017,22 @@ impl PlanStore {
         )?;
         if let Some(l) = &r.lease {
             one(sqlx::query("UPDATE attempt_states SET state='succeeded' WHERE project_id=? AND attempt_id=? AND state='admitted'").bind(r.task.plan.project_id.as_str()).bind(l.attempt_id.as_str()).execute(&mut *tx).await?.rows_affected())?;
-            credential_retirement(&mut tx, l).await?;
+            credential_retirement(tx, l).await?;
         }
-        set_runtime(&mut tx, &r.task, "succeeded").await?;
+        set_runtime(tx, &r.task, "succeeded").await?;
         let end = at(clock)?;
         if end < t || !policy.permits(&owner, SchedulerAction::Validate { request: r, task }, end) {
             return Err(AdmissionError::Forbidden);
         }
         if let Some(l) = &r.lease {
-            let (admission, until, _) = stored_admission(&mut tx, l).await?;
+            let (admission, until, _) = stored_admission(tx, l).await?;
             if end >= until || end >= admission.permit.valid_until {
                 return Err(AdmissionError::Expired);
             }
         }
-        if !accepted(&mut tx, &r.task, &r.fingerprint).await? {
+        if !accepted(tx, &r.task, &r.fingerprint).await? {
             return Err(StoreError::Integrity.into());
         }
-        tx.commit().await?;
         Ok(seq)
     }
     /// Fence current authority, including an expired lease, without releasing any

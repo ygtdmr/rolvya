@@ -20,7 +20,7 @@ Base: PR [#32](https://github.com/ygtdmr/rolvya/pull/32), merged as `1cb3b2638f7
 
 ## Accepted bytes and publication
 
-The current R09 validator accepts **synthetic result JSON**, not general coding patches. G1-01 publishes exactly those accepted bytes to an Owner-allowed result path. `AcceptedChange` is internal and has no public constructor or deserialization path. A red/green external compile-fail regression guards that boundary; no public publication method accepts caller-manufactured acceptance metadata. It cannot attach unrelated code to a successful task. Independent code/test execution and general coding-result acceptance remain a subsequent prerequisite; this milestone does not pretend they already exist.
+G1-01’s original R09 path accepts **synthetic result JSON**, not general coding patches. G1-01 publishes exactly those accepted bytes to an Owner-allowed result path. `AcceptedChange` is internal and has no public constructor or deserialization path. A red/green external compile-fail regression guards that boundary; no public publication method accepts caller-manufactured acceptance metadata. It cannot attach unrelated code to a successful task. [G1-02](verified-coding-artifacts.md) now adds a separate typed coding-result path with private synthetic verification; it does not let coding bytes borrow synthetic acceptance. Production independent execution remains blocked.
 
 `GitHubRemote::prepare` calls a narrow R09 bridge in the authoritative transaction. It rechecks actual artifact bytes, accepted manifest/provenance, frozen fingerprint, executable attempt, current fence and succeeded state. Expired execution leases do not erase accepted work. Only trusted generated `refs/heads/rolvya/<installation>/<project>/<task>/<attempt>` identities are used; each component is SHA-256 encoded. There is no caller-chosen destination, force update, deletion or merge endpoint.
 
@@ -58,7 +58,7 @@ Separately, pinned `cargo-audit 0.22.2` with RustSec database `2295466c4e9df2664
 
 ## Production gates and next work
 
-Real App registration/installation, protected key onboarding, permission/ruleset/bypass verification, effective webhook trust/transport, live App signing-key rollover and operational restore policy require separate authorized integration evidence. Real-source/commit interoperability and real protected-branch behavior have not been tested. General coding manifests need independent code-result/test acceptance before publication; the current positive scope is accepted synthetic result bytes. No live credentials, external user-repository publication, email, cloud/model operations or spending occurred. No protected merge or next milestone is started.
+Real App registration/installation, protected key onboarding, permission/ruleset/bypass verification, effective webhook trust/transport, live App signing-key rollover and operational restore policy require separate authorized integration evidence. Real-source/commit interoperability and real protected-branch behavior have not been tested. G1-01’s positive scope is accepted synthetic result bytes; [G1-02](verified-coding-artifacts.md) adds independently fixture-verified coding artifacts, with production runner attestation still unavailable. No live credentials, external user-repository publication, email, cloud/model operations or spending occurred. No protected merge or next milestone is started.
 
 ## Official contracts checked 2026-10-30
 

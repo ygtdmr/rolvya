@@ -297,14 +297,16 @@ impl WorkerHttpClient {
             return Err(ClientError::Protocol);
         }
         let artifact = match artifact {
-            Some(bytes) if bytes.len() <= 8192 => Some(ArtifactUpload {
-                sha256: Digest::new(format!(
-                    "{:x}",
-                    <sha2::Sha256 as sha2::Digest>::digest(bytes)
-                ))
-                .map_err(|_| ClientError::Protocol)?,
-                data: base64::engine::general_purpose::STANDARD.encode(bytes),
-            }),
+            Some(bytes) if bytes.len() <= crate::orchestration::coding::MAX_CODING_BYTES => {
+                Some(ArtifactUpload {
+                    sha256: Digest::new(format!(
+                        "{:x}",
+                        <sha2::Sha256 as sha2::Digest>::digest(bytes)
+                    ))
+                    .map_err(|_| ClientError::Protocol)?,
+                    data: base64::engine::general_purpose::STANDARD.encode(bytes),
+                })
+            }
             Some(_) => return Err(ClientError::Protocol),
             None => None,
         };

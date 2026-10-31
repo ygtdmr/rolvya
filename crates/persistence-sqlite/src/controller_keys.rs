@@ -97,6 +97,32 @@ impl ControllerKey {
     pub fn metadata(&self) -> &KeyMetadata {
         &self.metadata
     }
+    pub(crate) fn coding_installation(&self) -> String {
+        self.metadata
+            .installation
+            .0
+            .iter()
+            .map(|b| format!("{b:02x}"))
+            .collect()
+    }
+    // Fixed-domain internal integrity operation; no key bytes or general signer.
+    pub(crate) fn coding_record_seal(&self, domain: &[u8], body: &[u8]) -> [u8; 32] {
+        use hmac::{Hmac, Mac};
+        use sha2::Sha256;
+        let mut m = Hmac::<Sha256>::new_from_slice(&self.material[..]).expect("HMAC key length");
+        for p in [
+            b"rolvya/coding/v1".as_slice(),
+            &self.metadata.installation.0,
+            &self.metadata.key.0,
+            &self.metadata.key_version.to_be_bytes(),
+            domain,
+            body,
+        ] {
+            m.update(&(p.len() as u64).to_be_bytes());
+            m.update(p);
+        }
+        m.finalize().into_bytes().into()
+    }
 }
 impl fmt::Debug for ControllerKey {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -148,6 +174,29 @@ pub struct ControllerBootstrap {
     entropy: fn(&mut [u8]) -> Result<(), BootstrapError>,
 }
 impl ControllerBootstrap {
+    /// Opens R09 with protected coding-evidence verification. No production runner
+    /// authority is installed; independent coding acceptance stays fail closed.
+    pub async fn coding_coordinator(
+        &self,
+        project: &rolvya_domain::ids::ProjectId,
+        policy: &impl crate::admission::SchedulerPolicy,
+        limits: rolvya_plan_validator::Limits,
+    ) -> Result<crate::orchestration::SyntheticCoordinator, crate::orchestration::OrchestrationError>
+    {
+        let key = self
+            .load_existing()
+            .await
+            .map_err(|_| crate::orchestration::OrchestrationError::RecoveryRequired)?;
+        let mut co = crate::orchestration::SyntheticCoordinator::open(
+            self.store.clone(),
+            project,
+            policy,
+            limits,
+        )
+        .await?;
+        co.attach_coding_key(key);
+        Ok(co)
+    }
     pub async fn open(
         store: PlanStore,
         directory: &Path,
