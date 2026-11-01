@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { Button, Tabs, TextField, Switch } from "./controls";
 import { Dialog, Menu, Tooltip } from "./overlays";
@@ -132,6 +132,57 @@ it("reverses horizontal tabs under RTL and links its panel", async () => {
   );
 });
 import { Select } from "./controls";
+it("selects on pointer release without a synthesized click, rejects drag and cancel, and supports assistive clicks", async () => {
+  const change = vi.fn();
+  render(
+    <Select
+      label="Touch account"
+      value="a"
+      onChange={change}
+      options={[
+        { value: "a", label: "Alpha" },
+        { value: "b", label: "Beta" },
+      ]}
+    />,
+  );
+  const combo = screen.getByRole("combobox");
+  const pointer = (target: Element, type: string, x = 10) =>
+    fireEvent(
+      target,
+      Object.assign(new Event(type, { bubbles: true, cancelable: true }), {
+        pointerId: 7,
+        clientX: x,
+        clientY: 10,
+        button: 0,
+        pointerType: "touch",
+      }),
+    );
+  await userEvent.click(combo);
+  const beta = screen.getByRole("option", { name: "Beta" });
+  pointer(beta, "pointerdown");
+  pointer(beta, "pointerup");
+  expect(change).toHaveBeenCalledExactlyOnceWith("b");
+  fireEvent.click(beta, { detail: 1 });
+  expect(change).toHaveBeenCalledTimes(1);
+  expect(combo).toHaveFocus();
+  await userEvent.click(combo);
+  pointer(beta, "pointerdown");
+  pointer(beta, "pointerup", 40);
+  pointer(beta, "pointerdown");
+  pointer(beta, "pointercancel");
+  pointer(beta, "pointerup");
+  expect(change).toHaveBeenCalledTimes(1);
+  fireEvent.click(beta, { detail: 0 });
+  expect(change).toHaveBeenCalledTimes(2);
+  fireEvent.click(beta, { detail: 0 });
+  expect(change).toHaveBeenCalledTimes(2);
+  await userEvent.click(combo);
+  pointer(beta, "pointerdown");
+  await userEvent.keyboard("{Escape}");
+  await userEvent.click(combo);
+  pointer(beta, "pointerup");
+  expect(change).toHaveBeenCalledTimes(2);
+});
 it("select-only combobox uses semantic options without native-select shadow styles", async () => {
   const change = vi.fn();
   const { container } = render(

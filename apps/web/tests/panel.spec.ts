@@ -142,6 +142,9 @@ test("touch landscape, forced contrast, motion and 200/400-percent reflow equiva
   await page
     .getByRole("combobox", { name: "Project workspace", exact: true })
     .tap();
+  await expect(
+    page.getByRole("combobox", { name: "Project workspace", exact: true }),
+  ).toBeFocused();
   await page
     .getByRole("option", { name: "Relay / event gateway", exact: true })
     .tap();

@@ -188,8 +188,14 @@ export function Select({
     trigger = useRef<HTMLButtonElement>(null);
   const search = useRef(""),
     timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const press = useRef<
+    { pointer: number; index: number; x: number; y: number } | undefined
+  >(undefined);
   const selected = options.findIndex((o) => o.value === value),
     blocked = disabled || loading || readOnly || options.length === 0;
+  useEffect(() => {
+    if (!open) press.current = undefined;
+  }, [open]);
   useEffect(() => {
     if (blocked) setOpen(false);
   }, [blocked]);
@@ -214,6 +220,8 @@ export function Select({
     .filter((i) => i >= 0);
   const show = () => {
     if (!blocked && enabled.length) {
+      press.current = undefined;
+      trigger.current?.focus();
       setActive(
         selected >= 0 && !options[selected]?.disabled ? selected : enabled[0]!,
       );
@@ -222,7 +230,7 @@ export function Select({
   };
   const choose = (index: number) => {
     const option = options[index];
-    if (!blocked && option && !option.disabled) {
+    if (open && !blocked && option && !option.disabled) {
       onChange(option.value);
       setOpen(false);
       trigger.current?.focus();
@@ -341,11 +349,47 @@ export function Select({
             aria-selected={value === o.value}
             aria-disabled={o.disabled || undefined}
             data-active={active === i}
-            onPointerDown={(e) => e.preventDefault()}
-            onPointerMove={() => {
+            onPointerDown={(e) => {
+              // Retain combobox focus. WebKit touch may omit the compatibility
+              // click after preventDefault, so activation uses pointer release.
+              e.preventDefault();
+              press.current =
+                e.button === 0
+                  ? {
+                      pointer: e.pointerId,
+                      index: i,
+                      x: e.clientX,
+                      y: e.clientY,
+                    }
+                  : undefined;
+            }}
+            onPointerMove={(e) => {
+              const start = press.current;
+              if (
+                start &&
+                Math.hypot(e.clientX - start.x, e.clientY - start.y) > 10
+              )
+                press.current = undefined;
               if (!o.disabled) setActive(i);
             }}
-            onClick={() => choose(i)}
+            onPointerCancel={() => {
+              press.current = undefined;
+            }}
+            onPointerUp={(e) => {
+              const start = press.current;
+              press.current = undefined;
+              if (
+                start?.pointer === e.pointerId &&
+                start.index === i &&
+                Math.hypot(e.clientX - start.x, e.clientY - start.y) <= 10
+              )
+                choose(i);
+            }}
+            onClick={(e) => {
+              // Assistive activation has no pointer sequence. Ignore synthesized
+              // pointer clicks to avoid a second onChange after pointerup.
+              if (e.detail === 0) choose(i);
+            }}
           >
             <span>{o.label}</span>
             <small aria-hidden="true">
