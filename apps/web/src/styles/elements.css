@@ -678,3 +678,99 @@
     }
   }
 }
+@layer elements {
+  .rv-select {
+    position: relative;
+    min-inline-size: 0;
+  }
+  .rv-select-trigger {
+    inline-size: 100%;
+    min-block-size: 44px;
+    padding: 10px 12px;
+    border: 1px solid var(--rv-control-line);
+    border-radius: var(--rv-r1);
+    background: var(--rv-bg);
+    color: var(--rv-text);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    text-align: start;
+    font-size: 0.85rem;
+  }
+  .rv-select-trigger > span {
+    min-inline-size: 0;
+    overflow-wrap: anywhere;
+  }
+  .rv-select-trigger > .rv-icon {
+    transform: rotate(90deg);
+    flex-shrink: 0;
+  }
+  .rv-select-trigger:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+  .rv-select-trigger[aria-readonly="true"] {
+    cursor: default;
+  }
+  .rv-listbox {
+    position: absolute;
+    inset-block-start: calc(100% + 6px);
+    inset-inline: 0;
+    z-index: 60;
+    list-style: none;
+    padding: 6px;
+    margin: 0;
+    max-block-size: 300px;
+    max-block-size: min(300px, 40dvh);
+    overflow: auto;
+    overscroll-behavior: contain;
+    border: 1px solid var(--rv-control-line);
+    border-radius: var(--rv-r1);
+    background: var(--rv-surface);
+    box-shadow: var(--rv-shadow);
+  }
+  .rv-listbox > li {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    padding: 10px;
+    min-block-size: 44px;
+    font-size: 0.82rem;
+    border-radius: 4px;
+    cursor: pointer;
+  }
+  .rv-listbox > li > span {
+    min-inline-size: 0;
+    overflow-wrap: anywhere;
+  }
+  .rv-listbox > li > small {
+    font-size: 0.62rem;
+    color: var(--rv-muted);
+  }
+  .rv-listbox > li[data-active="true"] {
+    outline: 1px solid var(--rv-accent);
+    outline-offset: -1px;
+    background: var(--rv-raised);
+  }
+  .rv-listbox > li[aria-selected="true"] {
+    font-weight: 600;
+  }
+  .rv-listbox > li[aria-disabled="true"] {
+    color: var(--rv-muted);
+    cursor: not-allowed;
+  }
+}
+@layer layout {
+  .rv-project-control .rv-select-trigger {
+    min-block-size: 40px;
+    border-color: var(--rv-line);
+    font-size: 0.8rem;
+  }
+}
+@layer elements {
+  .rv-listbox[hidden] {
+    display: none;
+  }
+}

@@ -22,14 +22,9 @@ export function ProjectSelector({
     <Select
       label="Project workspace"
       value={value}
-      onChange={(e) => onChange(e.target.value)}
-    >
-      {projects.map((p) => (
-        <option key={p.id} value={p.id}>
-          {p.name}
-        </option>
-      ))}
-    </Select>
+      onChange={onChange}
+      options={projects.map((p) => ({ value: p.id, label: p.name }))}
+    />
   );
 }
 export function ProjectSummary({ snapshot }: { snapshot: Snapshot }) {

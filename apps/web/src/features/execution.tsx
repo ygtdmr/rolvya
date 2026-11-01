@@ -41,14 +41,15 @@ export function Execution({
         <Select
           label="Attempt state"
           value={filter}
-          onChange={(e) => setFilter(e.target.value)}
-        >
-          <option value="all">All attempts</option>
-          <option value="running">Running</option>
-          <option value="terminated">Terminated</option>
-          <option value="unknown">Unknown</option>
-          <option value="fenced">Fenced</option>
-        </Select>
+          onChange={(next) => setFilter(next)}
+          options={[
+            { value: "all", label: "All attempts" },
+            { value: "running", label: "Running" },
+            { value: "terminated", label: "Terminated" },
+            { value: "unknown", label: "Unknown" },
+            { value: "fenced", label: "Fenced" },
+          ]}
+        />
         {selected && (
           <Button variant="ghost" onClick={() => onSelect("")}>
             Clear task {selected} filter

@@ -14,14 +14,7 @@ export default defineConfig({
   outputDir: "test-results",
   use: {
     baseURL: "http://127.0.0.1:4174",
-    // Screencast annotations serialize inline styles in WebKit. Keep DOM/source
-    // traces without injecting that tooling into the strict CSP measurement.
-    trace: {
-      mode: "retain-on-failure",
-      screenshots: false,
-      snapshots: true,
-      sources: true,
-    },
+    trace: "retain-on-failure",
     screenshot: "only-on-failure",
   },
   projects: engines.map((name) => ({

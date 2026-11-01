@@ -45,9 +45,13 @@ export function Gallery() {
       />
       <TextField label="Read-only field" value="Immutable" readOnly />
       <SearchField label="Search Element" />
-      <Select label="Select Element">
-        <option>First option</option>
-      </Select>
+      <Select
+        label="Select Element"
+        value="first"
+        onChange={() => undefined}
+        options={[{ value: "first", label: "First option" }]}
+      />
+
       <Checkbox label="Checkbox Element" />
       <Switch label="Switch Element" />
       <Tabs

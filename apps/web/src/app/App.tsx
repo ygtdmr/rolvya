@@ -355,36 +355,38 @@ function Panel({
                 <Select
                   label="Theme"
                   value={preferences.theme}
-                  onChange={(e) =>
+                  onChange={(next) =>
                     setPreferences({
                       ...preferences,
-                      theme: e.target.value as Preferences["theme"],
+                      theme: next as Preferences["theme"],
                     })
                   }
-                >
-                  <option value="dark">Dark</option>
-                  <option value="light">Light</option>
-                  <option value="system">System</option>
-                </Select>
+                  options={[
+                    { value: "dark", label: "Dark" },
+                    { value: "light", label: "Light" },
+                    { value: "system", label: "System" },
+                  ]}
+                />
                 <Select
                   label="Locale"
                   value={preferences.locale}
-                  onChange={(e) =>
+                  onChange={(next) =>
                     setPreferences({
                       ...preferences,
-                      locale: e.target.value as Preferences["locale"],
+                      locale: next as Preferences["locale"],
                     })
                   }
-                >
-                  <option value="en-US">English · US</option>
-                  <option value="en-GB">English · UK</option>
-                  {__DEMO__ && (
-                    <>
-                      <option value="qps-ploc">QA · expanded labels</option>
-                      <option value="qps-rtl">QA · RTL labels</option>
-                    </>
-                  )}
-                </Select>
+                  options={[
+                    { value: "en-US", label: "English · US" },
+                    { value: "en-GB", label: "English · UK" },
+                    ...(__DEMO__
+                      ? [
+                          { value: "qps-ploc", label: "QA · expanded labels" },
+                          { value: "qps-rtl", label: "QA · RTL labels" },
+                        ]
+                      : []),
+                  ]}
+                />
                 <Switch
                   label="Reduce motion"
                   checked={preferences.motion === "reduce"}

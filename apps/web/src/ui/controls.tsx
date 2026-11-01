@@ -1,10 +1,11 @@
 import {
   forwardRef,
   useId,
+  useEffect,
+  useRef,
+  useState,
   type ButtonHTMLAttributes,
   type InputHTMLAttributes,
-  type SelectHTMLAttributes,
-  type ReactNode,
 } from "react";
 const ICONS = {
   projects: "panels-top-left",
@@ -150,23 +151,217 @@ export function SearchField(props: FieldProps) {
     </div>
   );
 }
+export interface SelectOption {
+  value: string;
+  label: string;
+  disabled?: boolean;
+}
+/** Select-only combobox. No native select shadow styles or inline style writes. */
 export function Select({
   label,
-  children,
+  options,
+  value,
+  onChange,
   id: supplied,
-  ...props
-}: SelectHTMLAttributes<HTMLSelectElement> & {
+  disabled = false,
+  loading = false,
+  readOnly = false,
+  error,
+  hint,
+}: {
   label: string;
-  children: ReactNode;
+  options: readonly SelectOption[];
+  value: string;
+  onChange: (value: string) => void;
+  id?: string;
+  disabled?: boolean;
+  loading?: boolean;
+  readOnly?: boolean;
+  error?: string;
+  hint?: string;
 }) {
-  const generated = useId();
-  const id = supplied ?? generated;
+  const generated = useId(),
+    id = supplied ?? generated;
+  const [open, setOpen] = useState(false),
+    [active, setActive] = useState(0);
+  const root = useRef<HTMLDivElement>(null),
+    trigger = useRef<HTMLButtonElement>(null);
+  const search = useRef(""),
+    timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const selected = options.findIndex((o) => o.value === value),
+    blocked = disabled || loading || readOnly || options.length === 0;
+  useEffect(() => {
+    if (blocked) setOpen(false);
+  }, [blocked]);
+  useEffect(() => () => clearTimeout(timer.current), []);
+  useEffect(() => {
+    if (!open) return;
+    const outside = (e: PointerEvent) => {
+      if (e.target instanceof Node && !root.current?.contains(e.target))
+        setOpen(false);
+    };
+    document.addEventListener("pointerdown", outside);
+    return () => document.removeEventListener("pointerdown", outside);
+  }, [open]);
+  useEffect(() => {
+    if (open)
+      document
+        .getElementById(`${id}-option-${active}`)
+        ?.scrollIntoView?.({ block: "nearest" });
+  }, [open, active, id]);
+  const enabled = options
+    .map((o, i) => (o.disabled ? -1 : i))
+    .filter((i) => i >= 0);
+  const show = () => {
+    if (!blocked && enabled.length) {
+      setActive(
+        selected >= 0 && !options[selected]?.disabled ? selected : enabled[0]!,
+      );
+      setOpen(true);
+    }
+  };
+  const choose = (index: number) => {
+    const option = options[index];
+    if (!blocked && option && !option.disabled) {
+      onChange(option.value);
+      setOpen(false);
+      trigger.current?.focus();
+    }
+  };
   return (
-    <div className="rv-field" data-ui="select">
-      <label htmlFor={id}>{label}</label>
-      <select {...props} id={id}>
-        {children}
-      </select>
+    <div
+      ref={root}
+      className="rv-field rv-select"
+      data-ui="select"
+      onBlur={(e) => {
+        if (!e.currentTarget.contains(e.relatedTarget)) setOpen(false);
+      }}
+    >
+      <label id={`${id}-label`} htmlFor={id}>
+        {label}
+      </label>
+      <button
+        ref={trigger}
+        id={id}
+        type="button"
+        role="combobox"
+        value={value}
+        disabled={disabled || loading || options.length === 0}
+        aria-readonly={readOnly || undefined}
+        aria-busy={loading || undefined}
+        aria-invalid={Boolean(error)}
+        aria-labelledby={`${id}-label`}
+        aria-describedby={error || hint ? `${id}-help` : undefined}
+        aria-expanded={open}
+        aria-haspopup="listbox"
+        aria-controls={`${id}-list`}
+        aria-activedescendant={open ? `${id}-option-${active}` : undefined}
+        className="rv-select-trigger"
+        onClick={() => (open ? setOpen(false) : show())}
+        onKeyDown={(e) => {
+          if (blocked) return;
+          if (e.key === "Escape") {
+            if (open) {
+              e.preventDefault();
+              e.stopPropagation();
+              setOpen(false);
+            }
+            return;
+          }
+          if (e.key === "Tab") {
+            setOpen(false);
+            return;
+          }
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            if (open) choose(active);
+            else show();
+            return;
+          }
+          if (["ArrowDown", "ArrowUp", "Home", "End"].includes(e.key)) {
+            e.preventDefault();
+            if (!enabled.length) return;
+            const current = open ? active : selected,
+              index = enabled.indexOf(current);
+            const next =
+              e.key === "Home"
+                ? enabled[0]
+                : e.key === "End"
+                  ? enabled.at(-1)
+                  : enabled[
+                      (index +
+                        (e.key === "ArrowDown" ? 1 : -1) +
+                        enabled.length) %
+                        enabled.length
+                    ];
+            if (next !== undefined) {
+              setActive(next);
+              setOpen(true);
+            }
+            return;
+          }
+          if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
+            e.preventDefault();
+            search.current += e.key.toLocaleLowerCase();
+            clearTimeout(timer.current);
+            timer.current = setTimeout(() => {
+              search.current = "";
+            }, 600);
+            const found = options.findIndex(
+              (o) =>
+                !o.disabled &&
+                o.label.toLocaleLowerCase().startsWith(search.current),
+            );
+            if (found >= 0) {
+              setActive(found);
+              setOpen(true);
+            }
+          }
+        }}
+      >
+        <span>
+          {loading
+            ? "Loading…"
+            : (options[selected]?.label ?? "Choose an option")}
+        </span>
+        <Icon name="chevron" />
+      </button>
+      <ul
+        hidden={!open}
+        id={`${id}-list`}
+        role="listbox"
+        aria-labelledby={`${id}-label`}
+        className="rv-listbox"
+      >
+        {options.map((o, i) => (
+          <li
+            id={`${id}-option-${i}`}
+            key={o.value}
+            role="option"
+            aria-selected={value === o.value}
+            aria-disabled={o.disabled || undefined}
+            data-active={active === i}
+            onPointerDown={(e) => e.preventDefault()}
+            onPointerMove={() => {
+              if (!o.disabled) setActive(i);
+            }}
+            onClick={() => choose(i)}
+          >
+            <span>{o.label}</span>
+            <small aria-hidden="true">
+              {value === o.value ? "Selected" : ""}
+            </small>
+          </li>
+        ))}
+      </ul>
+      {(error || hint) && (
+        <span
+          id={`${id}-help`}
+          className={error ? "rv-field-error" : "rv-help"}
+        >
+          {error ?? hint}
+        </span>
+      )}
     </div>
   );
 }

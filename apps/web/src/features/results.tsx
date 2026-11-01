@@ -54,15 +54,16 @@ export function Results({
           label="Acceptance"
           value={filter}
           disabled={view === "activity"}
-          onChange={(e) => {
-            setFilter(e.target.value);
+          onChange={(next) => {
+            setFilter(next);
             setPage(0);
           }}
-        >
-          <option value="all">All evidence</option>
-          <option value="accepted">Independently accepted</option>
-          <option value="candidate">Unaccepted candidates</option>
-        </Select>
+          options={[
+            { value: "all", label: "All evidence" },
+            { value: "accepted", label: "Independently accepted" },
+            { value: "candidate", label: "Unaccepted candidates" },
+          ]}
+        />
         {selected && (
           <Button
             variant="ghost"

@@ -1,8 +1,6 @@
 import { test, expect } from "@playwright/test";
 import { ready } from "./support";
-// Measure the application's unmodified CSP, without Playwright trace annotations
-// that themselves serialize inline styles. Every policy violation still fails.
-test.use({ trace: "off" });
+// Both initial rendering and navigation must preserve the strict browser policy.
 test("five sections preserve task identity and exact financial boundaries", async ({
   page,
 }) => {

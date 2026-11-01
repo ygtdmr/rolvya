@@ -26,14 +26,15 @@ export function Connections({ snapshot }: { snapshot: Snapshot }) {
         <Select
           label="Connection mode"
           value={filter}
-          onChange={(e) => setFilter(e.target.value)}
-        >
-          <option value="all">All connection modes</option>
-          <option value="api">API · separately billed</option>
-          <option value="cli">CLI subscription</option>
-          <option value="repository">Remote repository</option>
-          <option value="infrastructure">Infrastructure</option>
-        </Select>
+          onChange={(next) => setFilter(next)}
+          options={[
+            { value: "all", label: "All connection modes" },
+            { value: "api", label: "API · separately billed" },
+            { value: "cli", label: "CLI subscription" },
+            { value: "repository", label: "Remote repository" },
+            { value: "infrastructure", label: "Infrastructure" },
+          ]}
+        />
         <Badge icon="shield">Credentials stay in the Secret Broker</Badge>
       </div>
       {items.length === 0 && (

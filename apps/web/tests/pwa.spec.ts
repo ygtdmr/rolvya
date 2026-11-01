@@ -61,7 +61,9 @@ test("blocked external fonts and icons retain labeled controls and system font f
     page.getByRole("button", { name: "Display preferences" }),
   ).toBeVisible();
   await page.getByRole("button", { name: "Display preferences" }).click();
-  await expect(page.getByLabel("Theme", { exact: true })).toBeVisible();
+  await expect(
+    page.getByRole("combobox", { name: "Theme", exact: true }),
+  ).toBeVisible();
 });
 test("no Service Worker support still renders the application", async ({
   page,

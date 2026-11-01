@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
-import { ready } from "./support";
+import { ready, chooseOption } from "./support";
 test("independent synthetic verification unblocks existing dependencies without changing ceiling", async ({
   page,
 }) => {
@@ -75,8 +75,8 @@ test("keyboard, overlays, themes, RTL, long labels and reduced motion", async ({
 }) => {
   await ready(page);
   await page.getByRole("button", { name: "Display preferences" }).click();
-  await page.getByLabel("Theme", { exact: true }).selectOption("light");
-  await page.getByLabel("Locale", { exact: true }).selectOption("qps-rtl");
+  await chooseOption(page, "Theme", "Light");
+  await chooseOption(page, "Locale", "QA · RTL labels");
   await page.getByRole("switch", { name: "Reduce motion" }).check();
   await page.getByRole("button", { name: "Done", exact: true }).click();
   await expect(page.locator("html")).toHaveAttribute("dir", "rtl");
@@ -103,7 +103,7 @@ test("all sections pass automated WCAG AA checks in dark and light", async ({
   for (const theme of ["dark", "light"]) {
     await ready(page);
     await page.getByRole("button", { name: "Display preferences" }).click();
-    await page.getByLabel("Theme", { exact: true }).selectOption(theme);
+    await chooseOption(page, "Theme", theme === "dark" ? "Dark" : "Light");
     await page.getByRole("button", { name: "Done", exact: true }).click();
     for (const section of [
       "projects",
@@ -139,6 +139,15 @@ test("touch landscape, forced contrast, motion and 200/400-percent reflow equiva
   const page = await context.newPage();
   await page.goto("http://127.0.0.1:4174/");
   await expect(page.locator("h1")).toBeVisible();
+  await page
+    .getByRole("combobox", { name: "Project workspace", exact: true })
+    .tap();
+  await page
+    .getByRole("option", { name: "Relay / event gateway", exact: true })
+    .tap();
+  await expect(
+    page.getByRole("heading", { name: "Relay / event gateway", exact: true }),
+  ).toBeVisible();
   await page.getByLabel("Search tasks", { exact: true }).fill("response");
   await expect(page.locator(".rv-task-row")).toHaveCount(1);
   await page.setViewportSize({ width: 844, height: 390 });
@@ -193,3 +202,40 @@ for (const section of [
       ),
     ).toBe(true);
   });
+test("combobox keyboard and open-listbox accessibility preserve nested focus", async ({
+  page,
+}) => {
+  await ready(page);
+  await page.getByRole("button", { name: "Display preferences" }).click();
+  const theme = page.getByRole("combobox", { name: "Theme", exact: true });
+  await theme.focus();
+  await page.keyboard.press("ArrowDown");
+  await expect(
+    page.getByRole("listbox", { name: "Theme", exact: true }),
+  ).toBeVisible();
+  await expect(theme).toBeFocused();
+  const audit = await new AxeBuilder({ page })
+    .withTags(["wcag2a", "wcag2aa", "wcag21aa", "wcag22aa"])
+    .analyze();
+  expect(
+    audit.violations.map((v) => ({
+      id: v.id,
+      nodes: v.nodes.map((n) => n.target),
+    })),
+  ).toEqual([]);
+  await page.keyboard.press("Escape");
+  await expect(
+    page.getByRole("listbox", { name: "Theme", exact: true }),
+  ).toHaveCount(0);
+  await expect(
+    page.getByRole("dialog", { name: "Display preferences" }),
+  ).toBeVisible();
+  await expect(theme).toBeFocused();
+  await page.keyboard.press("Escape");
+  await expect(
+    page.getByRole("dialog", { name: "Display preferences" }),
+  ).toHaveCount(0);
+  await expect(
+    page.getByRole("button", { name: "Display preferences" }),
+  ).toBeFocused();
+});

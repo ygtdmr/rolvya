@@ -8,3 +8,7 @@ export const ready = async (page: Page) => {
     }),
   ).toBeVisible();
 };
+export async function chooseOption(page: Page, label: string, option: string) {
+  await page.getByRole("combobox", { name: label, exact: true }).click();
+  await page.getByRole("option", { name: option, exact: true }).click();
+}

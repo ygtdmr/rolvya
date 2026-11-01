@@ -131,3 +131,72 @@ it("reverses horizontal tabs under RTL and links its panel", async () => {
     "aria-controls",
   );
 });
+import { Select } from "./controls";
+it("select-only combobox uses semantic options without native-select shadow styles", async () => {
+  const change = vi.fn();
+  const { container } = render(
+    <Select
+      label="Account"
+      value="a"
+      onChange={change}
+      options={[
+        { value: "a", label: "Alpha" },
+        { value: "b", label: "Beta", disabled: true },
+        { value: "g", label: "Gamma" },
+      ]}
+    />,
+  );
+  expect(container.querySelector("select,option")).toBeNull();
+  await userEvent.tab();
+  await userEvent.keyboard("{ArrowDown}");
+  const combo = screen.getByRole("combobox", { name: "Account" });
+  expect(combo).toHaveFocus();
+  expect(combo).toHaveAttribute("aria-expanded", "true");
+  expect(screen.getByRole("option", { name: "Beta" })).toHaveAttribute(
+    "aria-disabled",
+    "true",
+  );
+  await userEvent.keyboard("{Enter}");
+  expect(change).toHaveBeenCalledWith("g");
+  expect(combo).toHaveAttribute("aria-expanded", "false");
+  expect(combo).toHaveFocus();
+});
+it("combobox typeahead, escape, disabled and read-only states preserve focus and authority", async () => {
+  const change = vi.fn();
+  const options = [
+    { value: "a", label: "Alpha" },
+    { value: "g", label: "Gamma" },
+  ];
+  render(
+    <>
+      <Select label="Mode" value="a" options={options} onChange={change} />
+      <Select
+        label="Read-only"
+        value="a"
+        options={options}
+        onChange={change}
+        readOnly
+        hint="Fixed assignment"
+      />
+      <Select
+        label="Loading"
+        value="a"
+        options={options}
+        onChange={change}
+        loading
+      />
+    </>,
+  );
+  const combo = screen.getByRole("combobox", { name: "Mode" });
+  combo.focus();
+  await userEvent.keyboard("g");
+  await userEvent.keyboard("{Escape}");
+  expect(combo).toHaveAttribute("aria-expanded", "false");
+  expect(change).not.toHaveBeenCalled();
+  await userEvent.click(screen.getByRole("combobox", { name: "Read-only" }));
+  expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
+  expect(
+    screen.getByRole("combobox", { name: "Read-only" }),
+  ).toHaveAccessibleDescription("Fixed assignment");
+  expect(screen.getByRole("combobox", { name: "Loading" })).toBeDisabled();
+});

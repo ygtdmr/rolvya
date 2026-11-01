@@ -36,7 +36,7 @@ The five sections share tokens, controls, overlays, status badges, tables and or
 
 The demo uses synthetic A/B/G/C data. Advancing it simulates receipt of independent evidence and group acceptance without creating DAG nodes, changing budgets or contacting a backend. It never represents actual account entitlement, cloud execution, email, model output or repository publication.
 
-Dark/light themes, English locale variants, demo-only expanded/RTL QA labels, external Inter/IBM Plex Mono/Lucide resources and system-font/labeled-control fallbacks share one implementation. Native dialogs trap and restore focus. Motion uses common CSS tokens and optional native View Transitions, with reduced-motion fallbacks. Phone layouts start with the hierarchy and use drawers. Browser reflow simulations do not establish physical-device or assistive-technology certification.
+Dark/light themes, English locale variants, demo-only expanded/RTL QA labels, external Inter/IBM Plex Mono/Lucide resources and system-font/labeled-control fallbacks share one implementation. Native dialogs trap and restore focus. The shared select-only combobox keeps focus and supports arrows, boundaries, typeahead, touch and nested dismissal without the native select creation path that emitted strict-CSP violations in WebKit; no policy permission is relaxed. Motion uses common CSS tokens and optional native View Transitions, with reduced-motion fallbacks. Phone layouts start with the hierarchy and use drawers. Browser reflow simulations do not establish physical-device or assistive-technology certification.
 
 ## Rust and browser authority
 
