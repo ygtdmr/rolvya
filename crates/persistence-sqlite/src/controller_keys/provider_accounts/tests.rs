@@ -255,7 +255,12 @@ pub(in crate::controller_keys) async fn fixture_registry_for(
                 account: r.account.clone(),
                 provider: r.provider.clone(),
                 record: "synthetic-credential".into(),
-                purpose: "synthetic-model".into(),
+                purpose: if matches!(id.as_str(), "openai-api-a" | "openai-api-b" | "claude-a") {
+                    "model-api"
+                } else {
+                    "synthetic-model"
+                }
+                .into(),
                 version: 1,
             };
             use super::super::secret_broker as broker;
@@ -264,7 +269,12 @@ pub(in crate::controller_keys) async fn fixture_registry_for(
                 &mut tx,
                 &registry.key,
                 &scope,
-                &broker::SecretValue::new(broker::os_random::<32>().unwrap().to_vec()).unwrap(),
+                &broker::SecretValue::new(if k.purpose == "model-api" {
+                    format!("synthetic-provider-key-{}", id.as_str()).into_bytes()
+                } else {
+                    broker::os_random::<32>().unwrap().to_vec()
+                })
+                .unwrap(),
             )
             .await
             .unwrap();
@@ -389,6 +399,11 @@ pub(in crate::controller_keys) async fn fixture_registry_for(
             e.scope_digest.clone(),
             e.evidence.as_str().to_owned(),
         ));
+        if let Some(cli) = &e.cli {
+            store::bind_cli_home(&mut tx, &id, &cli.home_identity)
+                .await
+                .unwrap();
+        }
         g.entitlement = Some(e);
         store::save_grant(&mut tx, &registry.key, &g).await.unwrap();
         sqlx::query("INSERT OR IGNORE INTO provider_policy_revisions VALUES(?,?,?,1)")

@@ -101,13 +101,112 @@ struct Session {
     url: String,
     ca: Vec<u8>,
     f: Fixture,
+    server: Arc<crate::controller_keys::worker_auth::https::HttpsWorkerServer>,
     lease: LeaseRef,
     worker: crate::controller_keys::worker_auth::https::coding_worker::CodingWorker,
     stop: tokio::sync::oneshot::Sender<()>,
     serving: tokio::task::JoinHandle<()>,
 }
+#[tokio::test]
+async fn coding_proxy_claim_permission_does_not_grant_model_use() {
+    let s = Session::open(Some(0)).await;
+    let result = s
+        .worker
+        .proxy_request(
+            crate::controller_keys::worker_auth::https::proxy::ProxyRequest {
+                version: 1,
+                work: s.worker.work().identity.clone(),
+                step: 1,
+                previous: vec![],
+            },
+        )
+        .await;
+    assert!(matches!(
+        result,
+        Err(
+            crate::controller_keys::worker_auth::https::client::ClientError::Rejected(
+                crate::controller_keys::worker_auth::https::wire::ErrorCode::UnauthorizedScope
+            )
+        )
+    ));
+    assert_eq!(s.f.count("coding_agent_calls").await, 0);
+    s.close().await;
+}
+#[tokio::test]
+async fn coding_proxy_call_observation_cannot_be_written_by_worker() {
+    let s = Session::open(Some(0)).await;
+    let mut co =
+        s.f.bootstrap
+            .coding_coordinator(&s.f.project, &s.f.policy, Limits::default())
+            .await
+            .unwrap();
+    co.fixture_agent_enable(0);
+    let now = s.f.clock.now().unwrap();
+    let mut tx = s.f.store.pool.begin_with("BEGIN IMMEDIATE").await.unwrap();
+    let receipt = co
+        .coding_proxy_in(&mut tx, &s.lease, &s.start(1), now + 8, now)
+        .await
+        .unwrap();
+    assert!(receipt.execute);
+    tx.commit().await.unwrap();
+    assert!(s.step(s.finish(1, true)).await.is_err());
+    assert!(s.step(s.start(1)).await.is_err());
+    assert_eq!(s.f.count("coding_agent_calls").await, 1);
+    assert_eq!(s.f.count("coding_agent_observations").await, 0);
+    let mut tx = s.f.store.pool.begin_with("BEGIN IMMEDIATE").await.unwrap();
+    assert!(
+        !co.coding_proxy_in(&mut tx, &s.lease, &s.start(1), now + 8, now)
+            .await
+            .unwrap()
+            .execute
+    );
+    tx.commit().await.unwrap();
+    assert_eq!(s.f.count("coding_agent_calls").await, 1);
+    s.close().await;
+}
+#[tokio::test]
+async fn coding_proxy_consumes_encrypted_broker_secret_without_worker_key() {
+    use base64::Engine;
+    let s = Session::open_proxy(Some(0), true).await;
+    let (endpoint, provider, count) =
+        agent::fixture::proxy_provider(s.worker.work(), Adapter::OpenAiApi).await;
+    crate::controller_keys::worker_auth::https::proxy::fixture_route(
+        &s.server,
+        s.worker.work(),
+        endpoint,
+    );
+    let before = s.f.count("secret_events").await;
+    let reply = s
+        .worker
+        .proxy_request(
+            crate::controller_keys::worker_auth::https::proxy::ProxyRequest {
+                version: 1,
+                work: s.worker.work().identity.clone(),
+                step: 1,
+                previous: vec![],
+            },
+        )
+        .await
+        .unwrap();
+    let response = base64::engine::general_purpose::STANDARD
+        .decode(reply.response.unwrap())
+        .unwrap();
+    assert!(String::from_utf8(response).unwrap().contains("read_file"));
+    assert_eq!(count.load(Ordering::SeqCst), 1);
+    assert_eq!(s.f.count("coding_agent_calls").await, 1);
+    assert_eq!(s.f.count("coding_agent_observations").await, 1);
+    assert_eq!(s.f.count("secret_events").await, before + 1);
+    provider.abort();
+    s.close().await;
+}
 impl Session {
     async fn open(maximum: Option<i64>) -> Self {
+        Self::open_proxy(maximum, false).await
+    }
+    async fn open_proxy(maximum: Option<i64>, proxy: bool) -> Self {
+        Self::open_proxy_expiry(maximum, proxy, false).await
+    }
+    async fn open_proxy_expiry(maximum: Option<i64>, proxy: bool, expire_at_io: bool) -> Self {
         let f = Fixture::new_coding_mode("agents-openai").await;
         let leases = f.coding_admit().await;
         let mut co = f
@@ -117,6 +216,14 @@ impl Session {
             .unwrap();
         if let Some(n) = maximum {
             co.fixture_agent_enable(n)
+        }
+        if expire_at_io {
+            let clock = f.clock.clone();
+            co.fixture_coding_hook(Box::new(move |p| {
+                if p == "proxy-before-io" {
+                    clock.advance_to(NOW + 8).unwrap();
+                }
+            }));
         }
         if let Ok(point) = std::env::var("ROLVYA_G105_CRASH_POINT") {
             co.fixture_coding_hook(Box::new(move |p| {
@@ -128,7 +235,7 @@ impl Session {
                 }
             }));
         }
-        let net = CodingNetwork::new(
+        let mut net = CodingNetwork::new(
             &f.bootstrap,
             Arc::new(f.policy.fixture_reuse(synthetic::Authority {
                 coding_agents: true,
@@ -138,6 +245,9 @@ impl Session {
             co,
         )
         .await;
+        if proxy {
+            net.enable_proxy(&f.bootstrap).await;
+        }
         let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
         let url = format!(
             "https://localhost:{}/",
@@ -177,6 +287,7 @@ impl Session {
         Self {
             url,
             ca: net.ca.clone(),
+            server: net.server.clone(),
             f,
             lease: leases[0].clone(),
             worker,
@@ -341,14 +452,35 @@ async fn coding_agent_crash_child() {
     let Ok(point) = std::env::var("ROLVYA_G105_CRASH_POINT") else {
         return;
     };
-    let s = Session::open(Some(0)).await;
+    let s = Session::open_proxy(Some(0), point.starts_with("proxy-")).await;
     let sibling = s.f.lease("task-b").await;
     let result = s.f.coding_result(&sibling).await;
     s.f.coding_receive(&sibling, &result).await;
     s.f.coding_verify(&sibling, &result).await;
     s.f.coding_accept(&sibling).await;
     let balance = s.f.store.financial_snapshot(&s.f.project).await.unwrap();
-    std::fs::write(std::env::var("ROLVYA_G105_CHECKPOINT").unwrap(),serde_json::to_vec(&json!({"root":s.f.root.path(),"project":s.f.project,"lease":s.lease,"held":balance.held.total().unwrap().minor_units(),"uncertain":balance.uncertain_liabilities})).unwrap()).unwrap();
+    std::fs::write(std::env::var("ROLVYA_G105_CHECKPOINT").unwrap(),serde_json::to_vec(&json!({"root":s.f.root.path(),"project":s.f.project,"lease":s.lease,"held":balance.held.total().unwrap().minor_units(),"uncertain":balance.uncertain_liabilities,"secret_events":s.f.count("secret_events").await})).unwrap()).unwrap();
+    if point.starts_with("proxy-") {
+        let (endpoint, _provider, _) =
+            agent::fixture::proxy_provider(s.worker.work(), Adapter::OpenAiApi).await;
+        crate::controller_keys::worker_auth::https::proxy::fixture_route(
+            &s.server,
+            s.worker.work(),
+            endpoint,
+        );
+        let _ = s
+            .worker
+            .proxy_request(
+                crate::controller_keys::worker_auth::https::proxy::ProxyRequest {
+                    version: 1,
+                    work: s.worker.work().identity.clone(),
+                    step: 1,
+                    previous: vec![],
+                },
+            )
+            .await;
+        panic!("unreached proxy SIGKILL checkpoint");
+    }
     assert!(s.step(s.start(1)).await.unwrap().execute);
     assert!(point.starts_with("provider-observe"));
     s.step(s.finish(1, true)).await.unwrap();
@@ -362,6 +494,12 @@ async fn coding_agent_sigkill_intent_and_observation_commits_preserve_holds() {
         ("provider-start-after", 1, 0),
         ("provider-observe-before", 1, 0),
         ("provider-observe-after", 1, 1),
+        ("proxy-intent-before", 0, 0),
+        ("proxy-intent-after", 1, 0),
+        ("proxy-secret-before", 1, 0),
+        ("proxy-secret-after", 1, 0),
+        ("proxy-observation-before", 1, 0),
+        ("proxy-observation-after", 1, 1),
     ] {
         let directory = tempfile::tempdir().unwrap();
         let checkpoint = directory.path().join("checkpoint.json");
@@ -406,6 +544,20 @@ async fn coding_agent_sigkill_intent_and_observation_commits_preserve_holds() {
                     .unwrap(),
                 n,
                 "{point}:{table}"
+            );
+        }
+        if point.starts_with("proxy-") {
+            let expected = i64::from(matches!(
+                point,
+                "proxy-secret-after" | "proxy-observation-before" | "proxy-observation-after"
+            ));
+            assert_eq!(
+                sqlx::query_scalar::<_, i64>("SELECT count(*) FROM secret_events")
+                    .fetch_one(&store.pool)
+                    .await
+                    .unwrap(),
+                info["secret_events"].as_i64().unwrap() + expected,
+                "{point}: audited consumption commits atomically"
             );
         }
         let project = ProjectId::new(info["project"].as_str().unwrap()).unwrap();
@@ -743,3 +895,52 @@ async fn coding_agent_successful_model_with_wrong_code_fails_independent_verific
     );
     s.close().await;
 }
+
+#[tokio::test]
+async fn coding_proxy_expiry_immediately_before_io_blocks_provider_effect() {
+    let s = Session::open_proxy_expiry(Some(0), true, true).await;
+    let (endpoint, provider, count) =
+        agent::fixture::proxy_provider(s.worker.work(), Adapter::OpenAiApi).await;
+    crate::controller_keys::worker_auth::https::proxy::fixture_route(
+        &s.server,
+        s.worker.work(),
+        endpoint,
+    );
+    let before = s.f.store.financial_snapshot(&s.f.project).await.unwrap();
+    assert!(
+        s.worker
+            .proxy_request(
+                crate::controller_keys::worker_auth::https::proxy::ProxyRequest {
+                    version: 1,
+                    work: s.worker.work().identity.clone(),
+                    step: 1,
+                    previous: vec![],
+                }
+            )
+            .await
+            .is_err()
+    );
+    assert_eq!(
+        count.load(Ordering::SeqCst),
+        0,
+        "an expired permit must not start a provider request"
+    );
+    assert_eq!(s.f.count("coding_agent_calls").await, 1);
+    assert_eq!(s.f.count("coding_agent_observations").await, 0);
+    assert_eq!(
+        s.f.store.financial_snapshot(&s.f.project).await.unwrap(),
+        before
+    );
+    provider.abort();
+    s.close().await;
+}
+
+#[tokio::test]
+async fn coding_account_home_identity_rejects_account_attempt_and_credential_substitution() {
+    let s = Session::open(Some(0)).await;
+    agent::fixture::home_scope_denied(s.worker.work(), NOW);
+    s.close().await;
+}
+
+#[path = "proxy_tests.rs"]
+mod proxy_tests;

@@ -354,18 +354,29 @@ pub(crate) async fn broker_in<P: SchedulerPolicy + ?Sized>(
     request: &super::super::secret_broker::SecretUseRequest,
     t: i64,
 ) -> Result<(), RegistryError> {
-    use super::super::secret_broker::{CredentialOperation, ProviderMode};
+    use super::super::secret_broker::CredentialOperation;
     if request.operation == CredentialOperation::LocalIntegrityInspection {
         return Ok(());
     }
-    let registry = policy.provider_registry().ok_or(RegistryError::Denied)?;
     let worker = request.worker.as_ref().ok_or(RegistryError::Denied)?;
     let lease = LeaseRef {
         task: worker.binding.task.clone(),
         attempt_id: worker.binding.attempt_id.clone(),
         epoch: worker.binding.epoch,
     };
-    let (admission, _, _) = crate::admission::stored_admission(c, &lease)
+    broker_for_attempt(c, policy, &lease, &request.scope, request.version, t).await
+}
+pub(crate) async fn broker_for_attempt<P: SchedulerPolicy + ?Sized>(
+    c: &mut SqliteConnection,
+    policy: &P,
+    lease: &LeaseRef,
+    s: &super::super::secret_broker::RecordScope,
+    version: super::super::secret_broker::SecretVersion,
+    t: i64,
+) -> Result<(), RegistryError> {
+    use super::super::secret_broker::ProviderMode;
+    let registry = policy.provider_registry().ok_or(RegistryError::Denied)?;
+    let (admission, _, _) = crate::admission::stored_admission(c, lease)
         .await
         .map_err(|_| RegistryError::Denied)?;
     let text:String=sqlx::query_scalar("SELECT json_extract(definition,'$.execution') FROM tasks WHERE project_id=? AND plan_id=? AND version=? AND task_id=?").bind(lease.task.plan.project_id.as_str()).bind(lease.task.plan.plan_id.as_str()).bind(lease.task.plan.version.get() as i64).bind(lease.task.task_id.as_str()).fetch_one(&mut *c).await?;
@@ -381,7 +392,6 @@ pub(crate) async fn broker_in<P: SchedulerPolicy + ?Sized>(
         t,
     )
     .await?;
-    let s = &request.scope;
     let k = &g.credential;
     let mode = match s.connection.mode {
         ProviderMode::ApiKey => AccessMode::ApiKey,
@@ -394,7 +404,7 @@ pub(crate) async fn broker_in<P: SchedulerPolicy + ?Sized>(
         || mode != r.mode
         || s.record.as_str() != k.record
         || s.purpose.as_str() != k.purpose
-        || request.version.get() != k.version as u64
+        || version.get() != k.version as u64
     {
         return Err(RegistryError::Denied);
     }

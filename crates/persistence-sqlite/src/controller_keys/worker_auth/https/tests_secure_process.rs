@@ -87,6 +87,7 @@ async fn secure_aws_process_fixture() {
         transport,
         identity: cert.server(),
         secure_fargate: Some(service),
+        provider_proxy: None,
     });
     if c.prepare {
         let r = PrepareBootstrap {

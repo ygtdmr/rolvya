@@ -146,12 +146,21 @@ async fn coding_execution_process() {
         let source = worker.source().clone();
         let result = if let Some(adapter) = config.get("agent_adapter").filter(|v| !v.is_null()) {
             let adapter = serde_json::from_value(adapter.clone()).unwrap();
-            crate::controller_keys::worker_auth::https::agent::fixture::execute(
-                &mut worker,
-                adapter,
-                now,
-            )
-            .await
+            if config["agent_proxy"].as_bool() == Some(true) {
+                crate::controller_keys::worker_auth::https::agent::fixture::execute_proxy(
+                    &mut worker,
+                    adapter,
+                    now,
+                )
+                .await
+            } else {
+                crate::controller_keys::worker_auth::https::agent::fixture::execute(
+                    &mut worker,
+                    adapter,
+                    now,
+                )
+                .await
+            }
         } else {
             let changes = if binding.task.task_id.as_str() == "task-a" {
                 vec![
@@ -292,9 +301,50 @@ async fn coding_work_end_to_end(
         crate::controller_keys::worker_auth::https::agent::Adapter,
     )>,
 ) {
+    coding_work_end_to_end_proxy(fargate, agents, false).await
+}
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn coding_proxy_openai_codex_r09_git() {
+    use crate::controller_keys::worker_auth::https::agent::Adapter;
+    coding_work_end_to_end_proxy(false, Some((Adapter::OpenAiApi, Adapter::CodexCli)), true).await;
+}
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn coding_proxy_anthropic_claude_r09_git() {
+    use crate::controller_keys::worker_auth::https::agent::Adapter;
+    coding_work_end_to_end_proxy(
+        false,
+        Some((Adapter::AnthropicApi, Adapter::ClaudeCodeCli)),
+        true,
+    )
+    .await;
+}
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn coding_proxy_concurrent_openai_anthropic_r09_git() {
+    use crate::controller_keys::worker_auth::https::agent::Adapter;
+    coding_work_end_to_end_proxy(
+        false,
+        Some((Adapter::OpenAiApi, Adapter::AnthropicApi)),
+        true,
+    )
+    .await;
+}
+async fn coding_work_end_to_end_proxy(
+    fargate: bool,
+    agents: Option<(
+        crate::controller_keys::worker_auth::https::agent::Adapter,
+        crate::controller_keys::worker_auth::https::agent::Adapter,
+    )>,
+    proxy: bool,
+) {
     let f = if let Some((adapter, _)) = agents {
         Fixture::new_coding_mode(
-            if adapter == crate::controller_keys::worker_auth::https::agent::Adapter::OpenAiApi {
+            if agents.unwrap().1
+                == crate::controller_keys::worker_auth::https::agent::Adapter::AnthropicApi
+            {
+                "agents-cross-api"
+            } else if adapter
+                == crate::controller_keys::worker_auth::https::agent::Adapter::OpenAiApi
+            {
                 "agents-openai"
             } else {
                 "agents-anthropic"
@@ -317,7 +367,7 @@ async fn coding_work_end_to_end(
     if agents.is_some() {
         co.fixture_agent_enable(0);
     }
-    let net = CodingNetwork::new(
+    let mut net = CodingNetwork::new(
         &f.bootstrap,
         Arc::new(f.policy.fixture_reuse(synthetic::Authority {
             fargate,
@@ -328,6 +378,40 @@ async fn coding_work_end_to_end(
         co,
     )
     .await;
+    let mut provider_tasks = Vec::new();
+    if proxy {
+        net.enable_proxy(&f.bootstrap).await;
+        for (lease, adapter) in leases.iter().zip([agents.unwrap().0, agents.unwrap().1]) {
+            if !matches!(
+                adapter,
+                crate::controller_keys::worker_auth::https::agent::Adapter::OpenAiApi
+                    | crate::controller_keys::worker_auth::https::agent::Adapter::AnthropicApi
+            ) {
+                continue;
+            }
+            let mut tx = f.store.pool.begin_with("BEGIN IMMEDIATE").await.unwrap();
+            let work = f
+                .bootstrap
+                .coding_coordinator(&f.project, &f.policy, Limits::default())
+                .await
+                .unwrap()
+                .coding_work_in(&mut tx, lease, f.clock.now().unwrap())
+                .await
+                .unwrap();
+            tx.commit().await.unwrap();
+            let (endpoint, task, _) =
+                crate::controller_keys::worker_auth::https::agent::fixture::proxy_provider(
+                    &work, adapter,
+                )
+                .await;
+            crate::controller_keys::worker_auth::https::proxy::fixture_route(
+                &net.server,
+                &work,
+                endpoint,
+            );
+            provider_tasks.push(task);
+        }
+    }
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
     let url = format!(
         "https://localhost:{}/",
@@ -347,12 +431,12 @@ async fn coding_work_end_to_end(
     let b = net.bootstrap(&leases[1]).await;
     let mut pa = Process::new(
         "coding",
-        json!({"ca":net.ca,"url":url,"now":f.clock.now().unwrap(),"bootstrap":a,"agent_adapter":agents.map(|a|a.0)}),
+        json!({"ca":net.ca,"url":url,"now":f.clock.now().unwrap(),"bootstrap":a,"agent_adapter":agents.map(|a|a.0),"agent_proxy":proxy}),
     )
     .await;
     let mut pb = Process::new(
         "coding",
-        json!({"ca":net.ca,"url":url,"now":f.clock.now().unwrap(),"bootstrap":b,"agent_adapter":agents.map(|a|a.1)}),
+        json!({"ca":net.ca,"url":url,"now":f.clock.now().unwrap(),"bootstrap":b,"agent_adapter":agents.map(|a|a.1),"agent_proxy":proxy}),
     )
     .await;
     let (a, b) = tokio::join!(pa.recv(), pb.recv());
@@ -360,12 +444,19 @@ async fn coding_work_end_to_end(
     assert_ne!(a["artifact"], b["artifact"]);
     pa.finish().await;
     pb.finish().await;
-    if let Some((adapter, _)) = agents {
+    if let Some((adapter, second)) = agents {
         let expected =
             if adapter == crate::controller_keys::worker_auth::https::agent::Adapter::OpenAiApi {
-                6
+                5
             } else {
-                4
+                3
+            } + if matches!(
+                second,
+                crate::controller_keys::worker_auth::https::agent::Adapter::AnthropicApi
+            ) {
+                3
+            } else {
+                1
             };
         assert_eq!(f.count("coding_agent_calls").await, expected);
         assert_eq!(f.count("coding_agent_observations").await, expected);
@@ -562,6 +653,8 @@ async fn coding_work_end_to_end(
     f.store.snapshot(&snapshot).await.unwrap();
     let mut protected_values = keys.clone();
     protected_values.push(b"synthetic-model-protocol-only".to_vec());
+    protected_values.push(b"synthetic-provider-key-openai-api-a".to_vec());
+    protected_values.push(b"synthetic-provider-key-claude-a".to_vec());
     protected_values.extend(keys.iter().map(|k| {
         base64::engine::general_purpose::STANDARD
             .encode(k)
@@ -597,6 +690,9 @@ async fn coding_work_end_to_end(
         .await
         .unwrap();
     assert_eq!(main, f.world.base.as_str());
+    for task in provider_tasks {
+        task.abort();
+    }
     stop.send(()).unwrap();
     serving.await.unwrap();
 }

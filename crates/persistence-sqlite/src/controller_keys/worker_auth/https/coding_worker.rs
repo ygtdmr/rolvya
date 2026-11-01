@@ -13,6 +13,15 @@ pub struct CodingWorker {
     stopped: bool,
 }
 impl CodingWorker {
+    pub async fn proxy_request(
+        &self,
+        r: super::proxy::ProxyRequest,
+    ) -> Result<super::proxy::ProxyReply, ClientError> {
+        if r.work != self.work.identity {
+            return Err(ClientError::Protocol);
+        }
+        self.client.model_proxy(r).await
+    }
     pub async fn begin(
         client: WorkerHttpClient,
         capabilities: DeclaredCapabilities,

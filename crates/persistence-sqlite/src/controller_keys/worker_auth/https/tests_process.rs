@@ -212,6 +212,7 @@ async fn https_process_fixture() {
         let server = Arc::new(HttpsWorkerServer {
             coding: None,
             secure_fargate: None,
+            provider_proxy: None,
             security,
             transport,
             identity,

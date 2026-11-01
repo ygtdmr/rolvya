@@ -128,7 +128,14 @@ impl IdentityAuthority for SignedProvider {
     }
 }
 fn sign(key: &Ed25519KeyPair, scope: VerifiedIdentityScope) -> Attestation {
-    let identity = VerifiedWorkerIdentity {
+    sign_model(key, scope, false)
+}
+fn sign_model(
+    key: &Ed25519KeyPair,
+    scope: VerifiedIdentityScope,
+    model_proxy: bool,
+) -> Attestation {
+    let mut identity = VerifiedWorkerIdentity {
         subject: synthetic::e("independently-signed-test-subject"),
         execution: synthetic::e(&format!(
             "test-execution-{}",
@@ -148,6 +155,9 @@ fn sign(key: &Ed25519KeyPair, scope: VerifiedIdentityScope) -> Attestation {
         ],
         valid_until: synthetic::T + 3600,
     };
+    if model_proxy {
+        identity.permissions.push(WorkerPermission::ModelProxy);
+    }
     let reference = scope.evidence.clone();
     let statement = serde_json::to_string(&Statement {
         domain: "ROLVYA-SYNTHETIC-PROVIDER-TEST-V1".into(),
@@ -448,6 +458,7 @@ impl<P: SyntheticExecutionAuthority + 'static> Fixture<P> {
             Arc::new(HttpsWorkerServer {
                 coding: None,
                 secure_fargate: None,
+                provider_proxy: None,
                 security,
                 transport,
                 identity: self.cert.server(),
@@ -748,6 +759,7 @@ async fn real_tls_coding_upload_above_legacy_size_is_atomic_untrusted_evidence()
 
 /// Cross-component private TLS fixture. No such constructor exists in production.
 pub(crate) struct CodingNetwork {
+    model_proxy: bool,
     pub server: Arc<HttpsWorkerServer>,
     pub ca: Vec<u8>,
     provider: Arc<SignedProvider>,
@@ -780,13 +792,20 @@ impl CodingNetwork {
             transport,
             identity: cert.server(),
             secure_fargate: None,
+            provider_proxy: None,
         });
         Self {
+            model_proxy: false,
             server,
             ca: cert.cert.as_ref().to_vec(),
             provider,
             key,
         }
+    }
+    pub(crate) async fn enable_proxy(&mut self, bootstrap: &ControllerBootstrap) {
+        self.model_proxy = true;
+        let proxy = super::proxy::ProviderProxy::open(bootstrap).await.unwrap();
+        Arc::get_mut(&mut self.server).unwrap().provider_proxy = Some(proxy);
     }
     pub(crate) async fn bootstrap(&self, l: &LeaseRef) -> serde_json::Value {
         let s = &self.server;
@@ -822,11 +841,10 @@ impl CodingNetwork {
             pool: &scope.pool,
             command_digest: &scope.command_digest,
         };
-        self.provider
-            .prepare
-            .lock()
-            .unwrap()
-            .insert(r.request_id.as_str().into(), sign(&self.key, check.scope()));
+        self.provider.prepare.lock().unwrap().insert(
+            r.request_id.as_str().into(),
+            sign_model(&self.key, check.scope(), self.model_proxy),
+        );
         let ticket = s.security.prepare_bootstrap(&r).await.unwrap();
         s.transport
             .bootstrap_destinations
@@ -849,7 +867,7 @@ impl CodingNetwork {
         signed.request = id.clone();
         signed.evidence = synthetic::e("signed-bootstrap");
         signed.challenge = Some(ticket.id.clone());
-        serde_json::json!({"challenge":ticket.id,"secret":std::str::from_utf8(secret.as_ref()).unwrap(),"request":id,"proof":sign(&self.key,signed),"binding":scope.binding})
+        serde_json::json!({"challenge":ticket.id,"secret":std::str::from_utf8(secret.as_ref()).unwrap(),"request":id,"proof":sign_model(&self.key,signed,self.model_proxy),"binding":scope.binding})
     }
     pub(crate) fn worker(url: &str, ca: Vec<u8>) -> WorkerHttpClient {
         WorkerHttpClient::with_tls(

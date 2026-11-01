@@ -29,6 +29,7 @@ pub struct HttpsWorkerServer {
     pub(super) identity: ServerIdentity,
     pub(super) coding: Option<Arc<crate::orchestration::SyntheticCoordinator>>,
     pub(super) secure_fargate: Option<Arc<super::super::aws_fargate::SecureFargateBootstrap>>,
+    pub(super) provider_proxy: Option<super::proxy::ProviderProxy>,
 }
 impl HttpsWorkerServer {
     /// Production identity verification remains unimplemented/default-deny. This
@@ -48,6 +49,7 @@ impl HttpsWorkerServer {
             transport,
             identity,
             secure_fargate: None,
+            provider_proxy: None,
             coding: None,
         }))
     }
@@ -369,6 +371,7 @@ impl HttpsWorkerServer {
         };
         read.commit().await.map_err(|_| E::TransientStorage)?;
         let operation = match &frame.operation {
+            wire::Operation::ModelProxy { .. } => WorkerOperation::UseCredential,
             wire::Operation::Bootstrap { .. } => WorkerOperation::Register,
             wire::Operation::Renew { .. } | wire::Operation::PreparePossession {} => {
                 WorkerOperation::RenewCredential
@@ -500,6 +503,17 @@ impl HttpsWorkerServer {
                     },
                 })
                 .map_err(|_| E::Unavailable)?;
+                Ok(response(SecretBytes(Zeroizing::new(body)), StatusCode::OK))
+            }
+            wire::Operation::ModelProxy { request } => {
+                let reply = self
+                    .model_proxy(&credential, &guard.context, &request)
+                    .await?;
+                let body = serde_json::to_vec(&wire::Response::ModelProxy { version: 1, reply })
+                    .map_err(|_| E::Unavailable)?;
+                if body.len() > wire::MAX_RESPONSE_BODY {
+                    return Err(E::InvalidArtifact);
+                }
                 Ok(response(SecretBytes(Zeroizing::new(body)), StatusCode::OK))
             }
             op @ (wire::Operation::CodingAgent { .. }

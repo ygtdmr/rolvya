@@ -49,6 +49,9 @@ pub enum Operation {
     CodingAgent {
         operation: super::agent::AgentOperation,
     },
+    ModelProxy {
+        request: super::proxy::ProxyRequest,
+    },
     CodingWork {},
     CodingSource {
         work: Digest,
@@ -114,6 +117,10 @@ pub enum Response {
         version: u16,
         receipt: super::agent::StepReceipt,
     },
+    ModelProxy {
+        version: u16,
+        reply: super::proxy::ProxyReply,
+    },
     CodingWork {
         version: u16,
         work: Box<crate::orchestration::coding::work::CodingWork>,
@@ -150,6 +157,7 @@ impl Request {
                 attestation.validate()?;
             }
             Operation::Renew { attestation } => attestation.validate()?,
+            Operation::ModelProxy { request } => request.validate()?,
             Operation::Message { message, artifact } => {
                 message.validate().map_err(|_| ErrorCode::InvalidProtocol)?;
                 if self.request_id.as_str() != message.message_id.as_str() {

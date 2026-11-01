@@ -6,6 +6,8 @@ last-reviewed: 2026-10-31
 
 # Provider-backed coding execution
 
+G1-06 extends this historical G1-05 implementation with a [scoped controller credential proxy](scoped-provider-proxy.md); its production gates remain closed.
+
 Base: PR [#36](https://github.com/ygtdmr/rolvya/pull/36), verified squash `9d1f3ecbc4a99a6163f37aca34a02c76aee6e432`, whose tree exactly matches submitted `3e6aa58d2b145a1370c5ec3ed49fefa40b087cd7`. This extends [G1-03 work distribution](trusted-coding-work-execution.md), [G1-04 verification](fargate-independent-verifier.md), [S2-05 account authority](provider-account-entitlements.md) and [G1-02 artifacts](verified-coding-artifacts.md).
 
 ## Implemented code

@@ -13,6 +13,7 @@ use std::sync::{
 pub(in crate::controller_keys::worker_auth) const T: i64 = 1_800_000_000;
 pub(in crate::controller_keys::worker_auth) fn expected(task_id: &str) -> ExpectedExecution {
     let w = FargateWorkload {
+        coding_isolation: None,
         format: 1,
         cluster: ClusterArn::parse("arn:aws:ecs:eu-central-1:123456789012:cluster/rolvya").unwrap(),
         task_definition: TaskDefinitionArn::parse(
@@ -504,4 +505,61 @@ fn workload_and_operation_identity_reject_scope_drift_and_unbounded_configuratio
     );
     assert_eq!(original.operation_token.len(), 64);
     assert!(original.operation_token.is_ascii());
+}
+
+#[tokio::test]
+async fn coding_proxy_workspace_is_explicit_and_sdk_inspected() {
+    let mut e = expected("task-a");
+    let mut value = serde_json::to_value(&e.workload).unwrap();
+    value["coding_isolation"] = json!("credential_proxy_v1");
+    value["command"] = json!(["rolvya-coding-worker", "--provider-proxy"]);
+    e.workload = serde_json::from_value(value).unwrap();
+    e.operation_token = e.expected_operation_token().unwrap();
+    let f = AwsFixture::new(&e);
+    {
+        let mut d = f.definition.lock().unwrap();
+        d["volumes"] = json!([{"name":"coding-work"}]);
+        d["containerDefinitions"][0]["mountPoints"] =
+            json!([{"sourceVolume":"coding-work","containerPath":"/workspace","readOnly":false}]);
+        d["containerDefinitions"][0]["linuxParameters"] =
+            json!({"initProcessEnabled":true,"capabilities":{"drop":["ALL"]}});
+    }
+    let sdk = SdkClients::fixture(&e.workload, credentials(), f.http());
+    assert!(sdk.inspect(&e, T).await.unwrap().configuration_correlated);
+    let baseline = f.definition.lock().unwrap().clone();
+    for mutation in 0..9 {
+        let mut d = baseline.clone();
+        match mutation {
+            0 => d["volumes"][0]["host"] = json!({"sourcePath":"/controller"}),
+            1 => d["volumes"][0]["efsVolumeConfiguration"] = json!({"fileSystemId":"fs-attack"}),
+            2 => d["containerDefinitions"][0]["mountPoints"][0]["containerPath"] = json!("/"),
+            3 => {
+                d["containerDefinitions"][0]["linuxParameters"]["capabilities"]["add"] =
+                    json!(["SYS_ADMIN"])
+            }
+            4 => {
+                d["containerDefinitions"][0]["linuxParameters"]["initProcessEnabled"] = json!(false)
+            }
+            5 => d["containerDefinitions"][0]["readonlyRootFilesystem"] = json!(false),
+            6 => d["containerDefinitions"][0]["user"] = json!("0"),
+            7 => {
+                d["containerDefinitions"][0]["environment"] =
+                    json!([{"name":"AWS_PROFILE","value":"host"}])
+            }
+            _ => d["containerDefinitions"][0]["mountPoints"]
+                .as_array_mut()
+                .unwrap()
+                .push(
+                    json!({"sourceVolume":"coding-work","containerPath":"/home/another-account"}),
+                ),
+        }
+        *f.definition.lock().unwrap() = d;
+        assert!(sdk.inspect(&e, T).await.is_err(), "mutation {mutation}");
+    }
+    // Schema opt-in must not change authenticated historical workload bytes.
+    assert!(
+        !serde_json::to_string(&expected("task-a").workload)
+            .unwrap()
+            .contains("coding_isolation")
+    );
 }

@@ -110,6 +110,9 @@ impl LaunchRequest {
         }
         let mut actual = self.exposure.upper_bound(w, now)?;
         if let Some(v) = &self.verifier {
+            if w.coding_isolation.is_some() {
+                return Err(E::IsolationMismatch);
+            }
             v.validate(self, now)?;
             actual = super::verifier::combined(actual, v.coding_maximum)?;
         }

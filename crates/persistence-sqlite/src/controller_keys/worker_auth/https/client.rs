@@ -60,6 +60,31 @@ impl fmt::Debug for WorkerHttpClient {
     }
 }
 impl WorkerHttpClient {
+    pub async fn model_proxy(
+        &self,
+        request: super::proxy::ProxyRequest,
+    ) -> Result<super::proxy::ProxyReply, ClientError> {
+        request.validate().map_err(|_| ClientError::Protocol)?;
+        let frame = Request {
+            version: 1,
+            request_id: RequestId::new(format!("model-proxy-{}", request.step))
+                .map_err(|_| ClientError::Protocol)?,
+            operation: Operation::ModelProxy { request },
+        };
+        let raw = self
+            .exchange(
+                &frame,
+                self.credential
+                    .as_ref()
+                    .ok_or(ClientError::NotAuthenticated)?,
+                false,
+            )
+            .await?;
+        match serde_json::from_slice::<Response>(&raw).map_err(|_| ClientError::Protocol)? {
+            Response::ModelProxy { version: 1, reply } => Ok(reply),
+            _ => Err(ClientError::Protocol),
+        }
+    }
     pub fn new(endpoint: ControllerEndpoint) -> Result<Self, ClientError> {
         Self::with_tls(
             endpoint,
