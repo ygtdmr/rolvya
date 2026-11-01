@@ -39,6 +39,9 @@ test("static shell works offline and private API responses never enter caches", 
   });
   expect(paths.some((p) => p.startsWith("/api/"))).toBe(false);
   expect(paths).toContain("/index.html");
+  // The private-response fixture is finished. Remove browser-level interception
+  // before testing native Service Worker/offline navigation (not a routed request).
+  await context.unroute("**/api/private");
   await context.setOffline(true);
   await page.reload();
   await expect(page.getByText("DEMO WORKSPACE", { exact: true })).toBeVisible();

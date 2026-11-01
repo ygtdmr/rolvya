@@ -23,6 +23,11 @@ test("five sections preserve task identity and exact financial boundaries", asyn
   });
   page.on("pageerror", (e) => violations.push(e.message));
   await ready(page);
+  expect(
+    await page.evaluate(
+      () => (window as unknown as { csp?: string[] }).csp ?? [],
+    ),
+  ).toEqual([]);
   await expect(page.locator(".rv-sidebar nav a")).toHaveCount(5);
   await expect(page.getByText("DEMO WORKSPACE", { exact: true })).toBeVisible();
   await page.locator("[data-ui=dependency-graph] [data-task=A]").click();
