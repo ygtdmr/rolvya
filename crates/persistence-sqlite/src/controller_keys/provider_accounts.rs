@@ -627,3 +627,53 @@ impl<P: crate::orchestration::SyntheticExecutionAuthority>
 pub(in crate::controller_keys) use tests::{
     fixture_limit, fixture_owner_verifier, fixture_registry, fixture_registry_for, fixture_reopen,
 };
+
+/// Immutable model-account projection; infrastructure permit identities are
+/// deliberately separate. This metadata is not an independent entitlement grant.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct CodingModelBinding {
+    pub connection: String,
+    pub provider: String,
+    pub account: String,
+    pub mode: AccessMode,
+    pub integration: String,
+    pub credential_connection: String,
+    pub credential_record: String,
+    pub credential_purpose: String,
+    pub connection_version: i64,
+    pub grant_version: i64,
+    pub credential_version: i64,
+}
+pub(crate) async fn coding_model_binding(
+    c: &mut SqliteConnection,
+    key: &ControllerKey,
+    project: &ProjectId,
+    connection: &str,
+) -> Result<CodingModelBinding, RegistryError> {
+    let id = ConnectionId::parse(connection.into())?;
+    let r = store::connection(c, key, &id).await?;
+    let g = store::grant(c, key, &id, project).await?;
+    if r.revoked
+        || g.revoked
+        || g.connection != id
+        || g.project != *project
+        || g.credential.account != r.account
+        || g.credential.provider != r.provider
+    {
+        return Err(RegistryError::Denied);
+    }
+    Ok(CodingModelBinding {
+        connection: connection.into(),
+        provider: r.provider,
+        account: r.account,
+        mode: r.mode,
+        integration: r.integration,
+        credential_connection: g.credential.connection,
+        credential_record: g.credential.record,
+        credential_purpose: g.credential.purpose,
+        connection_version: r.version,
+        grant_version: g.version,
+        credential_version: g.credential.version,
+    })
+}

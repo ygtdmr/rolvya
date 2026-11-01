@@ -2,6 +2,12 @@
 
 Current authoritative decision cross-check: 2026-10-26 (see current ADRs; earlier sections are chronological historical checkpoints).
 
+## G1-05 provider-backed coding agents (2026-10-31)
+
+PR #36 is verified squash-merged as `9d1f3ecbc4a99a6163f37aca34a02c76aee6e432`, exactly matching submitted G1-04. Branch `codex/provider-backed-coding-agents` adds real Responses/Messages tool-loop adapters and Codex/Claude Code subprocess contracts to the existing authenticated coding worker. Registry-derived model-account binding, scoped Broker transport, exact workspace collection and forward 0020 extend existing authority rather than replacing R06/R08/R09 or Git publication. Published migrations and dependency pins remain unchanged. See [implemented behavior, evidence and production gates](../development/provider-backed-coding-agents.md).
+
+Two offline A/B/G/C integrations use distinct synthetic accounts, actual CLI fixture binaries/API protocol fixtures, genuine SQLite/TLS, independent verifier subprocesses and exact accepted-byte Git publication. Review findings have reproduced regression fixes; four new SIGKILL commit boundaries preserve sibling acceptance and financial holds. Final complete test counts, reviews and exact-head CI/CodeQL are reported in the PR after execution. Actual provider authentication, remote isolation, credential delivery, enforceable cost/entitlement and production activation remain blocked. The inaccessible Dependabot alert and separate unpatched locked RSA finding remain unresolved. No real provider credentials, cloud resources, paid operations, self-approval, merge or next milestone.
+
 ## G1-04 independent Fargate verification (2026-10-31)
 
 PR #35 is verified merged as `a3f951fbe4a541bec1b5e7f49f023a6a5823c715`, with its exact submitted tree and migration 0018. Branch `codex/fargate-independent-verifier` composes separately scoped verifier execution, protected delivery and current provider proofs with the existing AWS journal, original financial reservation, genuine TLS verifier protocol, R09 acceptance and trusted Git publisher. Forward 0019 preserves published migration files and historical request/MAC bytes. [Implementation and precise gates](../development/fargate-independent-verifier.md) distinguish offline execution from unverified AWS isolation and production activation.

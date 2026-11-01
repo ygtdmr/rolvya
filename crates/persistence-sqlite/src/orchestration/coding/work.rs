@@ -17,6 +17,8 @@ pub struct SourceEntry {
 #[derive(Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct CodingWork {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub model_account: Option<crate::controller_keys::provider_accounts::CodingModelBinding>,
     pub version: u16,
     pub identity: Digest,
     pub binding: WorkerBinding,
@@ -243,7 +245,20 @@ impl SyntheticCoordinator {
                 manifest_sha256: digest,
             });
         }
+        let model_account = crate::controller_keys::provider_accounts::coding_model_binding(
+            c,
+            &self.coding_authority()?.key,
+            &l.task.plan.project_id,
+            &task
+                .execution
+                .as_ref()
+                .ok_or(OrchestrationError::ScopeMismatch)?
+                .connection_ref,
+        )
+        .await
+        .map_err(|_| OrchestrationError::ScopeMismatch)?;
         let mut work = CodingWork {
+            model_account: Some(model_account),
             version: WORK_VERSION,
             identity: Digest::new("0".repeat(64))?,
             binding: cmd.binding().clone(),

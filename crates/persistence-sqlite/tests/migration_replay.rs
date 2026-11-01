@@ -49,7 +49,7 @@ async fn migrations_replay_reopen_and_consistent_snapshot_restore() {
             .fetch_one(&raw)
             .await
             .unwrap(),
-        19
+        20
     );
     assert_eq!(
         sqlx::query_scalar::<_, String>("SELECT sqlite_version()")
@@ -123,8 +123,8 @@ async fn failed_migration_rolls_back_ddl_and_data() {
     let f = Fixture::new().await;
     let raw = f.raw().await;
     let scripts = tempfile::tempdir().unwrap();
-    std::fs::write(scripts.path().join("0020_injected_failure.sql"),"CREATE TABLE should_rollback(value TEXT); INSERT INTO should_rollback VALUES ('temporary'); SELECT absent_column FROM absent_table;").unwrap();
-    // Replay real migrations, then verify failing v20 executes and rolls back atomically.
+    std::fs::write(scripts.path().join("0021_injected_failure.sql"),"CREATE TABLE should_rollback(value TEXT); INSERT INTO should_rollback VALUES ('temporary'); SELECT absent_column FROM absent_table;").unwrap();
+    // Replay real migrations, then verify failing v21 executes and rolls back atomically.
     std::fs::write(
         scripts.path().join("0001_plan_store.sql"),
         include_str!("../migrations/0001_plan_store.sql"),
@@ -222,10 +222,15 @@ async fn failed_migration_rolls_back_ddl_and_data() {
         include_str!("../migrations/0019_fargate_verifier.sql"),
     )
     .unwrap();
+    std::fs::write(
+        scripts.path().join("0020_coding_provider_execution.sql"),
+        include_str!("../migrations/0020_coding_provider_execution.sql"),
+    )
+    .unwrap();
     let migrator = Migrator::new(scripts.path()).await.unwrap();
     let error = migrator.run(&raw).await.unwrap_err();
     assert!(
-        matches!(error, sqlx::migrate::MigrateError::ExecuteMigration(_, 20)),
+        matches!(error, sqlx::migrate::MigrateError::ExecuteMigration(_, 21)),
         "must execute the injected next migration, not reject migration metadata"
     );
     assert_eq!(
@@ -392,7 +397,7 @@ async fn real_v1_upgrade_preserves_projects_and_failed_v2_leaves_v1_intact() {
                 .fetch_one(&raw)
                 .await
                 .unwrap(),
-            19
+            20
         );
         assert_eq!(
             sqlx::query_scalar::<_, i64>("SELECT count(*) FROM financial_events")
@@ -1792,6 +1797,68 @@ async fn aws_journal_purpose_upgrade_preserves_exact_legacy_records_and_macs_on_
                 .await
                 .unwrap()
                 .is_empty()
+        );
+        raw.close().await;
+    }
+}
+
+#[tokio::test]
+async fn v19_project_survives_v20_provider_journal_upgrade_and_rollback() {
+    for fail in [false, true] {
+        let dir = tempfile::tempdir().unwrap();
+        let scripts = tempfile::tempdir().unwrap();
+        for entry in std::fs::read_dir(concat!(env!("CARGO_MANIFEST_DIR"), "/migrations")).unwrap()
+        {
+            let e = entry.unwrap();
+            if e.file_name().to_str().unwrap() < "0020" {
+                std::fs::copy(e.path(), scripts.path().join(e.file_name())).unwrap();
+            }
+        }
+        let raw = sqlx::SqlitePool::connect(&format!(
+            "sqlite:{}?mode=rwc",
+            dir.path().join("upgrade.sqlite").display()
+        ))
+        .await
+        .unwrap();
+        sqlx::query("PRAGMA foreign_keys=ON")
+            .execute(&raw)
+            .await
+            .unwrap();
+        Migrator::new(scripts.path())
+            .await
+            .unwrap()
+            .run(&raw)
+            .await
+            .unwrap();
+        sqlx::query("INSERT INTO projects(project_id,owner_actor) VALUES('provider-upgrade','legacy-not-a-human')").execute(&raw).await.unwrap();
+        let sql = include_str!("../migrations/0020_coding_provider_execution.sql");
+        std::fs::write(
+            scripts.path().join("0020_coding_provider_execution.sql"),
+            if fail {
+                format!("{sql}\nSELECT absent FROM missing;")
+            } else {
+                sql.into()
+            },
+        )
+        .unwrap();
+        let result = Migrator::new(scripts.path()).await.unwrap().run(&raw).await;
+        assert_eq!(result.is_err(), fail);
+        assert_eq!(
+            sqlx::query_scalar::<_, String>(
+                "SELECT owner_actor FROM projects WHERE project_id='provider-upgrade'"
+            )
+            .fetch_one(&raw)
+            .await
+            .unwrap(),
+            "legacy-not-a-human"
+        );
+        assert_eq!(sqlx::query_scalar::<_,i64>("SELECT count(*) FROM sqlite_schema WHERE name IN ('coding_agent_calls','coding_agent_observations')").fetch_one(&raw).await.unwrap(),if fail{0}else{2});
+        assert_eq!(
+            sqlx::query_scalar::<_, i64>("SELECT count(*) FROM _sqlx_migrations WHERE success=1")
+                .fetch_one(&raw)
+                .await
+                .unwrap(),
+            if fail { 19 } else { 20 }
         );
         raw.close().await;
     }

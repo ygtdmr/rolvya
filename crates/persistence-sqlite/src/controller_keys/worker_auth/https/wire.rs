@@ -46,6 +46,9 @@ pub enum Operation {
         artifact: Option<ArtifactUpload>,
     },
     Assignment {},
+    CodingAgent {
+        operation: super::agent::AgentOperation,
+    },
     CodingWork {},
     CodingSource {
         work: Digest,
@@ -107,6 +110,10 @@ pub enum Response {
         version: u16,
         assignment: Assignment,
     },
+    CodingAgent {
+        version: u16,
+        receipt: super::agent::StepReceipt,
+    },
     CodingWork {
         version: u16,
         work: Box<crate::orchestration::coding::work::CodingWork>,
@@ -167,6 +174,7 @@ impl Request {
             }
             Operation::Assignment {}
             | Operation::PreparePossession {}
+            | Operation::CodingAgent { .. }
             | Operation::CodingWork {}
             | Operation::CodingSource { .. } => {}
         }

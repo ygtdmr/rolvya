@@ -38,3 +38,5 @@ Dependabot #1 is still inaccessible/unidentified (connector unsupported; configu
 Next dependency-ready work: separately reviewed Fargate verifier identity/isolation and expense/recovery enforcement, followed by explicitly authorized operational validation and real-App integration. No next slice, live credentials, cloud/model/mail operation, user-repository write, protected merge or spending is performed here.
 
 [G1-04](fargate-independent-verifier.md) adds the separately scoped Fargate verifier request/identity/delivery integration and offline protocol evidence. Effective hostile-code isolation and production establishment remain disabled.
+
+[G1-05](provider-backed-coding-agents.md) adds provider API tool loops and CLI subprocess adapters to the existing worker. Actual provider authentication and production remote execution remain gated.

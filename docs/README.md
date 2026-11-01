@@ -117,6 +117,7 @@ The paths above are a **planned inventory**, not links to files that already exi
 
 ## Engineering and agent execution specifications
 
+- [G1-05 provider-backed coding adapters](development/provider-backed-coding-agents.md)
 - [G1-02 verified multi-file coding artifacts](development/verified-coding-artifacts.md)
 - [G1-04 independent Fargate verification](development/fargate-independent-verifier.md)
 - [G1-03 authenticated coding work and independent execution](development/trusted-coding-work-execution.md)

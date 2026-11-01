@@ -377,6 +377,7 @@ impl HttpsWorkerServer {
                 crate::worker_simulation::controller::operation(&message.body)
             }
             wire::Operation::Assignment {}
+            | wire::Operation::CodingAgent { .. }
             | wire::Operation::CodingWork {}
             | wire::Operation::CodingSource { .. } => WorkerOperation::Claim,
         };
@@ -501,7 +502,9 @@ impl HttpsWorkerServer {
                 .map_err(|_| E::Unavailable)?;
                 Ok(response(SecretBytes(Zeroizing::new(body)), StatusCode::OK))
             }
-            op @ (wire::Operation::CodingWork {} | wire::Operation::CodingSource { .. }) => {
+            op @ (wire::Operation::CodingAgent { .. }
+            | wire::Operation::CodingWork {}
+            | wire::Operation::CodingSource { .. }) => {
                 let answer = self.coding_fetch(&credential, &guard.context, &op).await?;
                 let body = serde_json::to_vec(&answer).map_err(|_| E::Unavailable)?;
                 if body.len() > wire::MAX_RESPONSE_BODY {

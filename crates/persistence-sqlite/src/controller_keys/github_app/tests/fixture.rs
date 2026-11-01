@@ -637,7 +637,10 @@ impl Fixture {
                             vec![{
                                 let mut c =
                                     super::coding::execution::fixture_command(t.id.as_str());
-                                if !mode.is_empty() && mode != "fargate" {
+                                if !mode.is_empty()
+                                    && mode != "fargate"
+                                    && !mode.starts_with("agents")
+                                {
                                     c.push(mode.into());
                                 }
                                 c
@@ -656,6 +659,16 @@ impl Fixture {
                         max_output_bytes: 1024,
                     },
                 };
+                if mode.starts_with("agents") {
+                    t.execution.as_mut().unwrap().connection_ref = match (mode, t.id.as_str()) {
+                        ("agents-anthropic", "task-a") => "claude-a",
+                        ("agents-anthropic", _) => "claude-b",
+                        (_, "task-a") => "openai-api-a",
+                        ("agents-pair", _) => "openai-api-b",
+                        _ => "codex-c",
+                    }
+                    .into();
+                }
                 t.scope = paths.clone();
                 t.acceptance_criteria = vec![CODING_CRITERION.into()];
                 t.context.sha256 = commitment(&ctx).unwrap().as_str().into();
@@ -671,6 +684,7 @@ impl Fixture {
         plan.tasks = vec![group, a, b, c];
         let authority = synthetic::Authority {
             fargate: mode == "fargate",
+            coding_agents: mode.starts_with("agents"),
             ..Default::default()
         };
         let valid = rolvya_plan_validator::validate(&plan, &authority, Limits::default()).unwrap();

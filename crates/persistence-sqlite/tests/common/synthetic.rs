@@ -38,9 +38,24 @@ pub struct Authority {
     pub behaviors: BTreeMap<TaskId, FakeBehavior>,
     pub revoked: bool,
     pub fargate: bool,
+    pub coding_agents: bool,
 }
 impl AssignmentPolicy for Authority {
     fn check(&self, a: &ExecutionAssignment) -> Result<(), AssignmentDenial> {
+        if self.coding_agents
+            && [
+                "openai-api-a",
+                "openai-api-b",
+                "codex-c",
+                "claude-a",
+                "claude-b",
+            ]
+            .contains(&a.connection_ref.as_str())
+        {
+            let mut exact = a.clone();
+            exact.connection_ref = "synthetic-connection".into();
+            return SyntheticPolicy.check(&exact);
+        }
         SyntheticPolicy.check(a)
     }
 }
