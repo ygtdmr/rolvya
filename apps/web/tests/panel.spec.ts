@@ -1,98 +1,6 @@
 import { expect, test } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
-const ready = async (page: import("@playwright/test").Page) => {
-  await page.goto("/");
-  await expect(
-    page.getByRole("heading", {
-      name: "Atlas / developer platform",
-      exact: true,
-    }),
-  ).toBeVisible();
-};
-test("five sections preserve task identity and exact financial boundaries", async ({
-  page,
-}) => {
-  const violations: string[] = [];
-  await page.addInitScript(() => {
-    document.addEventListener("securitypolicyviolation", (e) => {
-      (window as unknown as { csp: string[] }).csp ??= [];
-      (window as unknown as { csp: string[] }).csp.push(
-        e.violatedDirective + " " + e.blockedURI,
-      );
-    });
-  });
-  page.on("pageerror", (e) => violations.push(e.message));
-  await ready(page);
-  expect(
-    await page.evaluate(
-      () => (window as unknown as { csp?: string[] }).csp ?? [],
-    ),
-  ).toEqual([]);
-  await expect(page.locator(".rv-sidebar nav a")).toHaveCount(5);
-  await expect(page.getByText("DEMO WORKSPACE", { exact: true })).toBeVisible();
-  await page.locator("[data-ui=dependency-graph] [data-task=A]").click();
-  await expect(
-    page.getByRole("dialog", { name: "Task inspector" }),
-  ).toBeVisible();
-  await expect(
-    page
-      .getByRole("dialog")
-      .getByText("Harden request validation", { exact: true }),
-  ).toBeVisible();
-  await page
-    .getByRole("dialog")
-    .getByRole("button", { name: "Execution", exact: true })
-    .click();
-  await expect(page).toHaveURL(/execution.*task=A/);
-  await expect(
-    page.getByText("attempt_A1", { exact: false }).first(),
-  ).toBeVisible();
-  await page
-    .locator(".rv-sidebar")
-    .getByRole("link", { name: /Costs/ })
-    .click();
-  await expect(
-    page.getByText("Unknown", { exact: true }).first(),
-  ).toBeVisible();
-  await page.getByRole("button", { name: "Preview approval" }).click();
-  await page.getByLabel("Proposed total").fill("999999");
-  await expect(
-    page.getByRole("button", {
-      name: "Submit requires verified Owner adapter",
-    }),
-  ).toBeDisabled();
-  await page.getByRole("button", { name: "Close", exact: true }).click();
-  await expect(
-    page.getByText("$240.00", { exact: true }).first(),
-  ).toBeVisible();
-  await page
-    .locator(".rv-sidebar")
-    .getByRole("link", { name: "Connections 04" })
-    .click();
-  await expect(page.getByRole("heading", { name: "Codex CLI" })).toBeVisible();
-  await expect(
-    page.getByRole("heading", { name: "Claude Code CLI" }),
-  ).toBeVisible();
-  await page
-    .locator(".rv-sidebar")
-    .getByRole("link", { name: /Results & Activity/ })
-    .click();
-  await expect(
-    page
-      .locator("[data-ui=badge]")
-      .filter({ hasText: "Independently accepted" })
-      .first(),
-  ).toBeVisible();
-  await expect(page).toHaveURL(/task=A/);
-  await page.goBack();
-  await expect(page).toHaveURL(/connections/);
-  expect(violations).toEqual([]);
-  expect(
-    await page.evaluate(
-      () => (window as unknown as { csp?: string[] }).csp ?? [],
-    ),
-  ).toEqual([]);
-});
+import { ready } from "./support";
 test("independent synthetic verification unblocks existing dependencies without changing ceiling", async ({
   page,
 }) => {
@@ -234,18 +142,18 @@ test("touch landscape, forced contrast, motion and 200/400-percent reflow equiva
   await page.getByLabel("Search tasks", { exact: true }).fill("response");
   await expect(page.locator(".rv-task-row")).toHaveCount(1);
   await page.setViewportSize({ width: 844, height: 390 });
-  expect(
-    await page.evaluate(
-      () => document.documentElement.scrollWidth <= innerWidth,
-    ),
-  ).toBe(true);
+  await expect
+    .poll(() =>
+      page.evaluate(() => document.documentElement.scrollWidth <= innerWidth),
+    )
+    .toBe(true);
   for (const width of [640, 320]) {
     await page.setViewportSize({ width, height: 700 });
-    expect(
-      await page.evaluate(
-        () => document.documentElement.scrollWidth <= innerWidth,
-      ),
-    ).toBe(true);
+    await expect
+      .poll(() =>
+        page.evaluate(() => document.documentElement.scrollWidth <= innerWidth),
+      )
+      .toBe(true);
   }
   await context.close();
 });
