@@ -4,6 +4,7 @@ import { join, extname } from "node:path";
 import { createHash } from "node:crypto";
 import { gzipSync, brotliCompressSync } from "node:zlib";
 import { parse } from "acorn";
+import { JSDOM } from "jsdom";
 const fail = (message) => {
   throw Error(`Distribution contract: ${message}`);
 };
@@ -38,19 +39,21 @@ export async function auditDist(root) {
   );
   if (Buffer.byteLength(code) > 4 * 1024 * 1024)
     fail("application JS exceeds the bounded audit size");
+  if (Buffer.byteLength(html) > 40000) fail("HTML exceeds bounded shell size");
+  // Parse HTML with browser semantics, without executing scripts or loading
+  // resources. Regex tag matching misses valid unusual and unclosed end tags.
+  const document = new JSDOM(html).window.document;
   if (
-    /unsafe-inline|unsafe-eval|<style\b|rel=["']stylesheet/i.test(html) ||
+    /unsafe-inline|unsafe-eval/i.test(html) ||
+    document.querySelector('style, link[rel~="stylesheet"]') ||
     /sourceMappingURL/.test(code)
   )
     fail("inline style/script policy, external stylesheet, or source map");
-  const tags = [...html.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script\s*>/gi)];
-  if (tags.length !== 1 || tags[0][2].trim())
+  const tags = [...document.querySelectorAll("script")];
+  if (tags.length !== 1 || tags[0].textContent.trim())
     fail("one external module script, no inline script");
   const attrs = Object.fromEntries(
-    [...tags[0][1].matchAll(/([\w-]+)\s*=\s*["']([^"']*)["']/g)].map((m) => [
-      m[1],
-      m[2],
-    ]),
+    [...tags[0].attributes].map((a) => [a.name, a.value]),
   );
   if (
     attrs.src !== "/" + app ||
@@ -59,12 +62,9 @@ export async function auditDist(root) {
       `sha384-${createHash("sha384").update(code).digest("base64")}`
   )
     fail("broken app reference or integrity");
-  const policy = html
-    .match(
-      /<meta\s+http-equiv="Content-Security-Policy"\s+content="([^"]+)"/i,
-    )?.[1]
-    ?.replaceAll("&#39;", "'")
-    .replaceAll("&amp;", "&");
+  const policy = document
+    .querySelector('meta[http-equiv="Content-Security-Policy" i]')
+    ?.getAttribute("content");
   if (
     !policy ||
     /unsafe-inline|unsafe-eval/.test(policy) ||

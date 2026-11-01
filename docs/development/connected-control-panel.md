@@ -48,7 +48,7 @@ The client rejects incomplete/cyclic/overdeep plans, cross-project connection sc
 
 ## Production artifacts and CSP
 
-The audited output has exactly four files: `index.html`, one minified content-hashed `app.*.js`, standalone `sw.js`, and `manifest.webmanifest`. Compiled CSS is a string in that single JS, mounted with an exact SHA-256 CSP authorization. HTML carries script SRI. No vendor/lazy chunk, stylesheet, font binary, bundled icon library, source map, `unsafe-inline` or `unsafe-eval` is permitted. The auditor examines actual recursive output, JavaScript AST, CSS commitment, CSP, manifest and references; negative tests reject extra executables/assets and broken integrity.
+The audited output has exactly four files: `index.html`, one minified content-hashed `app.*.js`, standalone `sw.js`, and `manifest.webmanifest`. Compiled CSS is a string in that single JS, mounted with an exact SHA-256 CSP authorization. HTML carries script SRI. No vendor/lazy chunk, stylesheet, font binary, bundled icon library, source map, `unsafe-inline` or `unsafe-eval` is permitted. The auditor examines actual recursive output, parsed HTML, JavaScript AST, CSS commitment, CSP, manifest and references; negative tests reject extra executables/assets, unusual script endings and broken integrity. HTML parsing executes no scripts and loads no resources.
 
 React Flow vendor CSS is placed in the first cascade layer. Its positioning uses browser CSSOM; genuine browser tests check the strict policy without widening it for inline attributes. Graph SVG geometry is distinct from functional icon payloads; functional icons are external images with text fallbacks.
 
@@ -56,7 +56,7 @@ Vite preview applies tested CSP, no-referrer, nosniff, frame restrictions and an
 
 ## PWA and recovery
 
-Only the four exact public static shell paths can enter the versioned cache. All cache fetches omit credentials. APIs, queries, foreign origins, authenticated bearer requests and mutations are excluded. No private snapshots, source, billing records, challenges or offline command queue are stored. A worker preserves its coherent HTML/JS generation until a new shell is ready; explicit activation cleans only older Rolvya caches. Initial installation does not reload the page. Offline/reconnection state never implies task failure or settled charges.
+Only the four exact public static shell paths can enter the versioned cache. All cache fetches omit credentials. APIs, queries, foreign origins, authenticated bearer requests and mutations are excluded. No private snapshots, source, billing records, challenges or offline command queue are stored. A worker preserves its coherent HTML/JS generation until a new shell is ready; explicit activation requires matching message and client origins, then cleans only older Rolvya caches. Initial installation does not reload the page. Offline/reconnection state never implies task failure or settled charges.
 
 The existing logo sheet does not establish a canonical release icon/master. It is unchanged. The application uses the Rolvya text name, and the manifest has no fabricated icons. Favicon/PWA asset approval and installability certification remain release gates.
 

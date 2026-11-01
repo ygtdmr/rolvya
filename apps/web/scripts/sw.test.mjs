@@ -99,12 +99,14 @@ test("SW requires explicit same-origin activation and cleans only its own old ca
   const h = harness();
   h.listeners.message({
     data: { type: "ACTIVATE" },
+    origin: "https://evil.invalid",
     source: { url: "https://evil.invalid/" },
     waitUntil: () => undefined,
   });
   assert.equal(h.skipped, 0);
   h.listeners.message({
     data: { type: "ACTIVATE" },
+    origin: "https://control.invalid",
     source: { url: "https://control.invalid/" },
     waitUntil: () => undefined,
   });
@@ -114,6 +116,18 @@ test("SW requires explicit same-origin activation and cleans only its own old ca
   await completion;
   assert.deepEqual(h.deleted, ["rolvya-shell-v1-old"]);
   assert.equal(h.claimed, 1);
+});
+test("SW rejects missing, opaque or foreign message origins even with a same-origin source URL", () => {
+  const h = harness();
+  for (const origin of [undefined, "", "null", "https://evil.invalid"]) {
+    h.listeners.message({
+      origin,
+      data: { type: "ACTIVATE" },
+      source: { url: "https://control.invalid/" },
+      waitUntil: () => undefined,
+    });
+  }
+  assert.equal(h.skipped, 0);
 });
 
 test("old SW never replaces its coherent HTML with a different generation", async () => {

@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { mkdtemp, writeFile, rm } from "node:fs/promises";
+import { mkdtemp, readFile, writeFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { auditDist } from "./verify-dist.mjs";
@@ -41,6 +41,23 @@ test("valid single-JS CSS/hash/SRI inventory passes recursively", async () => {
   try {
     await validDist(root);
     assert.equal((await auditDist(root)).files.length, 4);
+  } finally {
+    await rm(root, { recursive: true });
+  }
+});
+test("browser-valid unusual script endings and unclosed scripts cannot bypass inventory", async () => {
+  const root = await mkdtemp(join(tmpdir(), "rolvya-dist-"));
+  try {
+    await validDist(root);
+    const html = await readFile(join(root, "index.html"), "utf8");
+    for (const extra of [
+      "<script>globalThis.unapproved = true;</script\t\n bar>",
+      "<script>globalThis.unapproved = true;</script extra>",
+      "<script>globalThis.unapproved = true;",
+    ]) {
+      await writeFile(join(root, "index.html"), html + extra);
+      await assert.rejects(auditDist(root), /one external module script/);
+    }
   } finally {
     await rm(root, { recursive: true });
   }
