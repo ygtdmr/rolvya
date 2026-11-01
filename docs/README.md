@@ -231,3 +231,5 @@ Documentation must eventually cover:
 
 ## Document lifecycle and quality
 Use explicit labels: **Approved**, **Proposed**, **Open**, **Implemented**, **Verified** (do not conflate approval with implementation). Record last-reviewed date and related ADR/issue where appropriate. One authoritative document per topic; link instead of duplicating normative requirements.
+
+- [Connected Control panel implementation and browser gates](development/connected-control-panel.md)

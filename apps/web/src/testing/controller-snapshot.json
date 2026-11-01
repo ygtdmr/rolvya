@@ -1,0 +1,49 @@
+{
+  "schema": 1,
+  "provenance": "controller",
+  "revision": 0,
+  "cursor": 0,
+  "asOf": "1970-01-01T02:46:40Z",
+  "role": "owner",
+  "project": {
+    "id": "project-a",
+    "name": "project-a",
+    "goal": "",
+    "repository": null,
+    "repositoryId": null
+  },
+  "plan": {
+    "id": "panel-plan",
+    "version": 1,
+    "fingerprint": "dca9330276618677d0d97ae7d5d106fa0d83617ac2bc5732bb4cc82dffadaa1e",
+    "complete": true
+  },
+  "tasks": [
+    {
+      "id": "task-a",
+      "title": "Bounded panel task",
+      "kind": "leaf",
+      "parent": null,
+      "dependencies": [],
+      "status": "planned",
+      "model": "synthetic/model",
+      "effort": "medium",
+      "mode": "api",
+      "scope": ["src/alpha.rs"],
+      "criteria": ["Independent tests pass"],
+      "blockers": []
+    }
+  ],
+  "finance": null,
+  "attempts": [],
+  "connections": [],
+  "results": [],
+  "activity": [],
+  "capabilities": {
+    "events": false,
+    "finance": false,
+    "connections": false,
+    "results": false,
+    "mutations": false
+  }
+}

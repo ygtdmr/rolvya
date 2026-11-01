@@ -8,6 +8,7 @@ mod git;
 mod governance;
 mod infrastructure;
 mod invitations;
+mod panel;
 mod providers;
 pub use email::{OwnerChallengeId, PreparedOwnerEmail};
 pub(crate) use governance::VerifiedBudgetApproval;
@@ -15,6 +16,7 @@ pub use governance::{
     GovernanceEvent, MembershipRevision, OwnerActionState, OwnerActionStatus, OwnerNotification,
 };
 pub use invitations::{InvitationId, InvitationSecret, InvitationTicket, InvitationView};
+pub use panel::{PanelProject, PanelSnapshot, browser_panel_routes};
 pub use step_up::OwnerProofRequest;
 mod email;
 mod step_up;

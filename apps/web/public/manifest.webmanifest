@@ -1,0 +1,13 @@
+{
+  "id": "/",
+  "name": "Rolvya — Connected Control",
+  "short_name": "Rolvya",
+  "description": "Open-source orchestration for AI coding agents, with dependency-aware task planning and parallel execution.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#0B1424",
+  "theme_color": "#0B1424",
+  "lang": "en",
+  "icons": []
+}
