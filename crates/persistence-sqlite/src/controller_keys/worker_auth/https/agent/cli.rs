@@ -3,6 +3,25 @@ use super::*;
 use serde_json::Value;
 use std::{path::Path, process::Stdio, sync::atomic::AtomicUsize};
 use tokio::{io::AsyncWriteExt, process::Command};
+/// Nonsecret per-attempt home identity. The independently authenticated registry
+/// still controls consent, encrypted session reference, capacity and refresh.
+/// A directory is not a sandbox and cannot establish hosted-login permission.
+pub(super) fn runtime_identity(w: &CodingWork, adapter: Adapter) -> Result<Digest, AgentError> {
+    let account = w.model_account.as_ref().ok_or(AgentError::Scope)?;
+    if !adapter.matches_binding(account) {
+        return Err(AgentError::Scope);
+    }
+    commitment(&(
+        "rolvya/isolated-account-home/v1",
+        &w.context.installation,
+        &w.binding,
+        &w.connection,
+        &w.identity,
+        account,
+        adapter,
+    ))
+    .map_err(|_| AgentError::Scope)
+}
 /// A trusted image inspector must pin these bytes, exact version and capabilities.
 /// A version string reported by the candidate binary is not independent trust.
 pub(super) struct CliExecutable {

@@ -2,6 +2,12 @@
 
 Current authoritative decision cross-check: 2026-10-26 (see current ADRs; earlier sections are chronological historical checkpoints).
 
+## G1-06 scoped provider credential proxy (2026-11-01)
+
+PR #37 is verified merged as `612fe7755f39274d5044af84e7d998f79f970034`, with its exact submitted tree and migration 0020. Branch `codex/secure-provider-credential-delivery` implements independently scoped worker HTTPS proxy operations, controller-owned provider conversations, exact encrypted Broker consumption and conservative journal/replay handling. Production workers have no API-key transport. Optional Fargate coding-workspace inspection and account-bound CLI homes extend existing isolation boundaries. Published migrations and dependencies remain unchanged. See [implementation, executable evidence and explicit gates](../development/scoped-provider-proxy.md).
+
+Private offline fixtures exercise actual OpenAI/Anthropic protocol adapters, encrypted credentials, genuine TLS/SQLite, separate coding/verifier subprocesses, R09 acceptance and isolated exact-byte Git publication. Review regressions address expiry before provider I/O and escaped credential reflection. Six new nested SIGKILL boundaries preserve siblings and holds. Final commands/counts and exact-head CI/CodeQL are recorded in the PR after execution. Real IAM/network/runtime isolation, enforceable provider charging, hosted CLI authentication and production activation remain blocked. Dependabot #1 is inaccessible; the separate locked RSA advisory remains unresolved. Stale routine smoke evidence requires a separate Owner-controlled operational procedure. No live credentials, cloud/model spending, user-repository publication, self-approval or merge.
+
 ## G1-05 provider-backed coding agents (2026-10-31)
 
 PR #36 is verified squash-merged as `9d1f3ecbc4a99a6163f37aca34a02c76aee6e432`, exactly matching submitted G1-04. Branch `codex/provider-backed-coding-agents` adds real Responses/Messages tool-loop adapters and Codex/Claude Code subprocess contracts to the existing authenticated coding worker. Registry-derived model-account binding, scoped Broker transport, exact workspace collection and forward 0020 extend existing authority rather than replacing R06/R08/R09 or Git publication. Published migrations and dependency pins remain unchanged. See [implemented behavior, evidence and production gates](../development/provider-backed-coding-agents.md).

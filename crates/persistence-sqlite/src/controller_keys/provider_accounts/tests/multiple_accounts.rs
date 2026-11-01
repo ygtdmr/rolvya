@@ -69,14 +69,27 @@ impl SyntheticExecutionAuthority for Accounts {
 }
 #[tokio::test]
 async fn four_isolated_accounts_execute_through_r06_r09_and_real_s204_credentials() {
-    let mut content = common::plan();
-    content.tasks.clear();
-    let modes = [
+    isolated_accounts([
         ("task-a", "claude-a", AccessMode::CliSession),
         ("task-b", "claude-b", AccessMode::CliSession),
         ("task-c", "codex-c", AccessMode::CliSession),
         ("task-d", "api-d", AccessMode::ApiKey),
-    ];
+    ])
+    .await;
+}
+#[tokio::test]
+async fn api_and_cli_four_account_authorities_are_independent() {
+    isolated_accounts([
+        ("task-a", "openai-api-a", AccessMode::ApiKey),
+        ("task-b", "claude-a", AccessMode::ApiKey),
+        ("task-c", "codex-c", AccessMode::CliSession),
+        ("task-d", "claude-b", AccessMode::CliSession),
+    ])
+    .await;
+}
+async fn isolated_accounts(modes: [(&str, &str, AccessMode); 4]) {
+    let mut content = common::plan();
+    content.tasks.clear();
     for (id, connection, mode) in modes {
         let mut task = common::task(id, &content.key);
         task.acceptance_criteria = vec![ARTIFACT_CRITERION.into()];
@@ -198,10 +211,44 @@ async fn four_isolated_accounts_execute_through_r06_r09_and_real_s204_credential
         .await
         .unwrap()
         .held;
-    assert_eq!(held.ai_api.minor_units(), 1);
+    assert_eq!(
+        held.ai_api.minor_units(),
+        modes
+            .iter()
+            .filter(|(_, _, m)| *m == AccessMode::ApiKey)
+            .count() as i64
+    );
     assert_eq!(held.compute.minor_units(), 8);
     assert_eq!(held.storage.minor_units(), 12);
     assert_eq!(held.transfer.minor_units(), 4);
+    sqlx::query(
+        "UPDATE secret_connections SET revision=2,state='revoked' WHERE connection_id='codex-c'",
+    )
+    .execute(&f.store.pool)
+    .await
+    .unwrap();
+    for task in accounts.0.keys() {
+        co.validator()
+            .verify_accepted(&TaskRef {
+                plan: f.request.task.plan.clone(),
+                task_id: task.clone(),
+            })
+            .await
+            .unwrap();
+    }
+    let homes: Vec<String> = sqlx::query_scalar("SELECT home_identity FROM provider_cli_homes")
+        .fetch_all(&f.store.pool)
+        .await
+        .unwrap();
+    assert_eq!(
+        homes.len(),
+        modes
+            .iter()
+            .filter(|(_, _, m)| *m == AccessMode::CliSession)
+            .count()
+    );
+    let unique: std::collections::BTreeSet<_> = homes.iter().collect();
+    assert_eq!(unique.len(), homes.len());
     sqlx::query("UPDATE provider_policy_revisions SET revision='withdrawn',version=2")
         .execute(&f.store.pool)
         .await

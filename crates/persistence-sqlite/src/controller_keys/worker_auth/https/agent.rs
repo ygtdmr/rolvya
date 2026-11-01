@@ -13,7 +13,8 @@ use rolvya_domain::{
 use serde::{Deserialize, Serialize};
 use std::{path::PathBuf, time::Duration};
 use zeroize::Zeroizing;
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
 pub enum AgentError {
     Unavailable,
     Scope,
@@ -135,10 +136,12 @@ pub struct RemoteCoding {
     effort: Effort,
     mode: AccessMode,
     directory: PathBuf,
+    account_home: Digest,
     max_steps: u16,
     max_context: usize,
     max_output: usize,
     max_output_tokens: u32,
+    #[cfg(test)]
     api: Option<api::ApiTransport>,
     cli: Option<cli::CliExecutable>,
 }
@@ -157,19 +160,14 @@ impl RemoteCoding {
         // No request-installed verifier or activation switch. Effective remote
         // isolation/entitlement/cost evidence has no production implementation.
         require_live_remote_evidence()?;
-        let broker = crate::controller_keys::secret_broker::SecretBroker::open(bootstrap)
-            .await
-            .map_err(|_| AgentError::Unavailable)?;
-        let _transport = broker
-            .model_transport(request, adapter, work)
-            .await
-            .map_err(|_| AgentError::Scope)?;
+        let _ = (bootstrap, request, adapter, work);
         Err(AgentError::Unavailable)
     }
     fn validate(&self, w: &CodingWork, now: i64) -> Result<(), AgentError> {
         w.validate(&w.binding, now).map_err(|_| AgentError::Scope)?;
         let model_account = w.model_account.as_ref().ok_or(AgentError::Scope)?;
-        if self.work != w.identity
+        if self.account_home != cli::runtime_identity(w, self.adapter)?
+            || self.work != w.identity
             || self.connection != w.connection
             || self.account != model_account.account
             || self.provider != model_account.provider
@@ -185,6 +183,7 @@ impl RemoteCoding {
         {
             return Err(AgentError::Scope);
         }
+        #[cfg(test)]
         if let Some(api) = &self.api {
             api.matches(self.adapter, w)?;
         }
@@ -227,6 +226,125 @@ pub(crate) fn digest(b: &[u8]) -> rolvya_domain::worker::Digest {
 }
 
 impl super::coding_worker::CodingWorker {
+    async fn proxy_api(
+        &mut self,
+        host: &RemoteCoding,
+        prompt: String,
+        ws: &mut workspace::Workspace,
+        deadline: tokio::time::Instant,
+    ) -> Result<(), AgentError> {
+        use base64::{Engine, engine::general_purpose::STANDARD as B64};
+        let mut conversation = api::Conversation::new(host, prompt);
+        let mut previous = Vec::new();
+        for step in 1..=host.max_steps {
+            self.heartbeat().await.map_err(|_| AgentError::Scope)?;
+            let request = conversation.request(host.max_context)?;
+            let expected =
+                digest(&serde_json::to_vec(&request).map_err(|_| AgentError::InvalidResponse)?);
+            // Each proxy request is bounded below the existing heartbeat interval;
+            // the controller rechecks the current lease before any provider call.
+            let reply = tokio::time::timeout_at(
+                deadline,
+                self.proxy_request(super::proxy::ProxyRequest {
+                    version: 1,
+                    work: self.work().identity.clone(),
+                    step,
+                    previous: previous.clone(),
+                }),
+            )
+            .await
+            .map_err(|_| AgentError::Timeout)?
+            .map_err(|_| AgentError::Scope)?;
+            if !reply.receipt.execute {
+                return Err(AgentError::Replay);
+            }
+            if reply.request_sha256 != expected
+                || reply.receipt.max_output_tokens != host.max_output_tokens
+            {
+                return Err(AgentError::Scope);
+            }
+            let encoded = reply.response?;
+            if encoded.len() > 88 * 1024 {
+                return Err(AgentError::ResourceLimit);
+            }
+            let raw = Zeroizing::new(
+                B64.decode(&encoded)
+                    .map_err(|_| AgentError::InvalidResponse)?,
+            );
+            if raw.len() > host.max_output || B64.encode(&*raw) != encoded {
+                return Err(AgentError::ResourceLimit);
+            }
+            let turn = conversation.accept(&raw, ws)?;
+            previous.push(encoded);
+            if turn.terminal {
+                return Ok(());
+            }
+        }
+        Err(AgentError::ResourceLimit)
+    }
+    #[cfg(test)]
+    async fn direct_api_fixture(
+        &mut self,
+        host: &RemoteCoding,
+        prompt: String,
+        ws: &mut workspace::Workspace,
+        deadline: tokio::time::Instant,
+    ) -> Result<(), AgentError> {
+        let api = host.api.as_ref().ok_or(AgentError::Unavailable)?;
+        let mut conversation = api::Conversation::new(host, prompt);
+        let mut completed = false;
+        for step in 1..=host.max_steps {
+            self.heartbeat().await.map_err(|_| AgentError::Scope)?;
+            let request = conversation.request(host.max_context)?;
+            let request_sha256 =
+                digest(&serde_json::to_vec(&request).map_err(|_| AgentError::InvalidResponse)?);
+            let permission = self
+                .provider_step(AgentOperation::Start {
+                    work: self.work().identity.clone(),
+                    step,
+                    adapter: host.adapter,
+                    request_sha256,
+                })
+                .await?;
+            if !permission.execute || permission.max_output_tokens < host.max_output_tokens {
+                return Err(AgentError::Replay);
+            }
+            let response = self
+                .during_provider(
+                    api.request(host.adapter, &request, host.max_output),
+                    deadline,
+                )
+                .await;
+            let parsed = match &response {
+                Ok(raw) => conversation.accept(raw, ws),
+                Err(e) => Err(*e),
+            };
+            let evidence = ExecutionEvidence {
+                adapter: host.adapter,
+                response_sha256: response.as_ref().ok().map(|v| digest(v)),
+                usage: parsed.as_ref().map(|v| v.usage.clone()).unwrap_or(Usage {
+                    input_tokens: None,
+                    output_tokens: None,
+                }),
+                completed: parsed.is_ok(),
+            };
+            self.provider_step(AgentOperation::Finish {
+                work: self.work().identity.clone(),
+                step,
+                evidence,
+            })
+            .await?;
+            let turn = parsed?;
+            if turn.terminal {
+                completed = true;
+                break;
+            }
+        }
+        if !completed {
+            return Err(AgentError::ResourceLimit);
+        }
+        Ok(())
+    }
     /// Invokes only a separately established remote runtime. All provider events
     /// remain untrusted until the existing independent verifier and R09 accept.
     pub async fn execute_provider(
@@ -251,7 +369,9 @@ impl super::coding_worker::CodingWorker {
             .map_err(|_| AgentError::Scope)?;
         let directory_guard = workspace::AttemptDirectory::existing_created(&host.directory)?;
         let root = host.directory.join("workspace");
-        let home = host.directory.join("home");
+        let home = host
+            .directory
+            .join(format!("account-{}", host.account_home.as_str()));
         std::fs::DirBuilder::new()
             .mode(0o700)
             .create(&home)
@@ -267,58 +387,16 @@ impl super::coding_worker::CodingWorker {
                 (seconds as u64).min(u64::from(work.profile.resources.timeout_seconds)),
             );
         if host.adapter.api() {
-            let api = host.api.as_ref().ok_or(AgentError::Unavailable)?;
-            let mut conversation = api::Conversation::new(&host, prompt);
-            let mut completed = false;
-            for step in 1..=host.max_steps {
-                self.heartbeat().await.map_err(|_| AgentError::Scope)?;
-                let request = conversation.request(host.max_context)?;
-                let request_sha256 =
-                    digest(&serde_json::to_vec(&request).map_err(|_| AgentError::InvalidResponse)?);
-                let permission = self
-                    .provider_step(AgentOperation::Start {
-                        work: work.identity.clone(),
-                        step,
-                        adapter: host.adapter,
-                        request_sha256,
-                    })
+            #[cfg(test)]
+            let direct_fixture = host.api.is_some();
+            #[cfg(not(test))]
+            let direct_fixture = false;
+            if direct_fixture {
+                #[cfg(test)]
+                self.direct_api_fixture(&host, prompt, &mut ws, deadline)
                     .await?;
-                if !permission.execute || permission.max_output_tokens < host.max_output_tokens {
-                    return Err(AgentError::Replay);
-                }
-                let response = self
-                    .during_provider(
-                        api.request(host.adapter, &request, host.max_output),
-                        deadline,
-                    )
-                    .await;
-                let parsed = match &response {
-                    Ok(raw) => conversation.accept(raw, &mut ws),
-                    Err(e) => Err(*e),
-                };
-                let evidence = ExecutionEvidence {
-                    adapter: host.adapter,
-                    response_sha256: response.as_ref().ok().map(|v| digest(v)),
-                    usage: parsed.as_ref().map(|v| v.usage.clone()).unwrap_or(Usage {
-                        input_tokens: None,
-                        output_tokens: None,
-                    }),
-                    completed: parsed.is_ok(),
-                };
-                self.provider_step(AgentOperation::Finish {
-                    work: work.identity.clone(),
-                    step,
-                    evidence,
-                })
-                .await?;
-                let turn = parsed?;
-                if turn.terminal {
-                    completed = true;
-                    break;
-                }
-            }
-            if !completed {
-                return Err(AgentError::ResourceLimit);
+            } else {
+                self.proxy_api(&host, prompt, &mut ws, deadline).await?;
             }
             // Produce actual filesystem changes through a fresh bounded tree,
             // then independently collect it like the CLI path. No code executes.

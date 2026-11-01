@@ -3,6 +3,63 @@ use crypto::Envelope;
 use sqlx::{Row, Sqlite, SqliteConnection, Transaction};
 use subtle::ConstantTimeEq;
 impl SecretBroker {
+    /// A live, private controller capability is required; public use requests and
+    /// worker bearer possession cannot construct it or obtain plaintext.
+    pub(in crate::controller_keys) async fn consume_model_proxy(
+        &self,
+        c: &mut SqliteConnection,
+        permit: &crate::controller_keys::worker_auth::https::proxy::ProxyPermit<'_>,
+    ) -> Result<crate::controller_keys::worker_auth::https::agent::api::ApiTransport, BrokerError>
+    {
+        permit
+            .current_in(c, &self.key, true)
+            .await
+            .map_err(|_| BrokerError::AttemptAuthority)?;
+        let (scope, version) = permit
+            .secret_reference()
+            .map_err(|_| BrokerError::Forbidden)?;
+        if scope.purpose.as_str() != "model-api" {
+            return Err(BrokerError::Forbidden);
+        }
+        active(c, &scope.connection).await?;
+        if head(c, &scope).await? != Some(version) {
+            return Err(BrokerError::StaleVersion);
+        }
+        let envelope = load(c, &scope, version).await?;
+        let value = crypto::open(&self.key, &envelope)?;
+        let text = std::str::from_utf8(&value.0).map_err(|_| BrokerError::InvalidInput)?;
+        let transport =
+            crate::controller_keys::worker_auth::https::agent::api::ApiTransport::scoped(
+                permit.adapter(),
+                Zeroizing::new(text.to_owned()),
+                permit.work(),
+            )
+            .map_err(|_| BrokerError::InvalidInput)?;
+        drop(value);
+        let request = AdminRequest {
+            actor: PrincipalId::new("trusted-model-proxy")
+                .map_err(|_| BrokerError::InvalidInput)?,
+            request_id: crate::RequestId::new(format!(
+                "proxy-{}",
+                &permit.operation().as_str()[..48]
+            ))
+            .map_err(|_| BrokerError::InvalidInput)?,
+        };
+        self.audit(
+            c,
+            &request,
+            &scope.connection,
+            Some(&scope),
+            BrokerAction::Use,
+            "accepted",
+        )
+        .await?;
+        permit
+            .current_in(c, &self.key, true)
+            .await
+            .map_err(|_| BrokerError::AttemptAuthority)?;
+        Ok(transport)
+    }
     async fn audit(
         &self,
         c: &mut SqliteConnection,
@@ -848,6 +905,7 @@ pub(in crate::controller_keys) async fn fixture_record(
 impl SecretBroker {
     /// Trusted credential-proxy transport only. Never returns credential bytes.
     /// Public construction still has unavailable production use authorities.
+    #[cfg(test)]
     pub(in crate::controller_keys) async fn model_transport(
         &self,
         r: &SecretUseRequest,

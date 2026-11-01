@@ -128,6 +128,10 @@ fn correlate_inner(
 ) -> Result<InspectionAssessment, E> {
     expected.validate()?;
     let w = &expected.workload;
+    if verifier && w.coding_isolation.is_some() {
+        return Err(E::IsolationMismatch);
+    }
+    let coding = w.coding_isolation.is_some();
     // Status reconciliation may outlive worker authorization. The separately
     // authorized inspection cannot issue/renew any worker credential.
     if now < expected.authorized_at {
@@ -191,7 +195,7 @@ fn correlate_inner(
         || runtime.cpu_architecture().map(|s| s.as_str()) != Some(w.architecture.as_str())
         || definition.pid_mode().is_some()
         || definition.ipc_mode().is_some()
-        || (!verifier && !definition.volumes().is_empty())
+        || (!verifier && !coding && !definition.volumes().is_empty())
     {
         return Err(E::IsolationMismatch);
     }
@@ -230,7 +234,7 @@ fn correlate_inner(
         || !c.entry_point().is_empty()
         || c.command() != w.command
         || !c.port_mappings().is_empty()
-        || (!verifier && !c.mount_points().is_empty())
+        || (!verifier && !coding && !c.mount_points().is_empty())
         || !c.volumes_from().is_empty()
         || !c.secrets().is_empty()
         || !c.environment().is_empty()
@@ -240,7 +244,9 @@ fn correlate_inner(
     {
         return Err(E::IsolationMismatch);
     }
-    if verifier && !verifier_workspace(definition, c) {
+    if (verifier && !verifier_workspace(definition, c))
+        || (coding && !coding_workspace(definition, c))
+    {
         return Err(E::IsolationMismatch);
     }
     if let Some(linux) = c.linux_parameters()
@@ -308,10 +314,23 @@ pub(super) fn verifier_workspace(
     d: &TaskDefinition,
     c: &aws_sdk_ecs::types::ContainerDefinition,
 ) -> bool {
+    isolated_workspace(d, c, "verifier-work")
+}
+pub(super) fn coding_workspace(
+    d: &TaskDefinition,
+    c: &aws_sdk_ecs::types::ContainerDefinition,
+) -> bool {
+    isolated_workspace(d, c, "coding-work")
+}
+fn isolated_workspace(
+    d: &TaskDefinition,
+    c: &aws_sdk_ecs::types::ContainerDefinition,
+    name: &str,
+) -> bool {
     let volumes = d.volumes();
     let mounts = c.mount_points();
     volumes.len() == 1
-        && volumes[0].name() == Some("verifier-work")
+        && volumes[0].name() == Some(name)
         && volumes[0].host().is_none()
         && volumes[0].efs_volume_configuration().is_none()
         && volumes[0]
@@ -319,7 +338,7 @@ pub(super) fn verifier_workspace(
             .is_none()
         && volumes[0].docker_volume_configuration().is_none()
         && mounts.len() == 1
-        && mounts[0].source_volume() == Some("verifier-work")
+        && mounts[0].source_volume() == Some(name)
         && mounts[0].container_path() == Some("/workspace")
         && mounts[0].read_only() != Some(true)
         && c.linux_parameters().is_some_and(|p| {

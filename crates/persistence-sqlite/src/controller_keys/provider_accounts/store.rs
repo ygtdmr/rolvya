@@ -640,23 +640,7 @@ impl ProviderRegistry {
             one(sqlx::query("UPDATE provider_refresh_locks SET state='reconciled' WHERE connection_id=? AND operation_id=? AND expected_version=? AND state='in_progress'").bind(id.as_str()).bind(operation).bind(r.version).execute(&mut *c).await?.rows_affected())?;
         }
         if let Some(cli) = &e.cli {
-            let home: Option<String> = sqlx::query_scalar(
-                "SELECT home_identity FROM provider_cli_homes WHERE connection_id=?",
-            )
-            .bind(id.as_str())
-            .fetch_optional(&mut *c)
-            .await?;
-            if home.as_deref().is_some_and(|h| h != cli.home_identity) {
-                return Err(RegistryError::Denied);
-            }
-            if home.is_none() {
-                one(sqlx::query("INSERT INTO provider_cli_homes VALUES(?,?)")
-                    .bind(id.as_str())
-                    .bind(&cli.home_identity)
-                    .execute(&mut *c)
-                    .await?
-                    .rows_affected())?;
-            }
+            bind_cli_home(c, id, &cli.home_identity).await?;
         }
         let changed = r
             .entitlement
@@ -752,4 +736,31 @@ pub(in crate::controller_keys) async fn metadata(
         });
     }
     Ok(out)
+}
+
+/// Internal persistence step after trusted verification, shared with explicitly
+/// synthetic registry fixtures. It cannot establish entitlement or consent.
+pub(super) async fn bind_cli_home(
+    c: &mut SqliteConnection,
+    id: &ConnectionId,
+    identity: &str,
+) -> Result<(), RegistryError> {
+    atom(identity)?;
+    let home: Option<String> =
+        sqlx::query_scalar("SELECT home_identity FROM provider_cli_homes WHERE connection_id=?")
+            .bind(id.as_str())
+            .fetch_optional(&mut *c)
+            .await?;
+    if home.as_deref().is_some_and(|h| h != identity) {
+        return Err(RegistryError::Denied);
+    }
+    if home.is_none() {
+        one(sqlx::query("INSERT INTO provider_cli_homes VALUES(?,?)")
+            .bind(id.as_str())
+            .bind(identity)
+            .execute(c)
+            .await?
+            .rows_affected())?;
+    }
+    Ok(())
 }

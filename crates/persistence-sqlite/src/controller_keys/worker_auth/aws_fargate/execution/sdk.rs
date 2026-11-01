@@ -83,7 +83,7 @@ impl EcsSdk {
         }
         if d.pid_mode().is_some()
             || d.ipc_mode().is_some()
-            || (r.verifier.is_none() && !d.volumes().is_empty())
+            || (r.verifier.is_none() && w.coding_isolation.is_none() && !d.volumes().is_empty())
             || d.runtime_platform().is_none_or(|p| {
                 p.operating_system_family().map(|s| s.as_str()) != Some("LINUX")
                     || p.cpu_architecture().map(|s| s.as_str()) != Some(w.architecture.as_str())
@@ -101,7 +101,9 @@ impl EcsSdk {
             || !c.entry_point().is_empty()
             || c.command() != w.command
             || !c.port_mappings().is_empty()
-            || (r.verifier.is_none() && !c.mount_points().is_empty())
+            || (r.verifier.is_none()
+                && w.coding_isolation.is_none()
+                && !c.mount_points().is_empty())
             || !c.volumes_from().is_empty()
             || !c.secrets().is_empty()
             || !c.environment().is_empty()
@@ -117,7 +119,9 @@ impl EcsSdk {
         {
             return Err(E::IsolationMismatch);
         }
-        if r.verifier.is_some() && !super::super::inspection::verifier_workspace(d, c) {
+        if (r.verifier.is_some() && !super::super::inspection::verifier_workspace(d, c))
+            || (w.coding_isolation.is_some() && !super::super::inspection::coding_workspace(d, c))
+        {
             return Err(E::IsolationMismatch);
         }
         Ok(())

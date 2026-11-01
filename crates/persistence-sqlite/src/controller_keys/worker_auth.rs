@@ -189,6 +189,7 @@ struct VerifiedWorkerIdentity {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 enum WorkerPermission {
+    ModelProxy,
     Register,
     Claim,
     AcceptLease,
@@ -202,6 +203,7 @@ enum WorkerPermission {
 impl WorkerPermission {
     fn operation(self) -> WorkerOperation {
         match self {
+            Self::ModelProxy => WorkerOperation::UseCredential,
             Self::Register => WorkerOperation::Register,
             Self::Claim => WorkerOperation::Claim,
             Self::AcceptLease => WorkerOperation::AcceptLease,
@@ -508,7 +510,7 @@ impl WorkerSecurity {
         if g.scope != check.scope()
             || g.identity.capabilities.evidence.is_none()
             || g.identity.permissions.is_empty()
-            || g.identity.permissions.len() > 9
+            || g.identity.permissions.len() > 10
             || g.identity
                 .permissions
                 .iter()

@@ -278,9 +278,18 @@ fn unique(v: &[String]) -> bool {
 }
 /// Approved configuration reference data. Constructing/validating this DTO does
 /// not establish Owner consent, IAM policy, task possession or billing authority.
+/// Configuration profile only. Effective IAM/egress/host isolation still require
+/// independent operational evidence; this never enables a live constructor.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum CodingIsolation {
+    CredentialProxyV1,
+}
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct FargateWorkload {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub coding_isolation: Option<CodingIsolation>,
     pub format: u16,
     pub cluster: ClusterArn,
     pub task_definition: TaskDefinitionArn,
@@ -307,6 +316,11 @@ pub struct FargateWorkload {
 }
 impl FargateWorkload {
     pub fn validate(&self) -> Result<(), E> {
+        if self.coding_isolation.is_some()
+            && self.command != ["rolvya-coding-worker", "--provider-proxy"]
+        {
+            return Err(E::IsolationMismatch);
+        }
         if self.format != 1
             || self.task_definition.partition() != self.cluster.partition()
             || self.task_definition.account() != self.cluster.account()

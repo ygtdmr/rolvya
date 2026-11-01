@@ -11,6 +11,7 @@ pub mod agent;
 mod coding;
 pub mod coding_worker;
 mod denial;
+pub mod proxy;
 mod server;
 pub mod verifier;
 pub use server::HttpsWorkerServer;

@@ -663,6 +663,7 @@ impl Fixture {
                     t.execution.as_mut().unwrap().connection_ref = match (mode, t.id.as_str()) {
                         ("agents-anthropic", "task-a") => "claude-a",
                         ("agents-anthropic", _) => "claude-b",
+                        ("agents-cross-api", "task-b") => "claude-a",
                         (_, "task-a") => "openai-api-a",
                         ("agents-pair", _) => "openai-api-b",
                         _ => "codex-c",

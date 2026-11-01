@@ -1,7 +1,7 @@
 //! Private harmless protocol/executable fixtures. Not real providers or isolation.
 use super::*;
 use axum::{
-    Router,
+    Extension, Router,
     body::{Body, to_bytes},
     extract::State,
     http::HeaderMap,
@@ -24,6 +24,9 @@ pub(in crate::controller_keys) struct ProviderEndpoint {
     root: rustls::pki_types::CertificateDer<'static>,
 }
 impl ProviderEndpoint {
+    pub(in crate::controller_keys) fn route(&self, transport: &mut api::ApiTransport) {
+        transport.fixture_route(self.address, self.root.clone());
+    }
     fn new(address: std::net::SocketAddr) -> Self {
         Self::with_names(
             address,
@@ -111,36 +114,63 @@ struct ApiFixture {
     adapter: Adapter,
     model: String,
     alpha: u8,
+    beta: bool,
     count: Arc<AtomicUsize>,
 }
-async fn handler(State(s): State<ApiFixture>, headers: HeaderMap, r: Request<Body>) -> String {
+#[derive(Clone)]
+struct ApiCredential(reqwest::header::HeaderValue);
+async fn handler(
+    State(s): State<ApiFixture>,
+    Extension(auth): Extension<ApiCredential>,
+    headers: HeaderMap,
+    r: Request<Body>,
+) -> String {
     let raw = to_bytes(r.into_body(), 131072).await.unwrap();
     let request: Value = serde_json::from_slice(&raw).unwrap();
     assert_eq!(request["model"], s.model);
     assert_eq!(request["stream"], false);
     if s.adapter == Adapter::OpenAiApi {
         assert_eq!(headers["host"], "api.openai.com");
-        assert_eq!(
-            headers["authorization"],
-            "Bearer synthetic-model-protocol-only"
+        assert!(
+            headers["authorization"] == auth.0,
+            "incorrect synthetic provider scope"
         );
         assert_eq!(request["store"], false);
     } else {
         assert_eq!(headers["host"], "api.anthropic.com");
-        assert_eq!(headers["x-api-key"], "synthetic-model-protocol-only");
+        assert!(
+            headers["x-api-key"] == auth.0,
+            "incorrect synthetic provider scope"
+        );
         assert_eq!(headers["anthropic-version"], "2023-06-01");
     }
     let step = s.count.fetch_add(1, Ordering::SeqCst);
+    let path = if s.beta {
+        "src/beta.rs"
+    } else {
+        "src/alpha.rs"
+    };
     let modify = (
         "write_file",
-        json!({"path":"src/alpha.rs","content":format!("pub fn alpha()->u8{{{}}}\r\n",s.alpha)}),
+        if s.beta {
+            json!({"path":path,"content":"pub fn beta()->u8{22}\n"})
+        } else {
+            json!({"path":path,"content":format!("pub fn alpha()->u8{{{}}}\r\n",s.alpha)})
+        },
     );
     let add = (
         "write_file",
         json!({"path":"src/added.rs","content":"pub const ADDED:u8=4;\n"}),
     );
     let delete = ("delete_file", json!({"path":"src/obsolete.rs"}));
-    let operations = if s.adapter == Adapter::OpenAiApi {
+    let operations = if s.beta {
+        match step {
+            0 => vec![("read_file", json!({"path":path}))],
+            1 => vec![modify],
+            2 => vec![],
+            _ => panic!("unapproved retry"),
+        }
+    } else if s.adapter == Adapter::OpenAiApi {
         match step {
             0 => vec![("read_file", json!({"path":"src/alpha.rs"}))],
             1 => vec![modify],
@@ -161,7 +191,15 @@ async fn handler(State(s): State<ApiFixture>, headers: HeaderMap, r: Request<Bod
         assert!(
             String::from_utf8(raw.to_vec())
                 .unwrap()
-                .contains(if step == 1 { "pub fn alpha" } else { "updated" })
+                .contains(if step == 1 {
+                    if s.beta {
+                        "pub fn beta"
+                    } else {
+                        "pub fn alpha"
+                    }
+                } else {
+                    "updated"
+                })
         );
     }
     if s.adapter == Adapter::OpenAiApi {
@@ -183,6 +221,49 @@ async fn handler(State(s): State<ApiFixture>, headers: HeaderMap, r: Request<Bod
         json!({"id":format!("response-{step}"),"model":s.model,"type":"message","role":"assistant","stop_reason":if done{"end_turn"}else{"tool_use"},"content":content,"usage":{"input_tokens":40,"output_tokens":12}}).to_string()
     }
 }
+fn auth(adapter: Adapter, key: &str) -> ApiCredential {
+    let text = if adapter == Adapter::OpenAiApi {
+        format!("Bearer {key}")
+    } else {
+        key.into()
+    };
+    let mut header = reqwest::header::HeaderValue::from_str(&text).unwrap();
+    header.set_sensitive(true);
+    ApiCredential(header)
+}
+pub(in crate::controller_keys) async fn proxy_provider(
+    work: &CodingWork,
+    adapter: Adapter,
+) -> (
+    ProviderEndpoint,
+    tokio::task::JoinHandle<()>,
+    Arc<AtomicUsize>,
+) {
+    let (listener, endpoint) = provider_listener().await;
+    let count = Arc::new(AtomicUsize::new(0));
+    let routes = Router::new()
+        .route(
+            if adapter == Adapter::OpenAiApi {
+                "/v1/responses"
+            } else {
+                "/v1/messages"
+            },
+            post(handler),
+        )
+        .with_state(ApiFixture {
+            adapter,
+            model: work.profile.model.as_str().into(),
+            alpha: 11,
+            beta: work.binding.task.task_id.as_str() == "task-b",
+            count: count.clone(),
+        })
+        .layer(Extension(auth(
+            adapter,
+            &format!("synthetic-provider-key-{}", work.connection),
+        )));
+    let task = tokio::spawn(serve_provider(listener, endpoint.clone(), routes));
+    (endpoint, task, count)
+}
 pub(in crate::controller_keys) fn host(
     w: &CodingWork,
     directory: PathBuf,
@@ -200,6 +281,7 @@ pub(in crate::controller_keys) fn host(
         effort: w.profile.effort,
         mode: w.profile.access_mode,
         directory,
+        account_home: cli::runtime_identity(w, adapter).unwrap(),
         max_steps: 8,
         max_context: 65536,
         max_output: 65536,
@@ -224,6 +306,19 @@ pub(crate) async fn execute(
 ) -> CodingResult {
     execute_value(worker, adapter, now, 11).await
 }
+pub(in crate::controller_keys) async fn execute_proxy(
+    worker: &mut super::super::coding_worker::CodingWorker,
+    adapter: Adapter,
+    now: i64,
+) -> CodingResult {
+    let root = tempfile::tempdir().unwrap();
+    let remote = host(worker.work(), root.path().join("runtime"), adapter, None);
+    let verifier = format!("independent-{}", worker.work().binding.attempt_id.as_str());
+    worker
+        .execute_provider(remote, verifier, now)
+        .await
+        .unwrap()
+}
 pub(in crate::controller_keys) async fn execute_value(
     worker: &mut super::super::coding_worker::CodingWorker,
     adapter: Adapter,
@@ -236,6 +331,7 @@ pub(in crate::controller_keys) async fn execute_value(
         let s = ApiFixture {
             adapter,
             alpha,
+            beta: worker.work().binding.task.task_id.as_str() == "task-b",
             model: worker.work().profile.model.as_str().into(),
             count: count.clone(),
         };
@@ -249,7 +345,8 @@ pub(in crate::controller_keys) async fn execute_value(
                 },
                 post(handler),
             )
-            .with_state(s);
+            .with_state(s)
+            .layer(Extension(auth(adapter, "synthetic-model-protocol-only")));
         let transport = endpoint.transport(adapter, worker.work());
         let server = tokio::spawn(serve_provider(listener, endpoint, routes));
         (Some(transport), Some(server))
@@ -477,4 +574,66 @@ pub(in crate::controller_keys) fn host_substitutions_denied(w: &CodingWork, now:
         return false;
     }
     true
+}
+
+pub(in crate::controller_keys) fn home_scope_denied(w: &CodingWork, now: i64) {
+    let root = tempfile::tempdir().unwrap();
+    let mut host = host(w, root.path().join("runtime"), Adapter::OpenAiApi, None);
+    let original = host.account_home.clone();
+    for variant in 0..6 {
+        let mut other = w.clone();
+        match variant {
+            0 => other.context.installation = "f".repeat(32),
+            1 => other.connection = "another-connection".into(),
+            2 => other.model_account.as_mut().unwrap().account = "another-account".into(),
+            3 => other.model_account.as_mut().unwrap().credential_version += 1,
+            4 => other.binding.epoch += 1,
+            _ => other.model_account.as_mut().unwrap().credential_record = "another-record".into(),
+        }
+        let other_identity = cli::runtime_identity(&other, Adapter::OpenAiApi).unwrap();
+        assert_ne!(other_identity, original);
+        host.account_home = other_identity;
+        assert_eq!(host.validate(w, now), Err(AgentError::Scope));
+    }
+    assert!(!root.path().join("runtime").exists());
+}
+
+/// An upstream fixture may pause after receiving the request so tests can prove
+/// SQLite is unlocked and revoke current authority before a response arrives.
+pub(in crate::controller_keys) async fn proxy_response(
+    body: String,
+    status: u16,
+    pause: Option<(Arc<tokio::sync::Notify>, Arc<tokio::sync::Notify>)>,
+) -> (
+    ProviderEndpoint,
+    tokio::task::JoinHandle<()>,
+    Arc<AtomicUsize>,
+) {
+    use axum::response::IntoResponse;
+    let (listener, endpoint) = provider_listener().await;
+    let count = Arc::new(AtomicUsize::new(0));
+    let seen = count.clone();
+    let routes = Router::new().route(
+        "/v1/responses",
+        post(move || {
+            let body = body.clone();
+            let count = seen.clone();
+            let pause = pause.clone();
+            async move {
+                count.fetch_add(1, Ordering::SeqCst);
+                if let Some((arrived, release)) = pause {
+                    arrived.notify_one();
+                    release.notified().await;
+                }
+                (
+                    axum::http::StatusCode::from_u16(status).unwrap(),
+                    [("content-type", "application/json")],
+                    body,
+                )
+                    .into_response()
+            }
+        }),
+    );
+    let server = tokio::spawn(serve_provider(listener, endpoint.clone(), routes));
+    (endpoint, server, count)
 }
