@@ -1,0 +1,282 @@
+import { expect, test } from "@playwright/test";
+import AxeBuilder from "@axe-core/playwright";
+const ready = async (page: import("@playwright/test").Page) => {
+  await page.goto("/");
+  await expect(
+    page.getByRole("heading", {
+      name: "Atlas / developer platform",
+      exact: true,
+    }),
+  ).toBeVisible();
+};
+test("five sections preserve task identity and exact financial boundaries", async ({
+  page,
+}) => {
+  const violations: string[] = [];
+  await page.addInitScript(() => {
+    document.addEventListener("securitypolicyviolation", (e) => {
+      (window as unknown as { csp: string[] }).csp ??= [];
+      (window as unknown as { csp: string[] }).csp.push(
+        e.violatedDirective + " " + e.blockedURI,
+      );
+    });
+  });
+  page.on("pageerror", (e) => violations.push(e.message));
+  await ready(page);
+  await expect(page.locator(".rv-sidebar nav a")).toHaveCount(5);
+  await expect(page.getByText("DEMO WORKSPACE", { exact: true })).toBeVisible();
+  await page.locator("[data-ui=dependency-graph] [data-task=A]").click();
+  await expect(
+    page.getByRole("dialog", { name: "Task inspector" }),
+  ).toBeVisible();
+  await expect(
+    page
+      .getByRole("dialog")
+      .getByText("Harden request validation", { exact: true }),
+  ).toBeVisible();
+  await page
+    .getByRole("dialog")
+    .getByRole("button", { name: "Execution", exact: true })
+    .click();
+  await expect(page).toHaveURL(/execution.*task=A/);
+  await expect(
+    page.getByText("attempt_A1", { exact: false }).first(),
+  ).toBeVisible();
+  await page
+    .locator(".rv-sidebar")
+    .getByRole("link", { name: /Costs/ })
+    .click();
+  await expect(
+    page.getByText("Unknown", { exact: true }).first(),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "Preview approval" }).click();
+  await page.getByLabel("Proposed total").fill("999999");
+  await expect(
+    page.getByRole("button", {
+      name: "Submit requires verified Owner adapter",
+    }),
+  ).toBeDisabled();
+  await page.getByRole("button", { name: "Close", exact: true }).click();
+  await expect(
+    page.getByText("$240.00", { exact: true }).first(),
+  ).toBeVisible();
+  await page
+    .locator(".rv-sidebar")
+    .getByRole("link", { name: "Connections 04" })
+    .click();
+  await expect(page.getByRole("heading", { name: "Codex CLI" })).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Claude Code CLI" }),
+  ).toBeVisible();
+  await page
+    .locator(".rv-sidebar")
+    .getByRole("link", { name: /Results & Activity/ })
+    .click();
+  await expect(
+    page
+      .locator("[data-ui=badge]")
+      .filter({ hasText: "Independently accepted" })
+      .first(),
+  ).toBeVisible();
+  await expect(page).toHaveURL(/task=A/);
+  await page.goBack();
+  await expect(page).toHaveURL(/connections/);
+  expect(violations).toEqual([]);
+  expect(
+    await page.evaluate(
+      () => (window as unknown as { csp?: string[] }).csp ?? [],
+    ),
+  ).toEqual([]);
+});
+test("independent synthetic verification unblocks existing dependencies without changing ceiling", async ({
+  page,
+}) => {
+  await ready(page);
+  await page.getByRole("button", { name: "Advance scenario" }).click();
+  await expect(
+    page.getByText("Awaiting verification", { exact: true }).count(),
+  ).resolves.toBeGreaterThan(0);
+  await page.getByRole("button", { name: "Advance scenario" }).click();
+  await expect(
+    page.getByRole("button", { name: "Advance scenario" }),
+  ).toBeDisabled();
+  await page.getByRole("tab", { name: "Task hierarchy" }).click();
+  await expect(
+    page
+      .locator(".rv-task-row")
+      .filter({ hasText: "Verify the integrated contract" })
+      .getByText("Ready", { exact: true }),
+  ).toBeVisible();
+});
+test("production has no demo fallback, gallery or credential UI", async ({
+  page,
+}) => {
+  await page.goto("http://127.0.0.1:4173/");
+  await expect(
+    page.getByRole("heading", { name: "Browser integration is not activated" }),
+  ).toBeVisible();
+  await expect(page.getByText("DEMO WORKSPACE", { exact: true })).toHaveCount(
+    0,
+  );
+  await expect(
+    page.getByRole("button", { name: "Advance scenario" }),
+  ).toHaveCount(0);
+  await page.getByRole("button", { name: "Display preferences" }).click();
+  await expect(
+    page.getByRole("button", { name: "UI Elements gallery" }),
+  ).toHaveCount(0);
+});
+for (const width of [320, 390, 768, 1024, 1440, 2560])
+  test(`responsive ${width}px without page overflow`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 900 });
+    await ready(page);
+    expect(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth <= innerWidth,
+      ),
+    ).toBe(true);
+    await page.screenshot({
+      path: `.artifacts/screenshots/projects-${width}.png`,
+      fullPage: true,
+    });
+    if (width < 768) {
+      await page.getByRole("button", { name: "Open navigation" }).click();
+      await page
+        .getByRole("dialog", { name: "Navigation" })
+        .getByRole("link", { name: /Connections/ })
+        .click();
+      await expect(
+        page.getByRole("heading", {
+          name: "Connections, never ambient access.",
+        }),
+      ).toBeVisible();
+      expect(
+        await page.evaluate(
+          () => document.documentElement.scrollWidth <= innerWidth,
+        ),
+      ).toBe(true);
+    }
+  });
+test("keyboard, overlays, themes, RTL, long labels and reduced motion", async ({
+  page,
+}) => {
+  await ready(page);
+  await page.getByRole("button", { name: "Display preferences" }).click();
+  await page.getByLabel("Theme", { exact: true }).selectOption("light");
+  await page.getByLabel("Locale", { exact: true }).selectOption("qps-rtl");
+  await page.getByRole("switch", { name: "Reduce motion" }).check();
+  await page.getByRole("button", { name: "Done", exact: true }).click();
+  await expect(page.locator("html")).toHaveAttribute("dir", "rtl");
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+  ).toBe(true);
+  await page.screenshot({
+    path: ".artifacts/screenshots/rtl-light.png",
+    fullPage: true,
+  });
+  await page.locator(".rv-task-row").first().focus();
+  await page.keyboard.press("Enter");
+  await expect(page.getByRole("dialog")).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  await expect(page.locator(".rv-task-row").first()).toBeFocused();
+});
+test("all sections pass automated WCAG AA checks in dark and light", async ({
+  page,
+}) => {
+  for (const theme of ["dark", "light"]) {
+    await ready(page);
+    await page.getByRole("button", { name: "Display preferences" }).click();
+    await page.getByLabel("Theme", { exact: true }).selectOption(theme);
+    await page.getByRole("button", { name: "Done", exact: true }).click();
+    for (const section of [
+      "projects",
+      "execution",
+      "costs-approvals",
+      "connections",
+      "results-activity",
+    ]) {
+      await page.goto(`/#/${section}/prj_atlas`);
+      await expect(page.locator("h1")).toBeVisible();
+      await page.waitForTimeout(150);
+      const results = await new AxeBuilder({ page })
+        .withTags(["wcag2a", "wcag2aa", "wcag21aa", "wcag22aa"])
+        .analyze();
+      expect(
+        results.violations.map((x) => ({
+          id: x.id,
+          nodes: x.nodes.map((n) => n.target),
+        })),
+      ).toEqual([]);
+    }
+  }
+});
+test("touch landscape, forced contrast, motion and 200/400-percent reflow equivalents", async ({
+  browser,
+}) => {
+  const context = await browser.newContext({
+    viewport: { width: 390, height: 844 },
+    hasTouch: true,
+    reducedMotion: "reduce",
+    forcedColors: "active",
+  });
+  const page = await context.newPage();
+  await page.goto("http://127.0.0.1:4174/");
+  await expect(page.locator("h1")).toBeVisible();
+  await page.getByLabel("Search tasks", { exact: true }).fill("response");
+  await expect(page.locator(".rv-task-row")).toHaveCount(1);
+  await page.setViewportSize({ width: 844, height: 390 });
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+  ).toBe(true);
+  for (const width of [640, 320]) {
+    await page.setViewportSize({ width, height: 700 });
+    expect(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth <= innerWidth,
+      ),
+    ).toBe(true);
+  }
+  await context.close();
+});
+test("UI gallery exposes shared states and accessible dialog behavior", async ({
+  page,
+}) => {
+  await ready(page);
+  await page.getByRole("button", { name: "Display preferences" }).click();
+  await page.getByRole("button", { name: "UI Elements gallery" }).click();
+  const gallery = page.getByRole("dialog", {
+    name: "UI Elements · development only",
+  });
+  await expect(gallery).toBeVisible();
+  await expect(
+    gallery.getByRole("button", { name: "Disabled", exact: true }),
+  ).toBeDisabled();
+  await expect(
+    gallery.getByRole("textbox", { name: "Invalid field" }),
+  ).toHaveAccessibleDescription("Example error");
+  await page.keyboard.press("Escape");
+  await expect(gallery).toHaveCount(0);
+});
+for (const section of [
+  "projects",
+  "execution",
+  "costs-approvals",
+  "connections",
+  "results-activity",
+])
+  test(`all-section phone reflow: ${section}`, async ({ page }) => {
+    await page.setViewportSize({ width: 320, height: 700 });
+    await page.goto(`/#/${section}/prj_atlas`);
+    await expect(page.locator("h1")).toBeVisible();
+    expect(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth <= innerWidth,
+      ),
+    ).toBe(true);
+  });

@@ -1,0 +1,229 @@
+@font-face {
+  font-family: Inter;
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url(https://cdn.jsdelivr.net/npm/@fontsource/inter@5.3.0/files/inter-latin-400-normal.woff2)
+    format("woff2");
+}
+@font-face {
+  font-family: Inter;
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url(https://cdn.jsdelivr.net/npm/@fontsource/inter@5.3.0/files/inter-latin-600-normal.woff2)
+    format("woff2");
+}
+@font-face {
+  font-family: Inter;
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url(https://cdn.jsdelivr.net/npm/@fontsource/inter@5.3.0/files/inter-latin-700-normal.woff2)
+    format("woff2");
+}
+@font-face {
+  font-family: "IBM Plex Mono";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url(https://cdn.jsdelivr.net/npm/@fontsource/ibm-plex-mono@5.3.0/files/ibm-plex-mono-latin-400-normal.woff2)
+    format("woff2");
+}
+@layer vendor,reset,tokens,elements,layout,enhancements;
+@layer reset {
+  * {
+    box-sizing: border-box;
+  }
+  body {
+    margin: 0;
+  }
+  button,
+  input,
+  select,
+  textarea {
+    font: inherit;
+  }
+  button,
+  a,
+  input,
+  select {
+    touch-action: manipulation;
+  }
+  button {
+    cursor: pointer;
+  }
+  button:disabled {
+    cursor: not-allowed;
+  }
+  a {
+    color: inherit;
+  }
+  img {
+    max-inline-size: 100%;
+  }
+  h1,
+  h2,
+  h3,
+  p {
+    margin: 0;
+  }
+  button,
+  input,
+  select,
+  textarea {
+    min-inline-size: 0;
+  }
+  button {
+    color: inherit;
+  }
+  fieldset {
+    border: 0;
+    padding: 0;
+    margin: 0;
+  }
+  ::selection {
+    background: #66a8ff;
+    color: #0b1424;
+  }
+}
+@layer tokens {
+  :root,
+  [data-theme="dark"] {
+    color-scheme: dark;
+    --rv-bg: #0b1424;
+    --rv-surface: #121f34;
+    --rv-raised: #162740;
+    --rv-line: #2b3c57;
+    --rv-control-line: #637d9e;
+    --rv-text: #f0f5ff;
+    --rv-muted: #b6c6dd;
+    --rv-accent: #66a8ff;
+    --rv-accent-ink: #0b1424;
+    --rv-positive: #73e4d7;
+    --rv-danger: #fca4a4;
+    --rv-caution: #fac4aa;
+    --rv-shadow: 0 16px 64px #0006;
+  }
+  [data-theme="light"] {
+    color-scheme: light;
+    --rv-bg: #f5f8fd;
+    --rv-surface: #fff;
+    --rv-raised: #e9f0fa;
+    --rv-line: #ccd9e9;
+    --rv-control-line: #63758d;
+    --rv-text: #162238;
+    --rv-muted: #40536f;
+    --rv-accent: #1856aa;
+    --rv-accent-ink: #fff;
+    --rv-positive: #12675b;
+    --rv-danger: #a12736;
+    --rv-caution: #8c3d23;
+    --rv-shadow: 0 16px 64px #1622381a;
+  }
+  :root {
+    font-family:
+      Inter,
+      ui-sans-serif,
+      system-ui,
+      -apple-system,
+      BlinkMacSystemFont,
+      "Segoe UI",
+      sans-serif;
+    font-size: 15px;
+    line-height: 1.5;
+    --rv-mono:
+      "IBM Plex Mono", ui-monospace, SFMono-Regular, Consolas, monospace;
+    --rv-s1: 4px;
+    --rv-s2: 8px;
+    --rv-s3: 12px;
+    --rv-s4: 16px;
+    --rv-s6: 24px;
+    --rv-s8: 32px;
+    --rv-s12: 48px;
+    --rv-s16: 64px;
+    --rv-r1: 8px;
+    --rv-r2: 12px;
+    --rv-r3: 16px;
+    --rv-micro: 120ms;
+    --rv-small: 180ms;
+    --rv-medium: 240ms;
+    --rv-spatial: 320ms;
+    --rv-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+  }
+  body {
+    background: var(--rv-bg);
+    color: var(--rv-text);
+  }
+  h1 {
+    font-size: clamp(1.65rem, 2.1vw, 2.25rem);
+    font-weight: 600;
+    line-height: 1.18;
+    letter-spacing: -0.045em;
+  }
+  h2 {
+    font-size: 1rem;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+  }
+  h3 {
+    font-size: 0.94rem;
+    font-weight: 600;
+  }
+  small {
+    font-size: 0.8rem;
+  }
+  code,
+  .rv-mono {
+    font-family: var(--rv-mono);
+    font-size: 0.82rem;
+    font-variant-numeric: tabular-nums;
+    overflow-wrap: anywhere;
+  }
+  p {
+    overflow-wrap: anywhere;
+  }
+  a {
+    text-underline-offset: 4px;
+  }
+  button,
+  input,
+  select,
+  textarea,
+  a {
+    outline-offset: 4px;
+  }
+  button:focus-visible,
+  input:focus-visible,
+  select:focus-visible,
+  textarea:focus-visible,
+  a:focus-visible,
+  [tabindex]:focus-visible {
+    outline: 2px solid var(--rv-accent);
+  }
+  .sr-only {
+    position: absolute;
+    inline-size: 1px;
+    block-size: 1px;
+    margin: -1px;
+    padding: 0;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+    border: 0;
+  }
+  .rv-eyebrow {
+    font: 400 0.7rem/1.4 var(--rv-mono);
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--rv-muted);
+  }
+  .rv-help {
+    color: var(--rv-muted);
+    font-size: 0.8rem;
+  }
+  .rv-field-error {
+    color: var(--rv-danger);
+    font-size: 0.82rem;
+  }
+}

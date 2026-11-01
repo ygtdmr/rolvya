@@ -101,7 +101,7 @@ jobs:
     needs: repository
     if: needs.repository.outputs.web == 'true'
     runs-on: ubuntu-24.04
-    timeout-minutes: 20
+    timeout-minutes: 25
     defaults:
       run:
         working-directory: apps/web
@@ -120,6 +120,38 @@ jobs:
       - run: npm run build
       - run: npm run verify:dist
       - run: npm run check:browser-assets
+      - run: npm run build:demo
+      - run: node scripts/verify-dist.mjs dist-demo
+      - run: npm run licenses
+      - run: npm audit --audit-level=moderate
+      - run: npx playwright install --with-deps chromium firefox webkit
+      - run: npm run test:browser
+        env:
+          ROLVYA_BROWSER_ENGINES: chromium,firefox,webkit
+      - run: npm run measure
+      # Add JS/TS analysis without replacing the repository's managed Rust/actions
+      # default setup. Every SARIF finding fails this job; none are filtered.
+      - uses: github/codeql-action/init@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4
+        with:
+          languages: javascript-typescript
+          build-mode: none
+          source-root: apps/web
+          queries: security-extended
+      - uses: github/codeql-action/analyze@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4
+        with:
+          output: apps/web/.artifacts/codeql
+          upload: never
+          upload-database: false
+      - run: node scripts/check-sarif.mjs .artifacts/codeql
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        if: always()
+        with:
+          name: connected-control-browser-evidence
+          path: |
+            apps/web/.artifacts/
+            apps/web/test-results/
+          include-hidden-files: true
+          retention-days: 14
 
   required:
     name: Required checks

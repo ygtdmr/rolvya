@@ -2,3 +2,10 @@ graphify-out/
 __pycache__/
 
 /target/
+
+/apps/web/node_modules/
+/apps/web/dist/
+/apps/web/dist-demo/
+/apps/web/.artifacts/
+/apps/web/test-results/
+/apps/web/playwright-report/

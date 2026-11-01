@@ -1,0 +1,59 @@
+{
+  "name": "@rolvya/web",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "license": "MIT",
+  "engines": {
+    "node": ">=24 <25"
+  },
+  "packageManager": "npm@11.9.0",
+  "scripts": {
+    "dev": "vite --mode demo --host 127.0.0.1",
+    "dev:connected": "vite --host 127.0.0.1",
+    "lint": "eslint src tests scripts *.ts *.mjs && npm run format:check",
+    "typecheck": "tsc --noEmit",
+    "test:ci": "vitest run && node --test --test-isolation=none scripts/*.test.mjs",
+    "test": "vitest",
+    "build": "vite build",
+    "build:demo": "vite build --mode demo",
+    "verify:dist": "node scripts/verify-dist.mjs",
+    "check:browser-assets": "node scripts/verify-dist.mjs --browser-assets",
+    "preview": "vite preview --host 127.0.0.1 --port 4173",
+    "preview:demo": "vite preview --mode demo --host 127.0.0.1 --port 4174",
+    "test:browser": "playwright test",
+    "licenses": "node scripts/licenses.mjs",
+    "measure": "node scripts/measure.mjs",
+    "format:check": "prettier --check src tests scripts public *.ts *.mjs *.html package.json"
+  },
+  "dependencies": {
+    "@xyflow/react": "12.12.0",
+    "react": "19.3.1",
+    "react-dom": "19.3.1"
+  },
+  "devDependencies": {
+    "@axe-core/playwright": "4.14.0",
+    "@eslint/js": "10.0.1",
+    "@playwright/test": "1.64.1",
+    "@testing-library/jest-dom": "7.0.1",
+    "@testing-library/react": "16.3.3",
+    "@testing-library/user-event": "14.6.8",
+    "@types/node": "26.6.6",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "@vitejs/plugin-react": "6.1.2",
+    "acorn": "8.19.0",
+    "eslint": "10.14.0",
+    "eslint-plugin-react-hooks": "7.1.1",
+    "jsdom": "30.1.3",
+    "lightningcss": "1.33.0",
+    "prettier": "3.9.10",
+    "typescript": "6.0.3",
+    "typescript-eslint": "8.72.1",
+    "vite": "8.3.5",
+    "vitest": "5.0.5"
+  },
+  "overrides": {
+    "minimatch": "11.0.1"
+  }
+}

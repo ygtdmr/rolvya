@@ -2,6 +2,12 @@
 
 Current authoritative decision cross-check: 2026-10-26 (see current ADRs; earlier sections are chronological historical checkpoints).
 
+## G1-07 Connected Control web foundation (2026-11-01)
+
+PR #38 is verified merged as `0b92f15fc077e628ddcc6e87676aac7f3a6b9c05`, matching its submitted tree and migrations 0001–0020. Branch `codex/web-panel-connected-control` adds the actual React/TypeScript/Vite application, reused Connected Control Elements, five sections, read-only React Flow, shared project/task context, an explicit separate demo, strict single-JS/CSS artifact audit and static-only PWA shell. [Implementation, authority boundaries and executable verification](../development/connected-control-panel.md) distinguish rendered functionality from real browser activation.
+
+A bounded Rust plan read projection reuses current human session/membership authority. Its HTTP routes remain closed because trusted production browser transport is not implemented; unsupported commands and private read models are unavailable rather than fabricated. Independent reviews have reproduced security, resource, pagination, graph and accessibility fixes. Published migrations and Cargo dependencies are unchanged. Final test counts, rendered screenshots, performance and exact-head CI/CodeQL are reported after execution in the PR. Final brand icons/installability, real browser login/SSE, physical devices and existing remote/provider activation gates remain incomplete. Dependabot #1 and the separate locked RSA advisory remain visible. No live credentials, paid operations, approval bypass or protected merge.
+
 ## G1-06 scoped provider credential proxy (2026-11-01)
 
 PR #37 is verified merged as `612fe7755f39274d5044af84e7d998f79f970034`, with its exact submitted tree and migration 0020. Branch `codex/secure-provider-credential-delivery` implements independently scoped worker HTTPS proxy operations, controller-owned provider conversations, exact encrypted Broker consumption and conservative journal/replay handling. Production workers have no API-key transport. Optional Fargate coding-workspace inspection and account-bound CLI homes extend existing isolation boundaries. Published migrations and dependencies remain unchanged. See [implementation, executable evidence and explicit gates](../development/scoped-provider-proxy.md).
