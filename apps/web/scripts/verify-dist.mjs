@@ -4,7 +4,7 @@ import { join, extname } from "node:path";
 import { createHash } from "node:crypto";
 import { gzipSync, brotliCompressSync } from "node:zlib";
 import { parse } from "acorn";
-import { JSDOM } from "jsdom";
+import { parse as parseHtml } from "parse5";
 const fail = (message) => {
   throw Error(`Distribution contract: ${message}`);
 };
@@ -40,21 +40,42 @@ export async function auditDist(root) {
   if (Buffer.byteLength(code) > 4 * 1024 * 1024)
     fail("application JS exceeds the bounded audit size");
   if (Buffer.byteLength(html) > 40000) fail("HTML exceeds bounded shell size");
-  // Parse HTML with browser semantics, without executing scripts or loading
-  // resources. Regex tag matching misses valid unusual and unclosed end tags.
-  const document = new JSDOM(html).window.document;
+  // Inert parsing with the same noscript rules as a JS-enabled browser. There
+  // is no execution or resource loader; regex and scripting-disabled DOMs can
+  // miss executable tags that the production browser sees.
+  const nodes = [],
+    pending = [
+      parseHtml(html, { scriptingEnabled: true, sourceCodeLocationInfo: true }),
+    ];
+  while (pending.length) {
+    const node = pending.pop();
+    if (node.tagName) nodes.push(node);
+    pending.push(...(node.childNodes ?? []));
+    if (node.content) pending.push(node.content);
+  }
+  const attributes = (node) =>
+    Object.fromEntries((node.attrs ?? []).map((a) => [a.name, a.value]));
   if (
     /unsafe-inline|unsafe-eval/i.test(html) ||
-    document.querySelector('style, link[rel~="stylesheet"]') ||
+    nodes.some(
+      (node) =>
+        node.tagName === "style" ||
+        (node.tagName === "link" &&
+          (attributes(node).rel ?? "")
+            .toLowerCase()
+            .split(/\s+/)
+            .includes("stylesheet")),
+    ) ||
     /sourceMappingURL/.test(code)
   )
     fail("inline style/script policy, external stylesheet, or source map");
-  const tags = [...document.querySelectorAll("script")];
-  if (tags.length !== 1 || tags[0].textContent.trim())
+  const tags = nodes.filter((node) => node.tagName === "script");
+  if (
+    tags.length !== 1 ||
+    tags[0].childNodes.some((node) => (node.value ?? "").trim())
+  )
     fail("one external module script, no inline script");
-  const attrs = Object.fromEntries(
-    [...tags[0].attributes].map((a) => [a.name, a.value]),
-  );
+  const attrs = attributes(tags[0]);
   if (
     attrs.src !== "/" + app ||
     attrs.type !== "module" ||
@@ -62,9 +83,22 @@ export async function auditDist(root) {
       `sha384-${createHash("sha384").update(code).digest("base64")}`
   )
     fail("broken app reference or integrity");
-  const policy = document
-    .querySelector('meta[http-equiv="Content-Security-Policy" i]')
-    ?.getAttribute("content");
+  const metas = nodes.filter(
+    (node) =>
+      node.tagName === "meta" &&
+      attributes(node)["http-equiv"]?.toLowerCase() ===
+        "content-security-policy",
+  );
+  if (
+    metas.length !== 1 ||
+    metas[0].parentNode?.tagName !== "head" ||
+    !(
+      metas[0].sourceCodeLocation?.startOffset <
+      tags[0].sourceCodeLocation?.startOffset
+    )
+  )
+    fail("CSP must be in head before executable content");
+  const policy = attributes(metas[0]).content;
   if (
     !policy ||
     /unsafe-inline|unsafe-eval/.test(policy) ||

@@ -54,9 +54,29 @@ test("browser-valid unusual script endings and unclosed scripts cannot bypass in
       "<script>globalThis.unapproved = true;</script\t\n bar>",
       "<script>globalThis.unapproved = true;</script extra>",
       "<script>globalThis.unapproved = true;",
+      '<noscript><p title="</noscript><script src=evil.js></script>">',
     ]) {
       await writeFile(join(root, "index.html"), html + extra);
       await assert.rejects(auditDist(root), /one external module script/);
+    }
+  } finally {
+    await rm(root, { recursive: true });
+  }
+});
+test("CSP metadata must be in head before the executable script", async () => {
+  const root = await mkdtemp(join(tmpdir(), "rolvya-dist-"));
+  try {
+    await validDist(root);
+    const html = await readFile(join(root, "index.html"), "utf8");
+    const boundary = html.indexOf("<script");
+    const meta = html.slice(0, boundary);
+    const script = html.slice(boundary);
+    for (const moved of [
+      `<head>${script}${meta}</head>`,
+      `<head>${script}</head><body>${meta}</body>`,
+    ]) {
+      await writeFile(join(root, "index.html"), moved);
+      await assert.rejects(auditDist(root), /CSP/);
     }
   } finally {
     await rm(root, { recursive: true });
