@@ -9,7 +9,7 @@ use rustls::{
 use std::sync::Arc;
 
 pub struct ServerIdentity {
-    pub(super) config: Arc<ServerConfig>,
+    pub(in crate::controller_keys) config: Arc<ServerConfig>,
 }
 fn roots() -> RootCertStore {
     RootCertStore::from_iter(webpki_roots::TLS_SERVER_ROOTS.iter().cloned())
@@ -60,7 +60,7 @@ impl ServerIdentity {
         })
     }
     #[cfg(test)]
-    pub(super) fn fixture(
+    pub(in crate::controller_keys) fn fixture(
         chain: Vec<CertificateDer<'static>>,
         key: PrivateKeyDer<'static>,
     ) -> Self {

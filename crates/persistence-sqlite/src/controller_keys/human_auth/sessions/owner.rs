@@ -21,7 +21,7 @@ pub use step_up::OwnerProofRequest;
 mod email;
 mod step_up;
 #[cfg(test)]
-mod tests;
+pub(in crate::controller_keys::human_auth) mod tests;
 #[cfg(test)]
 pub(in crate::controller_keys) use tests::{
     GitOwnerFixture, git_consent_on_existing, infrastructure_consent_on_existing,

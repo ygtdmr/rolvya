@@ -17,15 +17,29 @@ test("static shell works offline and private API responses never enter caches", 
         );
     });
   });
-  await context.route("**/api/private", (route) =>
+  await context.route("**/api/**", (route) =>
     route.fulfill({
       json: { private: "not-cacheable" },
       headers: { "Cache-Control": "private, no-store" },
     }),
   );
-  await page.evaluate(() =>
-    fetch("/api/private", { credentials: "same-origin", cache: "no-store" }),
-  );
+  await page.evaluate(async () => {
+    for (const path of [
+      "/api/private",
+      "/api/control/v1/auth/context",
+      "/api/control/v1/auth/session",
+      "/api/control/v1/projects/project-a/snapshot",
+    ]) {
+      await fetch(path, { credentials: "same-origin", cache: "no-store" });
+    }
+    await fetch("/api/control/v1/auth/logout", {
+      method: "POST",
+      credentials: "same-origin",
+      cache: "no-store",
+      headers: { "Content-Type": "application/json" },
+      body: "{}",
+    });
+  });
   const paths = await page.evaluate(async () => {
     const names = await caches.keys();
     const keys = await Promise.all(
@@ -41,7 +55,7 @@ test("static shell works offline and private API responses never enter caches", 
   expect(paths).toContain("/index.html");
   // The private-response fixture is finished. Remove browser-level interception
   // before testing native Service Worker/offline navigation (not a routed request).
-  await context.unroute("**/api/private");
+  await context.unroute("**/api/**");
   await context.setOffline(true);
   await page.reload();
   await expect(page.getByText("DEMO WORKSPACE", { exact: true })).toBeVisible();

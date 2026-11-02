@@ -48,6 +48,8 @@ import {
   type Preferences,
 } from "./preferences";
 import { parseRoute, routeHash, type Route } from "./route";
+import { SessionGate } from "../auth/Gate";
+import { humanSession } from "../auth/session";
 const icons: Record<Section, IconName> = {
   projects: "projects",
   execution: "execution",
@@ -62,6 +64,8 @@ const subscribeRoute = (callback: () => void) => {
 };
 export function App() {
   const [prefs, setPrefs] = useState(loadPreferences);
+  const [update, setUpdate] = useState<ShellUpdate | null>(null);
+  useEffect(() => registerShell(setUpdate), []);
   useEffect(() => {
     savePreferences(prefs);
     const root = document.documentElement;
@@ -82,7 +86,19 @@ export function App() {
   }, [prefs]);
   return (
     <LocaleProvider locale={prefs.locale}>
-      <Panel preferences={prefs} setPreferences={setPrefs} />
+      {update?.available && (
+        <div className="rv-update" role="status">
+          A new application shell is available.{" "}
+          <Button onClick={update.apply}>Reload to update</Button>
+        </div>
+      )}
+      {__DEMO__ ? (
+        <Panel preferences={prefs} setPreferences={setPrefs} />
+      ) : (
+        <SessionGate preferences={prefs} setPreferences={setPrefs}>
+          <Panel preferences={prefs} setPreferences={setPrefs} />
+        </SessionGate>
+      )}
     </LocaleProvider>
   );
 }
@@ -105,7 +121,6 @@ function Panel({
     [inspector, setInspector] = useState(false),
     [gallery, setGallery] = useState(false),
     [toast, setToast] = useState(""),
-    [update, setUpdate] = useState<ShellUpdate | null>(null),
     [hidden, setHidden] = useState(false);
   const navigate = useCallback((next: Route, replace = false) => {
     const target = routeHash(next);
@@ -153,6 +168,8 @@ function Panel({
       })
       .catch((e) => {
         if (c.signal.aborted) return;
+        if (!__DEMO__ && e instanceof ReadError && e.kind === "unauthorized")
+          void humanSession.invalidate();
         setSnapshot(null);
         setProjects([]);
         setAvailability(
@@ -197,9 +214,19 @@ function Panel({
             }
           },
         );
-        if (!c.signal.aborted) setAvailability("stale");
+        if (!c.signal.aborted) {
+          setAvailability("stale");
+          // A normal bounded stream rollover is not evidence of a state change.
+          // Revalidate REST before reporting the unchanged snapshot as current.
+          invalidations.request();
+        }
       } catch (e) {
         if (c.signal.aborted) return;
+        if (e instanceof ReadError && e.kind === "invalid") {
+          setAvailability("stale");
+          invalidations.request();
+          return;
+        }
         if (
           e instanceof ReadError &&
           (e.kind === "unauthorized" || e.kind === "forbidden")
@@ -208,6 +235,8 @@ function Panel({
           setSnapshot(null);
           setProjects([]);
           setAvailability(e.kind);
+          if (!__DEMO__ && e.kind === "unauthorized")
+            void humanSession.invalidate();
           return;
         }
         setAvailability(navigator.onLine ? "stale" : "offline");
@@ -243,7 +272,6 @@ function Panel({
       window.removeEventListener("online", online);
     };
   }, []);
-  useEffect(() => registerShell(setUpdate), []);
   useEffect(() => {
     if (!toast) return;
     const timer = setTimeout(() => setToast(""), 6500);
@@ -414,23 +442,40 @@ function Panel({
             </Popover>
             <Menu
               label="Session"
-              items={[
-                {
-                  label: "Human login unavailable",
-                  disabled: true,
-                  onSelect: () => undefined,
-                },
-                {
-                  label: "Clear local view",
-                  onSelect: () => {
-                    setSnapshot(null);
-                    setHidden(true);
-                    setToast(
-                      "Local view cleared. This does not claim server-side logout.",
-                    );
-                  },
-                },
-              ]}
+              items={
+                __DEMO__
+                  ? [
+                      {
+                        label: "Human login unavailable",
+                        disabled: true,
+                        onSelect: () => undefined,
+                      },
+                      {
+                        label: "Clear local view",
+                        onSelect: () => {
+                          setSnapshot(null);
+                          setHidden(true);
+                          setToast(
+                            "Local view cleared. This does not claim server-side logout.",
+                          );
+                        },
+                      },
+                    ]
+                  : [
+                      {
+                        label: "Renew session",
+                        onSelect: () => void humanSession.renew(),
+                      },
+                      {
+                        label: "Sign out",
+                        onSelect: () => void humanSession.logout(),
+                      },
+                      {
+                        label: "Sign out all devices",
+                        onSelect: () => void humanSession.logout(true),
+                      },
+                    ]
+              }
             />
           </div>
         </header>
@@ -479,12 +524,6 @@ function Panel({
           asOf={snapshot?.asOf ?? null}
           onRefresh={() => setRefresh((n) => n + 1)}
         />
-        {update?.available && (
-          <div className="rv-update" role="status">
-            <span>A new static application shell is available.</span>
-            <Button onClick={update.apply}>Reload to update</Button>
-          </div>
-        )}
         <main id="main" className="rv-page" tabIndex={-1}>
           {projects.length > 0 && !hidden && (
             <div className="rv-project-control">
@@ -525,7 +564,7 @@ function Panel({
                       ? "Project access denied"
                       : hidden
                         ? "Local view cleared"
-                        : "Browser integration is not activated"
+                        : "No authorized project snapshot available"
                 }
               >
                 <span>
@@ -533,13 +572,24 @@ function Panel({
                     ? "A verified human browser session is required. Worker credentials cannot sign in here."
                     : availability === "forbidden"
                       ? "No private project data is displayed."
-                      : "The current backend provides secure library services, but its trusted human browser transport is not operationally verified."}
+                      : "Select an authorized project or check the controller connection. No project data is inferred."}
                 </span>
               </EmptyState>
+              {availability === "forbidden" && (
+                <Button
+                  onClick={() =>
+                    navigate(
+                      { section: "projects", project: null, task: null },
+                      true,
+                    )
+                  }
+                >
+                  Choose an authorized project
+                </Button>
+              )}
               <p className="rv-note">
-                Production command submission and live event streaming remain
-                unavailable. Use the separately built, explicitly marked demo
-                for interactive synthetic exploration.
+                This panel uses authenticated read capabilities. Privileged
+                commands remain unavailable through this browser adapter.
               </p>
             </>
           ) : route.section === "projects" ? (

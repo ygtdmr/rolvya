@@ -47,6 +47,7 @@ export async function consumeEvents(
   let buffer = "",
     data = "",
     id = "",
+    event = "",
     frame = 0;
   const abort = () => {
     void reader.cancel();
@@ -65,13 +66,35 @@ export async function consumeEvents(
         frame += line.length;
         if (frame > 8192) throw Error("event frame limit");
         if (line === "") {
-          if (data) onEvent(data.slice(0, -1), id);
+          if (data) {
+            if (["unauthorized", "forbidden", "reset"].includes(event)) {
+              const control = JSON.parse(data) as Record<string, unknown>;
+              const expected = event === "reset" ? "replay_gap" : event;
+              if (
+                control.schema !== 1 ||
+                control.error !== expected ||
+                Object.keys(control).length !== 2
+              )
+                throw new ReadError("invalid");
+              throw new ReadError(
+                event === "unauthorized"
+                  ? "unauthorized"
+                  : event === "forbidden"
+                    ? "forbidden"
+                    : "invalid",
+              );
+            }
+            if (event && event !== "message") throw new ReadError("invalid");
+            onEvent(data.slice(0, -1), id);
+          }
           data = "";
           id = "";
+          event = "";
           frame = 0;
         } else if (line.startsWith("data:"))
           data += line.slice(5).replace(/^ /, "") + "\n";
         else if (line.startsWith("id:")) id = line.slice(3).trim();
+        else if (line.startsWith("event:")) event = line.slice(6).trim();
       }
     }
     decoder.decode();
@@ -110,7 +133,9 @@ export async function streamProject(
         ? "unauthorized"
         : response.status === 403
           ? "forbidden"
-          : "unavailable",
+          : response.status === 409
+            ? "invalid"
+            : "unavailable",
     );
   await consumeEvents(response.body, onEvent, signal);
 }

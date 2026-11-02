@@ -168,7 +168,15 @@ fn request() -> RequestId {
 fn password() -> Password {
     Password::new(hex(&random::<32>().unwrap()[..]).into_bytes()).unwrap()
 }
+type BrowserMailProbe = Arc<dyn Fn(&str) -> Option<String> + Send + Sync>;
 impl Fixture {
+    pub(super) fn browser_clock(&self) -> Arc<AtomicI64> {
+        self.clock.0.clone()
+    }
+    pub(super) fn browser_mail_probe(&self) -> BrowserMailProbe {
+        let mail = self.mail.clone();
+        Arc::new(move |id| mail.messages.lock().unwrap().get(id).map(|x| x.0.clone()))
+    }
     pub(super) async fn new() -> Self {
         let root = temporary();
         let data = root.path().join("data");

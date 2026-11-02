@@ -6,6 +6,72 @@ use rolvya_domain::{
     plan::*,
 };
 use sqlx::Connection;
+pub(in crate::controller_keys::human_auth) type MailProbe =
+    Arc<dyn Fn(&str) -> Option<String> + Send + Sync>;
+pub(in crate::controller_keys::human_auth) struct BrowserSeed {
+    pub auth: HumanAuth,
+    pub root: tempfile::TempDir,
+    pub store: PlanStore,
+    pub clock: Arc<std::sync::atomic::AtomicI64>,
+    pub mail: MailProbe,
+    pub user: HumanId,
+    pub email: EmailAddress,
+    pub credential: Password,
+    pub viewer_email: EmailAddress,
+    pub viewer_credential: Password,
+    pub project: ProjectId,
+    pub fingerprint: String,
+    pub totp: Option<Zeroizing<Vec<u8>>>,
+    pub recovery: Vec<Zeroizing<String>>,
+}
+/// Only unit-test code can seed independently verified enrollment/binding. Network
+/// authority is replaced by the genuine TLS adapter after setup; no public signup.
+pub(in crate::controller_keys::human_auth) async fn browser_seed(factor: bool) -> BrowserSeed {
+    let mut primary = super::super::super::super::tests::Fixture::new().await;
+    primary.auth.passwords =
+        super::super::super::super::credentials::PasswordEngine::new(PasswordParameters::default())
+            .unwrap();
+    let mut f = Fixture::from_session(
+        SessionFixture::from_primary(primary).await,
+        ProjectId::new("project-a").unwrap(),
+    )
+    .await;
+    let fingerprint = activate(&f).await;
+    let viewer = f.account(2, true).await;
+    let invite = f.invite(&viewer, ProjectRole::Viewer).await;
+    f.redeem(&viewer, &invite).await.unwrap();
+    f.bind(&ProjectId::new("project-b").unwrap()).await;
+    let (totp, recovery) = if factor {
+        let (enrollment, active) = f.s.factor().await;
+        f.s.a.advance(30);
+        (
+            Some(enrollment.seed),
+            active.recovery.codes.into_iter().map(|c| c.0).collect(),
+        )
+    } else {
+        (None, vec![])
+    };
+    let clock = f.s.a.browser_clock();
+    let mail = f.s.a.browser_mail_probe();
+    f.s.a.auth.authority = Arc::new(Unimplemented);
+    f.s.a.auth.project_binding = Arc::new(Unimplemented);
+    BrowserSeed {
+        clock,
+        mail,
+        store: f.s.a.store,
+        auth: f.s.a.auth,
+        root: f.s.a.root,
+        user: f.s.user,
+        email: f.s.email,
+        credential: f.s.password,
+        viewer_email: viewer.email,
+        viewer_credential: viewer.credential.unwrap(),
+        project: f.project,
+        fingerprint,
+        totp,
+        recovery,
+    }
+}
 struct PanelFixturePolicy;
 impl rolvya_plan_validator::AssignmentPolicy for PanelFixturePolicy {
     fn check(

@@ -1,6 +1,6 @@
 # S2-03C project authorization and exact-action Owner approvals
 
-This Rust/SQLite library extends merged [PR #25](https://github.com/ygtdmr/rolvya/pull/25), main `b66e078268e726fc51a100c6c80b23d93dde14a7`. Its source tree matched expected S2-03B head `0940978ff23c79abbfee6bc7aa419b90abd7768f`. [ADR 0024](../decisions/0024-project-human-roles.md), [ADR 0029](../decisions/0029-owner-controlled-project-invitations.md), [ADR 0034](../decisions/0034-owner-action-bound-reauthentication.md) and [ADR 0035](../decisions/0035-scoped-human-incident-containment.md) govern the implementation. There is no production HTTP, mail or ownership-binding adapter.
+This Rust/SQLite library extends merged [PR #25](https://github.com/ygtdmr/rolvya/pull/25), main `b66e078268e726fc51a100c6c80b23d93dde14a7`. Its source tree matched expected S2-03B head `0940978ff23c79abbfee6bc7aa419b90abd7768f`. [ADR 0024](../decisions/0024-project-human-roles.md), [ADR 0029](../decisions/0029-owner-controlled-project-invitations.md), [ADR 0034](../decisions/0034-owner-action-bound-reauthentication.md) and [ADR 0035](../decisions/0035-scoped-human-incident-containment.md) govern the implementation. There is no privileged-governance HTTP, mail or ownership-binding adapter. [G1-08](secure-human-browser-delivery.md) adds ordinary login and authorized panel reads without exposing these privileged mutations.
 
 ## Authority and legacy migration
 
@@ -40,6 +40,6 @@ Two independent read-only reviewers inspected actual source and the correction e
 
 ## Remaining production gates and handoff
 
-Production enrollment, local ownership binding, HTTPS/browser/request verification, email/delivery attestation and incident evaluation remain default-deny. There is no admin impersonation, arbitrary account recovery, automatic rebinding, factor-removal shortcut, provider credential permission or spending fallback. Signed audit checkpoints, operational retention, encrypted off-host key recovery, real browser/mail qualification and deployment remain separate gates. Host compromise is not prevented by at-rest encryption; fresh single-factor reauthentication is not phishing-resistant MFA.
+Production enrollment, local ownership binding, privileged browser governance, email/delivery attestation and incident evaluation remain default-deny. There is no admin impersonation, arbitrary account recovery, automatic rebinding, factor-removal shortcut, provider credential permission or spending fallback. Signed audit checkpoints, operational retention, encrypted off-host key recovery, real browser/mail qualification and deployment remain separate gates. Host compromise is not prevented by at-rest encryption; fresh single-factor reauthentication is not phishing-resistant MFA.
 
 No real credentials, email, provider calls, paid work, infrastructure, issues, merges or protection changes are used. **Next dependency-ready milestone: S2-04**, verified worker bootstrap, attempt-scoped credentials, token revocation and authenticated worker authority, after manual Owner review/merge. Do not expose these library seams through unverified HTTP or synthetic authority adapters.
