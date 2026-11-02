@@ -144,36 +144,7 @@ test("open SSE revocation clears protected browser state", async ({
     ),
   ).toBe(401);
 });
-test("clean SSE rollover revalidates REST without another journal event", async ({
-  page,
-  controller,
-}) => {
-  let calls = 0,
-    snapshots = 0;
-  await page.route(
-    "**/api/control/v1/projects/project-a/snapshot",
-    async (r) => {
-      snapshots++;
-      await r.continue();
-    },
-  );
-  await page.route("**/api/control/v1/projects/project-a/events", async (r) => {
-    if (calls++ === 0)
-      await r.fulfill({
-        headers: {
-          "Content-Type": "text/event-stream",
-          "Cache-Control": "no-store",
-        },
-        body: ": keepalive\n\n",
-      });
-    else await r.continue();
-  });
-  await controller.signIn(page);
-  await expect.poll(() => snapshots).toBeGreaterThan(1);
-  await expect(page.locator("[data-ui=connectivity-banner]")).toContainText(
-    "Snapshot current",
-  );
-});
+
 test("login accessibility and mobile composition", async ({
   page,
   controller,
@@ -201,6 +172,36 @@ test("login accessibility and mobile composition", async ({
   for (const theme of ["Light", "Dark"]) {
     await page.getByRole("combobox", { name: "Theme", exact: true }).click();
     await page.getByRole("option", { name: theme, exact: true }).click();
+    // Text and its surface must retain AA contrast throughout a theme change,
+    // including frames before an optional animation has finished.
+    const contrast = await page.evaluate(async () => {
+      const luminance = (color: string) => {
+        const channels = color
+          .match(/[\d.]+/g)!
+          .slice(0, 3)
+          .map(Number);
+        const linear = channels.map((value) => {
+          const channel = value / 255;
+          return channel <= 0.04045
+            ? channel / 12.92
+            : ((channel + 0.055) / 1.055) ** 2.4;
+        });
+        return linear[0]! * 0.2126 + linear[1]! * 0.7152 + linear[2]! * 0.0722;
+      };
+      const samples: number[] = [];
+      for (let frame = 0; frame < 12; frame++) {
+        const button = document.querySelector<HTMLButtonElement>(
+          '.rv-auth-form button[type="submit"]',
+        )!;
+        const style = getComputedStyle(button);
+        const a = luminance(style.color),
+          b = luminance(style.backgroundColor);
+        samples.push((Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05));
+        await new Promise(requestAnimationFrame);
+      }
+      return Math.min(...samples);
+    });
+    expect(contrast).toBeGreaterThanOrEqual(4.5);
     expect(
       (
         await new AxeBuilder({ page })
@@ -347,55 +348,98 @@ test("Magic Link opening cannot authenticate until explicit same-browser confirm
     page.getByText("Bounded panel task", { exact: true }).first(),
   ).toBeVisible();
 });
-test("untrusted repository text is never executable browser markup", async ({
-  page,
-  controller,
-}) => {
-  const text = '<img src=x onerror="window.pwned=true">';
-  await controller.signIn(page);
-  // Obtain the authorized redacted data through the real browser before this
-  // display-only adversarial fixture substitutes repository text. Authentication,
-  // membership, cookies and capabilities are not supplied by this fixture.
-  const snapshot = await page.evaluate(async () => {
-    const response = await fetch(
-      "/api/control/v1/projects/project-a/snapshot",
-      { cache: "no-store" },
+
+// Page routing must own these adversarial responses. Service Worker fetches
+// bypass Playwright routes in WebKit; real authentication and PWA tests above
+// retain the production worker and exercise its actual cache restrictions.
+test.describe("controlled network responses", () => {
+  test.use({ serviceWorkers: "block" });
+  test("clean SSE rollover revalidates REST without another journal event", async ({
+    page,
+    controller,
+  }) => {
+    let calls = 0,
+      snapshots = 0;
+    await page.route(
+      "**/api/control/v1/projects/project-a/snapshot",
+      async (r) => {
+        snapshots++;
+        await r.continue();
+      },
     );
-    if (!response.ok)
-      throw new Error("Authorized fixture snapshot unavailable");
-    return await response.json();
+    await page.route(
+      "**/api/control/v1/projects/project-a/events",
+      async (r) => {
+        if (calls++ === 0)
+          await r.fulfill({
+            headers: {
+              "Content-Type": "text/event-stream",
+              "Cache-Control": "no-store",
+            },
+            body: ": keepalive\n\n",
+          });
+        else await r.continue();
+      },
+    );
+    await controller.signIn(page);
+    await expect.poll(() => snapshots).toBeGreaterThan(1);
+    await expect(page.locator("[data-ui=connectivity-banner]")).toContainText(
+      "Snapshot current",
+    );
   });
-  snapshot.tasks[0].title = text;
-  await page.route("**/api/control/v1/projects/project-a/snapshot", (route) =>
-    route.fulfill({ json: snapshot, headers: { "Cache-Control": "no-store" } }),
-  );
-  await page
-    .locator("[data-ui=connectivity-banner]")
-    .getByRole("button", { name: "Refresh", exact: true })
-    .click();
-  await expect(page.getByText(text, { exact: true }).last()).toBeVisible();
-  expect(
-    await page.evaluate(() => Reflect.get(window, "pwned")),
-  ).toBeUndefined();
-});
-test("explicit SSE project denial clears private state without demo fallback", async ({
-  page,
-  controller,
-}) => {
-  await page.route("**/api/control/v1/projects/project-a/events", (route) =>
-    route.fulfill({
-      status: 403,
-      json: { schema: 1, error: "project_access_denied" },
-    }),
-  );
-  await controller.signIn(page, false, false);
-  await expect(
-    page.getByRole("heading", { name: "Project access denied" }),
-  ).toBeVisible();
-  await expect(
-    page.getByText("Bounded panel task", { exact: true }),
-  ).toHaveCount(0);
-  await expect(page.getByText("DEMO WORKSPACE", { exact: true })).toHaveCount(
-    0,
-  );
+  test("untrusted repository text is never executable browser markup", async ({
+    page,
+    controller,
+  }) => {
+    const text = '<img src=x onerror="window.pwned=true">';
+    await controller.signIn(page);
+    // Obtain the authorized redacted data through the real browser before this
+    // display-only adversarial fixture substitutes repository text. Authentication,
+    // membership, cookies and capabilities are not supplied by this fixture.
+    const snapshot = await page.evaluate(async () => {
+      const response = await fetch(
+        "/api/control/v1/projects/project-a/snapshot",
+        { cache: "no-store" },
+      );
+      if (!response.ok)
+        throw new Error("Authorized fixture snapshot unavailable");
+      return await response.json();
+    });
+    snapshot.tasks[0].title = text;
+    await page.route("**/api/control/v1/projects/project-a/snapshot", (route) =>
+      route.fulfill({
+        json: snapshot,
+        headers: { "Cache-Control": "no-store" },
+      }),
+    );
+    await page
+      .locator("[data-ui=connectivity-banner]")
+      .getByRole("button", { name: "Refresh", exact: true })
+      .click();
+    await expect(page.getByText(text, { exact: true }).last()).toBeVisible();
+    expect(
+      await page.evaluate(() => Reflect.get(window, "pwned")),
+    ).toBeUndefined();
+  });
+  test("explicit SSE project denial clears private state without demo fallback", async ({
+    page,
+    controller,
+  }) => {
+    await page.route("**/api/control/v1/projects/project-a/events", (route) =>
+      route.fulfill({
+        status: 403,
+        json: { schema: 1, error: "project_access_denied" },
+      }),
+    );
+    await controller.signIn(page, false, false);
+    await expect(
+      page.getByRole("heading", { name: "Project access denied" }),
+    ).toBeVisible();
+    await expect(
+      page.getByText("Bounded panel task", { exact: true }),
+    ).toHaveCount(0);
+    await expect(page.getByText("DEMO WORKSPACE", { exact: true })).toHaveCount(
+      0,
+    );
+  });
 });
