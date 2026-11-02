@@ -126,3 +126,69 @@ it("API session metadata cannot expose CSRF or opaque handles through public UI 
   expect(localStorage.length).toBe(0);
   expect(sessionStorage.length).toBe(0);
 });
+it("budget commands use only the fixed same-origin family and private session CSRF", async () => {
+  const fetch = vi
+    .fn()
+    .mockResolvedValueOnce(response(session()))
+    .mockResolvedValueOnce(
+      response({
+        schema: 1,
+        state: "pending",
+        action: "e".repeat(32),
+        password: true,
+        email: false,
+        totp: false,
+        proofExpiresAt: null,
+        serverNow: 1000000,
+      }),
+    );
+  vi.stubGlobal("fetch", fetch);
+  const c = client();
+  await c.start();
+  const proposal = {
+    expectedVersion: 1,
+    currency: "USD",
+    previous: "20000",
+    total: "25000",
+    confirm: true,
+  } as const;
+  await c.budget("project-a", { stage: "prepare", proposal });
+  expect(fetch.mock.calls[1]?.[0]).toBe(
+    "/api/control/v1/projects/project-a/budget",
+  );
+  expect(fetch.mock.calls[1]?.[1]).toMatchObject({
+    method: "POST",
+    credentials: "same-origin",
+    cache: "no-store",
+    redirect: "error",
+    headers: { "X-Rolvya-CSRF": "c".repeat(64) },
+  });
+  expect(JSON.stringify(c.getSnapshot())).not.toContain("c".repeat(64));
+  await expect(
+    c.budget("../other", { stage: "prepare", proposal }),
+  ).rejects.toThrow();
+  expect(fetch).toHaveBeenCalledTimes(2);
+});
+it("a lost approval acknowledgement is never retried automatically", async () => {
+  const fetch = vi
+    .fn()
+    .mockResolvedValueOnce(response(session()))
+    .mockRejectedValueOnce(new TypeError("connection lost"));
+  vi.stubGlobal("fetch", fetch);
+  const c = client();
+  await c.start();
+  await expect(
+    c.budget("project-a", {
+      stage: "execute",
+      action: "e".repeat(32),
+      proposal: {
+        expectedVersion: 1,
+        currency: "USD",
+        previous: "20000",
+        total: "25000",
+        confirm: true,
+      },
+    }),
+  ).rejects.toThrow();
+  expect(fetch).toHaveBeenCalledTimes(2);
+});

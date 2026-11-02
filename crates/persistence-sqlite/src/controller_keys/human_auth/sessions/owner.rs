@@ -23,6 +23,8 @@ mod step_up;
 #[cfg(test)]
 pub(in crate::controller_keys::human_auth) mod tests;
 #[cfg(test)]
+pub(in crate::controller_keys) use tests::panel::BrowserSeed;
+#[cfg(test)]
 pub(in crate::controller_keys) use tests::{
     GitOwnerFixture, git_consent_on_existing, infrastructure_consent_on_existing,
 };
@@ -663,6 +665,28 @@ impl HumanAuth {
         action: &OwnerAction,
         c: &BrowserContext,
     ) -> Result<OwnerActionId, AuthError> {
+        self.prepare_owner_action_mode(h, p, action, c, false).await
+    }
+    pub(in crate::controller_keys::human_auth) async fn prepare_panel_budget(
+        &self,
+        h: &SessionHandle,
+        p: &ProjectId,
+        action: &OwnerAction,
+        c: &BrowserContext,
+    ) -> Result<OwnerActionId, AuthError> {
+        if !matches!(action.payload, Payload::Budget { .. }) {
+            return Err(AuthError::Denied);
+        }
+        self.prepare_owner_action_mode(h, p, action, c, true).await
+    }
+    async fn prepare_owner_action_mode(
+        &self,
+        h: &SessionHandle,
+        p: &ProjectId,
+        action: &OwnerAction,
+        c: &BrowserContext,
+        browser_budget_retry: bool,
+    ) -> Result<OwnerActionId, AuthError> {
         action.validate()?;
         let (mut tx, f, now) = self.browser_transaction(c, Operation::Write).await?;
         let s = self
@@ -685,6 +709,27 @@ impl HumanAuth {
                 return Err(AuthError::Conflict);
             }
             return Ok(id);
+        }
+        // A retry of the same unproved budget proposal is the same operation.
+        // The writer transaction prevents racing prepares from minting twins.
+        // Once any proof exists, only its original action/deadline can consume it;
+        // a genuinely new ceremony must never extend that proof's lifetime.
+        if browser_budget_retry {
+            let old=sqlx::query("SELECT action_id FROM human_owner_actions a WHERE project_id=? AND actor=? AND session_id=? AND generation=? AND role_version=? AND payload=? AND state='pending' AND expires_at>? AND NOT EXISTS(SELECT 1 FROM human_owner_proofs p WHERE p.action_id=a.action_id) ORDER BY created_at LIMIT 1")
+                .bind(p.as_str()).bind(s.user()?).bind(s.session.try_get::<&str,_>("session_id")?).bind(s.session.try_get::<i64,_>("generation")?).bind(s.membership.version).bind(&payload).bind(now).fetch_optional(&mut *tx).await?;
+            if let Some(old) = old {
+                let id = OwnerActionId(old.try_get("action_id")?);
+                self.action_in(&mut tx, &id, &s, now).await?;
+                self.session_checkpoint(
+                    c,
+                    Operation::Write,
+                    s.deadline,
+                    Checkpoint::BeforeSessionCommit,
+                    (&f, now),
+                )?;
+                tx.commit().await?;
+                return Ok(id);
+            }
         }
         let pending:i64=sqlx::query_scalar("SELECT count(*) FROM human_owner_actions WHERE project_id=? AND actor=? AND state='pending' AND expires_at>?").bind(p.as_str()).bind(s.user()?).bind(now).fetch_one(&mut *tx).await?;
         if pending >= 32 {

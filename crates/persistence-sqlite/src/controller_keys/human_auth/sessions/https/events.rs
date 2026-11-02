@@ -53,16 +53,12 @@ impl HumanBrowserServer {
         cursor: Option<&str>,
         guard: RequestGuard,
     ) -> Result<Response<Body>, AuthError> {
-        let cursor = cursor.unwrap_or("0");
-        if cursor.is_empty() || !cursor.bytes().all(|b| b.is_ascii_digit()) || cursor.len() > 16 {
-            return Err(AuthError::InvalidInput);
-        }
-        let mut after = cursor.parse::<i64>().map_err(|_| AuthError::InvalidInput)?;
-        match self
+        let mut after = match self
             .auth
-            .panel_event_batch(h, &project, after, &guard.context)
+            .scoped_panel_events(h, &project, cursor, &guard.context)
             .await
         {
+            Ok((bound, _)) => bound,
             Err(AuthError::Denied) => {
                 return Ok(json(
                     StatusCode::FORBIDDEN,
@@ -70,8 +66,7 @@ impl HumanBrowserServer {
                 ));
             }
             Err(e) => return Err(e),
-            Ok(_) => {}
-        }
+        };
         let permit = self
             .streams
             .clone()
@@ -100,10 +95,10 @@ impl HumanBrowserServer {
                 if started.elapsed() >= Duration::from_secs(90) {
                     break;
                 }
-                let requested=after;
+                let requested=after.clone();
                 let check=async {
                     state.auth.inspect_session(&handle,&context).await.map_err(|e|if e==AuthError::Denied {StreamFailure::Session}else{StreamFailure::Unavailable})?;
-                    state.auth.panel_event_batch(&handle,&project,requested,&context).await.map_err(|e|match e {AuthError::Denied=>StreamFailure::Project,AuthError::Conflict=>StreamFailure::Gap,_=>StreamFailure::Unavailable})
+                    state.auth.scoped_panel_events(&handle,&project,Some(&requested),&context).await.map(|(_,events)|events).map_err(|e|match e {AuthError::Denied=>StreamFailure::Project,AuthError::Conflict=>StreamFailure::Gap,_=>StreamFailure::Unavailable})
                 };
                 tokio::pin!(check);
                 let result=tokio::select! {
@@ -139,8 +134,8 @@ impl HumanBrowserServer {
                 {
                         break;
                 }
-                for id in events {
-                    let data = serde_json::json!({"schema":1,"project":project.as_str(),"cursor":id,"revision":id});
+                for (number,id) in events {
+                    let data = serde_json::json!({"schema":2,"project":project.as_str(),"cursor":number,"revision":number});
                     if sender
                         .try_send(axum::body::Bytes::from(format!(
                             "id: {id}\ndata: {data}\n\n"

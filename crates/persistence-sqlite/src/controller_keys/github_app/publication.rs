@@ -1165,3 +1165,107 @@ pub(super) fn fixture_trees(files: &[SourceFile]) -> (GitSha, Vec<(GitSha, serde
             .collect(),
     )
 }
+
+/// Verify immutable intent and authenticated historical receipts without network
+/// I/O or granting permission to publish again.
+pub(in crate::controller_keys) async fn panel_receipt(
+    c: &mut sqlx::SqliteConnection,
+    k: &ControllerKey,
+    l: &LeaseRef,
+    fingerprint: &str,
+    acceptance: &str,
+) -> Result<Option<(String, bool, &'static str)>, GitError> {
+    let p = &l.task.plan.project_id;
+    let op: Option<String> = sqlx::query_scalar(
+        "SELECT operation_id FROM git_publications WHERE project_id=? AND attempt_id=?",
+    )
+    .bind(p.as_str())
+    .bind(l.attempt_id.as_str())
+    .fetch_optional(&mut *c)
+    .await?;
+    let Some(op) = op else { return Ok(None) };
+    let i = load_in(c, k, p, &op).await?.ok_or(GitError::Integrity)?;
+    if i.lease != *l
+        || i.change.lease != *l
+        || i.change.fingerprint != fingerprint
+        || i.change.acceptance != acceptance
+        || i.target
+            != model::target(
+                &i.installation,
+                p.as_str(),
+                l.task.task_id.as_str(),
+                l.attempt_id.as_str(),
+            )
+    {
+        return Err(GitError::Integrity);
+    }
+    let events = events(c, k, p, &op).await?;
+    let mut published = false;
+    for e in &events {
+        if e.kind == "published" {
+            if e.reference.as_deref() != Some(i.target.as_str())
+                || e.commit.as_ref() != Some(&i.commit)
+            {
+                return Err(GitError::Integrity);
+            }
+            published = true;
+        }
+    }
+    let state = if events.iter().any(|e| e.kind == "blocked") {
+        "blocked"
+    } else if published {
+        "published"
+    } else if events.iter().any(|e| e.kind == "unknown") {
+        "unknown"
+    } else if events.iter().any(|e| e.kind == "submitting") {
+        "submitting"
+    } else {
+        "prepared"
+    };
+    Ok(Some((i.target, published, state)))
+}
+
+/// Redacted, bounded journal provenance; no arbitrary JSON/ref/URL is forwarded.
+pub(in crate::controller_keys) async fn panel_activity(
+    c: &mut sqlx::SqliteConnection,
+    k: &ControllerKey,
+    p: &ProjectId,
+    after: i64,
+    limit: u16,
+) -> Result<Vec<(i64, String, i64)>, GitError> {
+    let rows = sqlx::query("SELECT rowid AS ordinal,operation_id,revision,kind,record,record_mac,recorded_at FROM git_publication_events WHERE project_id=? AND rowid<? ORDER BY rowid DESC LIMIT ?")
+        .bind(p.as_str()).bind(after).bind(i64::from(limit)+1).fetch_all(&mut *c).await?;
+    let mut out = Vec::with_capacity(rows.len());
+    for r in rows {
+        let op: &str = r.try_get("operation_id")?;
+        let revision: i64 = r.try_get("revision")?;
+        let kind: &str = r.try_get("kind")?;
+        let text: &str = r.try_get("record")?;
+        let at: i64 = r.try_get("recorded_at")?;
+        if text.len() > 4096
+            || !equal(
+                r.try_get("record_mac")?,
+                &mac(
+                    k,
+                    b"event",
+                    &[
+                        p.as_str().as_bytes(),
+                        op.as_bytes(),
+                        &revision.to_be_bytes(),
+                        kind.as_bytes(),
+                        text.as_bytes(),
+                        &at.to_be_bytes(),
+                    ],
+                ),
+            )
+        {
+            return Err(GitError::Integrity);
+        }
+        let event: Event = decode(text)?;
+        if event.kind != kind {
+            return Err(GitError::Integrity);
+        }
+        out.push((r.try_get("ordinal")?, kind.to_owned(), at));
+    }
+    Ok(out)
+}

@@ -187,7 +187,11 @@ impl TransportAuthority for RequestAuthority {
         if c.transport_evidence != a.evidence
             || a.transport != Some(operation)
             || now >= a.expires
-            || !a.facts.preauth_csrf
+            || (!a.facts.preauth_csrf
+                && !(a.operation == Operation::Write
+                    && a.facts.activity == Activity::Human
+                    && a.facts.credential.is_some()
+                    && a.facts.csrf.is_some()))
         {
             return Err(AuthError::Denied);
         }

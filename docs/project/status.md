@@ -2,6 +2,12 @@
 
 Current authoritative decision cross-check: 2026-10-26 (see current ADRs; earlier sections are chronological historical checkpoints).
 
+## G1-09 operational panel and exact budget delivery (2026-11-02)
+
+PR #40 is verified merged as `8814acf6c3b4508f57a26b12530dc86439add0a5`, matching submitted head `5108bec07dd2ae494a138d1bd0ab4b543a0b0d2f`. Branch `codex/connected-control-operational-data` connects real attempt/worker, latest-position finance, signed connection metadata, R09/publication evidence and redacted paginated activity to all five existing sections. The narrow browser budget workflow composes fresh exact-action proof with the existing atomic ledger; no admission or dispatch is created. [Implementation, read/command contracts and precise operational limits](../development/operational-control-panel.md) separate actual Rust/SQLite/TLS/browser behavior from production deployment.
+
+Forward 0022 adds project-scoped indexes and preserves 0001–0021. Independent read-only reviews reproduced approval-state loss during SSE refresh, a misleading page-local worker total and retained connection-dialog metadata after role changes before corrections. Scoped SSE binds project/human/membership version; Owner-only records remain unavailable to Editor/Viewer. Local verification passes **936 unique Rust entries**, **50 unit/component**, **15 artifact/tool**, **41 Chromium browser**, **203 repository Node** and **23 Python** cases, plus **23 migration tests**. The default-ignored browser-driver utility is executed separately and excluded from the Rust total. Exact-head CI and other browser engines are recorded in the submitted PR. Existing dependency, routine-smoke, mail/bootstrap/TLS, provider/cloud/spending, restore and release-certification gates remain unresolved. No live accounts, paid operations, self-approval or merge.
+
 ## G1-08 secure human browser delivery (2026-11-02)
 
 PR #39 is verified merged as `e4c20e728b35ffbd22b999c910df6dbb26855170`, matching submitted tree `237601c2928e22c93dfb0be6e8cd9ee2d2682f44`. Branch `codex/secure-human-browser-delivery` adds an actual Rust TLS/Axum browser adapter, existing HumanAuth password/email/factor/session delivery, CSRF-bound logout/rotation, scoped plan REST, durable invalidation SSE and Connected Control authentication. Forward 0021 preserves 0001–0020. [Implementation, executed evidence and precise deployment gates](../development/secure-human-browser-delivery.md) distinguish trusted loopback integration from operational production configuration.

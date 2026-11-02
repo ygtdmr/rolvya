@@ -177,3 +177,62 @@ it("an open SSE stream reports explicit revocation and reset frames without stal
     expect(received).not.toHaveBeenCalled();
   }
 });
+
+it("accepts versioned ledger data with unavailable forecasts without inventing zeros", () => {
+  const data = demoSnapshot();
+  const value = structuredClone(data) as unknown as Record<string, unknown>;
+  value.schema = 2;
+  value.provenance = "controller";
+  value.attempts = [];
+  value.connections = [];
+  value.results = [];
+  value.activity = [];
+  value.pages = {};
+  value.eventCursor = `${data.cursor}.` + "a".repeat(64);
+  value.capabilities = {
+    ...data.capabilities,
+    mutations: false,
+    budgetIncrease: false,
+    execution: true,
+    activity: true,
+  };
+  value.finance = {
+    currency: "USD",
+    version: 1,
+    ceiling: "1200",
+    reserved: "100",
+    settled: "20",
+    provisional: "5",
+    available: null,
+    unknownLiabilities: 1,
+    overCeiling: false,
+    paused: true,
+    forecasts: null,
+    categories: ["ai", "compute", "storage", "transfer"].map((id, i) => ({
+      id,
+      settled: i === 0 ? "20" : "0",
+      reserved: i === 0 ? "100" : "0",
+      provisional: i === 0 ? "5" : "0",
+      forecast: null,
+    })),
+    approvals: [],
+  };
+  expect(parseSnapshot(value, data.project.id).finance?.forecasts).toBeNull();
+  const forged = structuredClone(value);
+  (forged.finance as Record<string, unknown>).settled = "0";
+  expect(() => parseSnapshot(forged, data.project.id)).toThrow();
+});
+it("scoped version-two SSE IDs remain invalidations and reject substituted frame identities", () => {
+  const order = new EventOrder("project-a", 2, 2);
+  const frame = (cursor: number) =>
+    JSON.stringify({
+      schema: 2,
+      project: "project-a",
+      cursor,
+      revision: cursor,
+    });
+  expect(order.accept(frame(3), "3." + "a".repeat(64))).toBe("refresh");
+  expect(order.accept(frame(3), "3." + "a".repeat(64))).toBe("duplicate");
+  expect(order.accept(frame(9), "9." + "b".repeat(64))).toBe("gap");
+  expect(() => order.accept(frame(10), "9." + "b".repeat(64))).toThrow();
+});

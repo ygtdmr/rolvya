@@ -21,7 +21,8 @@ interface FixtureInfo {
 }
 interface Controller {
   info: FixtureInfo;
-  command: (command: "emit" | "revoke" | "advance") => Promise<void>;
+  command: (command: "emit" | "revoke" | "advance" | "role") => Promise<void>;
+  freshFactor: () => Promise<string>;
   deliveredMessage: (reference: string) => Promise<string>;
   signIn: (
     page: Page,
@@ -38,6 +39,7 @@ export const test = base.extend<{ controller: Controller }>({
       );
       await chmod(dir, 0o700);
       const factor = testInfo.title.includes("TOTP");
+      const operational = testInfo.title.includes("operational");
       const child = spawn(
         "cargo",
         [
@@ -60,6 +62,7 @@ export const test = base.extend<{ controller: Controller }>({
             CARGO_INCREMENTAL: "0",
             ROLVYA_BROWSER_FIXTURE_DIR: dir,
             ROLVYA_BROWSER_FIXTURE_ASSETS: resolve("dist"),
+            ...(operational ? { ROLVYA_BROWSER_FIXTURE_OPERATIONAL: "1" } : {}),
             ...(factor ? { ROLVYA_BROWSER_FIXTURE_TOTP: "1" } : {}),
           },
         },
@@ -108,6 +111,10 @@ export const test = base.extend<{ controller: Controller }>({
         await provide({
           info,
           command,
+          freshFactor: async () => {
+            await command("factor");
+            return await readFile(resolve(dir, "message"), "utf8");
+          },
           deliveredMessage: async (reference) => {
             if (!/^[a-f0-9]{32}$/.test(reference))
               throw new Error("Invalid private challenge reference.");
@@ -115,7 +122,7 @@ export const test = base.extend<{ controller: Controller }>({
             return await readFile(resolve(dir, "message"), "utf8");
           },
           signIn: async (page, viewer = false, expectProject = true) => {
-            await page.goto(info.url + "/#/projects/project-a");
+            await page.goto(info.url + "/#/projects/" + info.project);
             await page
               .getByLabel("Email address")
               .fill(viewer ? info.viewerEmail : info.email);
@@ -137,7 +144,7 @@ export const test = base.extend<{ controller: Controller }>({
             }
             if (expectProject)
               await expect(
-                page.getByRole("heading", { name: "project-a", exact: true }),
+                page.getByRole("heading", { name: info.project, exact: true }),
               ).toBeVisible();
           },
         });

@@ -537,10 +537,7 @@ async fn stream_capacity_covers_disconnected_producer_during_real_sqlite_content
         ))
         .header("sec-fetch-site", "same-origin")
         .header("cookie", cookies)
-        .header(
-            "last-event-id",
-            snapshot["cursor"].as_i64().unwrap().to_string(),
-        )
+        .header("last-event-id", snapshot["eventCursor"].as_str().unwrap())
         .send()
         .await
         .unwrap();

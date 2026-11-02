@@ -4,6 +4,7 @@ pub(in crate::controller_keys) mod consent;
 mod http;
 mod model;
 mod publication;
+pub(in crate::controller_keys) use publication::{panel_activity, panel_receipt};
 mod webhook;
 use super::{ControllerBootstrap, ControllerKey};
 use crate::{
@@ -148,3 +149,6 @@ mod tests;
 pub(crate) fn validate_coding_source(source: &PinnedSource) -> Result<(), GitError> {
     publication::validate_source(source)
 }
+
+#[cfg(test)]
+pub(in crate::controller_keys) use tests::operational_browser_seed;
