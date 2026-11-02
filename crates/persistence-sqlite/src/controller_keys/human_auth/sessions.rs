@@ -37,6 +37,7 @@ impl SyntheticSessionProbe {
     }
 }
 mod factors;
+pub mod https;
 mod lifecycle;
 pub mod owner;
 mod proof;
@@ -224,27 +225,16 @@ pub(super) enum Operation {
 }
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum Activity {
-    #[cfg_attr(
-        not(test),
-        expect(
-            dead_code,
-            reason = "trusted HTTP activity classification is not configured"
-        )
-    )]
     Background,
     Human,
 }
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum Method {
-    #[cfg_attr(
-        not(test),
-        expect(dead_code, reason = "trusted HTTP adapter is not configured")
-    )]
     Get,
     Post,
 }
 /// Facts must come from the controller's trusted TLS/HTTP adapter, not caller
-/// booleans or X-Forwarded-For. None exists in production yet.
+/// booleans or X-Forwarded-For. The private HTTPS accept loop establishes them.
 #[derive(Clone, PartialEq, Eq)]
 pub(super) struct BrowserFacts {
     secure: bool,
@@ -511,7 +501,9 @@ impl HumanAuth {
         event: &str,
         now: i64,
     ) -> Result<(), AuthError> {
-        sqlx::query("INSERT INTO human_session_events(user_id,session_id,request_id,event,occurred_at) VALUES(?,?,?,?,?)").bind(user).bind(session).bind(request.as_str()).bind(event).bind(now).execute(&mut **tx).await?;
+        if sqlx::query("INSERT INTO human_session_events(user_id,session_id,request_id,event,occurred_at) VALUES(?,?,?,?,?)").bind(user).bind(session).bind(request.as_str()).bind(event).bind(now).execute(&mut **tx).await?.rows_affected()!=1 {
+            return Err(AuthError::Unavailable);
+        }
         Ok(())
     }
 }

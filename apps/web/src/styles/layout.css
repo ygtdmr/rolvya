@@ -1322,3 +1322,100 @@
     overflow-wrap: anywhere;
   }
 }
+
+@layer layout {
+  .rv-auth {
+    min-block-size: 100svh;
+    background: var(--rv-bg);
+    color: var(--rv-text);
+    display: grid;
+    grid-template-rows: auto 1fr;
+    padding: max(var(--rv-s6), env(safe-area-inset-top)) clamp(20px, 5vw, 64px)
+      max(var(--rv-s6), env(safe-area-inset-bottom));
+    .rv-auth-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: var(--rv-s6);
+    }
+    .rv-auth-brand {
+      font-size: 1.5rem;
+      font-weight: 700;
+      letter-spacing: -0.05em;
+      text-decoration: none;
+      color: var(--rv-text);
+    }
+    .rv-auth-header .rv-field {
+      inline-size: 9rem;
+    }
+    .rv-auth-main {
+      inline-size: min(100%, 25rem);
+      margin-inline: auto;
+      padding-block: clamp(48px, 12vh, 128px) var(--rv-s8);
+    }
+    .rv-auth-intro {
+      margin-block-end: var(--rv-s8);
+    }
+    h1 {
+      font-size: clamp(1.5rem, 4vw, 1.9rem);
+      font-weight: 600;
+      letter-spacing: -0.035em;
+      line-height: 1.2;
+      margin-block: var(--rv-s3);
+    }
+    .rv-auth-intro > p:last-child {
+      color: var(--rv-muted);
+      margin-block: 0;
+    }
+    .rv-auth-form {
+      display: grid;
+      gap: var(--rv-s6);
+    }
+    .rv-field input,
+    .rv-select-trigger,
+    .rv-button {
+      border-radius: var(--rv-r0);
+    }
+    .rv-auth-form > .rv-button {
+      inline-size: 100%;
+      justify-content: center;
+    }
+    .rv-check {
+      font-size: 0.875rem;
+    }
+    .rv-auth-message {
+      padding: var(--rv-s3) var(--rv-s4);
+      border-inline-start: 2px solid var(--rv-accent);
+      background: var(--rv-surface);
+      font-size: 0.875rem;
+      line-height: 1.6;
+      margin-block-end: var(--rv-s6);
+      overflow-wrap: anywhere;
+    }
+    .rv-auth-recovery {
+      margin-block-start: var(--rv-s8);
+      padding-block-start: var(--rv-s6);
+      border-block-start: 1px solid var(--rv-line);
+      font-size: 0.8125rem;
+      color: var(--rv-muted);
+      line-height: 1.7;
+    }
+    summary {
+      cursor: pointer;
+      min-block-size: 32px;
+    }
+    .rv-auth-footer {
+      margin-block-start: var(--rv-s12);
+      color: var(--rv-muted);
+      font-size: 0.75rem;
+    }
+  }
+  @media (max-width: 390px) {
+    .rv-auth .rv-auth-main {
+      padding-block-start: var(--rv-s12);
+    }
+    .rv-auth .rv-auth-header .rv-field {
+      inline-size: 7.5rem;
+    }
+  }
+}

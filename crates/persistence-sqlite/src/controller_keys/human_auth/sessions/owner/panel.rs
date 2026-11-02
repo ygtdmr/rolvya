@@ -1,5 +1,5 @@
 //! Bounded, redacted panel projections under the existing session/membership transaction.
-//! This is not an activated browser login/HTTP transport and confers no command authority.
+//! The accepted human HTTPS adapter delivers these reads; they confer no command authority.
 use super::*;
 use rolvya_domain::plan::{AccessMode, PlannedTask};
 
@@ -77,6 +77,55 @@ pub(super) fn resource_bounds(count: i64, maximum: i64, total: i64) -> Result<()
     }
 }
 impl HumanAuth {
+    async fn panel_revision(
+        &self,
+        tx: &mut Transaction<'_, Sqlite>,
+        p: &ProjectId,
+    ) -> Result<i64, AuthError> {
+        let (scheduler,governance,activation):(i64,i64,i64)=sqlx::query_as("SELECT (SELECT coalesce(max(sequence),0) FROM scheduler_events WHERE project_id=?),(SELECT coalesce(max(sequence),0) FROM human_governance_events WHERE project_id=?),(SELECT coalesce(max(sequence),0) FROM activation_events WHERE project_id=?)").bind(p.as_str()).bind(p.as_str()).bind(p.as_str()).fetch_one(&mut **tx).await?;
+        scheduler
+            .checked_add(governance)
+            .and_then(|r| r.checked_add(activation))
+            .filter(|r| (0..=9_007_199_254_740_991).contains(r))
+            .ok_or(AuthError::Unavailable)
+    }
+    /// Coalesced durable journal revision; payloads never provide state or authority.
+    /// A stale/forward cursor requires a fresh REST snapshot, never fabricated replay.
+    pub(in crate::controller_keys::human_auth) async fn panel_event_batch(
+        &self,
+        h: &SessionHandle,
+        p: &ProjectId,
+        after: i64,
+        c: &BrowserContext,
+    ) -> Result<Vec<i64>, AuthError> {
+        if !(0..=9_007_199_254_740_991).contains(&after) {
+            return Err(AuthError::InvalidInput);
+        }
+        let (mut tx, f, now) = self.browser_transaction(c, Operation::Read).await?;
+        let scope = self
+            .project_scope(&mut tx, h, &f, p, ProjectPermission::Read, now)
+            .await?;
+        // A coalesced revision of existing append-only journals, not a new event
+        // ledger. Intermediate/gapped revisions require REST reconciliation.
+        let current = self.panel_revision(&mut tx, p).await?;
+        if after > current || current.saturating_sub(after) > 1000 {
+            return Err(AuthError::Conflict);
+        }
+        let events = if current > after {
+            vec![current]
+        } else {
+            vec![]
+        };
+        self.session_checkpoint(
+            c,
+            Operation::Read,
+            scope.deadline,
+            Checkpoint::BeforeSessionCommit,
+            (&f, now),
+        )?;
+        tx.commit().await?;
+        Ok(events)
+    }
     /// Read-only pagination; every returned project also passes the current binding check.
     pub async fn panel_projects(
         &self,
@@ -226,12 +275,7 @@ impl HumanAuth {
                 },
             });
         }
-        let revision: i64 = sqlx::query_scalar(
-            "SELECT coalesce(max(sequence),0) FROM scheduler_events WHERE project_id=?",
-        )
-        .bind(p.as_str())
-        .fetch_one(&mut *tx)
-        .await?;
+        let revision = self.panel_revision(&mut tx, p).await?;
         let as_of: String =
             sqlx::query_scalar("SELECT strftime('%Y-%m-%dT%H:%M:%SZ',?,'unixepoch')")
                 .bind(now)
@@ -290,8 +334,8 @@ impl HumanAuth {
     }
 }
 /// Deliberately closed Axum boundary. No cookie/header/request field can install
-/// BrowserFacts or a successful verifier. Attach a future reviewed transport here;
-/// until then the browser must show unavailable rather than receive library authority.
+/// BrowserFacts or a successful verifier. The accepted TLS server has its own
+/// private router; mounting this bare router cannot inherit that authority.
 pub fn browser_panel_routes() -> axum::Router {
     use axum::{
         http::{StatusCode, header},

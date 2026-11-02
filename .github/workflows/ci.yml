@@ -101,7 +101,7 @@ jobs:
     needs: repository
     if: needs.repository.outputs.web == 'true'
     runs-on: ubuntu-24.04
-    timeout-minutes: 25
+    timeout-minutes: 35
     defaults:
       run:
         working-directory: apps/web
@@ -124,6 +124,14 @@ jobs:
       - run: node scripts/verify-dist.mjs dist-demo
       - run: npm run licenses
       - run: npm audit --audit-level=moderate
+      - name: Install pinned Rust for genuine browser authentication fixtures
+        env:
+          RUST_VERSION: ${{ needs.repository.outputs.rust_toolchain }}
+        run: rustup toolchain install "$RUST_VERSION" --profile minimal
+      - name: Compile private Rust HTTPS browser fixture
+        run: cargo test --manifest-path ../../Cargo.toml -p rolvya-persistence-sqlite --lib --locked --no-run
+        env:
+          CARGO_INCREMENTAL: '0'
       - run: npx playwright install --with-deps chromium firefox webkit
       - run: npm run test:browser
         env:

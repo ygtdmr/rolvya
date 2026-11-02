@@ -161,3 +161,19 @@ it("coalesces event bursts to at most two snapshot refreshes per second and canc
   await vi.advanceTimersByTimeAsync(500);
   expect(refresh).toHaveBeenCalledOnce();
 });
+it("an open SSE stream reports explicit revocation and reset frames without stale data", async () => {
+  for (const [event, code, kind] of [
+    ["unauthorized", "unauthorized", "unauthorized"],
+    ["forbidden", "forbidden", "forbidden"],
+    ["reset", "replay_gap", "invalid"],
+  ]) {
+    const received = vi.fn();
+    const body = new Response(
+      `event: ${event}\ndata: {"schema":1,"error":"${code}"}\n\n`,
+    ).body!;
+    await expect(
+      consumeEvents(body, received, new AbortController().signal),
+    ).rejects.toMatchObject({ kind });
+    expect(received).not.toHaveBeenCalled();
+  }
+});

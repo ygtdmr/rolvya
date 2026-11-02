@@ -1540,7 +1540,10 @@ async fn subprocess_driver() {
         .unwrap();
     let fields: Vec<&str> = input.lines().collect();
     let operation = std::env::var("ROLVYA_S203B_TEST_OPERATION").unwrap();
-    let handle = if operation == "renew" || operation == "activate" {
+    let handle = if matches!(
+        operation.as_str(),
+        "renew" | "activate" | "interaction-prepare" | "interaction-confirm" | "logout"
+    ) {
         Some(SessionHandle::parse(fields[0].to_owned()).unwrap())
     } else {
         None
@@ -1549,6 +1552,7 @@ async fn subprocess_driver() {
         "issue" => Operation::Issue,
         "renew" => Operation::Renew,
         "activate" => Operation::ConfirmFactor,
+        "interaction-prepare" | "interaction-confirm" | "logout" => Operation::Write,
         _ => Operation::CompleteFactor,
     };
     let b = if operation == "issue" {
@@ -1578,12 +1582,37 @@ async fn subprocess_driver() {
                 credential: handle.as_ref().map(|h| auth.handle_lookup(h)),
                 csrf: handle.as_ref().map(|_| auth.csrf_commitment(fields[1])),
                 preauth_csrf: true,
-                activity: Activity::Human,
+                activity: if matches!(operation.as_str(), "interaction-prepare" | "logout") {
+                    Activity::Background
+                } else {
+                    Activity::Human
+                },
                 client_key: auth.mac(b"synthetic-client", &[b"192.0.2.1"]),
             },
         },
     );
     match operation.as_str() {
+        "logout" => {
+            auth.logout(handle.as_ref().unwrap(), &c).await.unwrap();
+            // Test-only barrier after the method's actual SQLite commit and
+            // before any hypothetical response can acknowledge revocation.
+            auth.checkpoint(Checkpoint::AfterSessionCommit).unwrap();
+        }
+        "interaction-prepare" => {
+            auth.browser_interaction_intent(handle.as_ref().unwrap(), &c)
+                .await
+                .unwrap();
+        }
+        "interaction-confirm" => {
+            auth.confirm_browser_interaction(
+                handle.as_ref().unwrap(),
+                fields[2],
+                fields[3].parse().unwrap(),
+                &c,
+            )
+            .await
+            .unwrap();
+        }
         "issue" => {
             let row = sqlx::query("SELECT * FROM human_authentications WHERE evidence_id=?")
                 .bind(fields[0])
@@ -1993,4 +2022,84 @@ async fn switching_to_either_email_primary_method_cannot_bypass_enrolled_totp() 
     }
     assert_eq!(f.a.count("human_sessions").await, sessions);
     assert_eq!(f.a.count("human_pending_logins").await, 2);
+}
+#[tokio::test]
+async fn six_browser_delivery_sigkill_boundaries_preserve_idle_and_revocation_state() {
+    for operation in ["interaction-prepare", "interaction-confirm", "logout"] {
+        for committed in [false, true] {
+            let f = Fixture::new().await;
+            let t = f.session(1).await;
+            f.a.advance(30);
+            let initial = t.metadata.last_human_at;
+            let mut input =
+                Zeroizing::new(format!("{}\n{}\n", t.handle.0.as_str(), t.csrf.as_str()));
+            if operation == "interaction-confirm" {
+                let (nonce, issued) =
+                    f.a.auth
+                        .browser_interaction_intent(
+                            &t.handle,
+                            &f.context(Operation::Write, 1, Some(&t), false),
+                        )
+                        .await
+                        .unwrap();
+                input.push_str(&nonce);
+                input.push('\n');
+                input.push_str(&issued.to_string());
+                input.push('\n');
+                f.a.advance(1);
+            }
+            let at = if committed {
+                Checkpoint::AfterSessionCommit
+            } else {
+                Checkpoint::BeforeSessionCommit
+            };
+            let mut child = crash_command(&f, operation, at).spawn().unwrap();
+            child
+                .stdin
+                .take()
+                .unwrap()
+                .write_all(input.as_bytes())
+                .unwrap();
+            let stdout = child.stdout.take().unwrap();
+            let (send, receive) = mpsc::channel();
+            std::thread::spawn(move || {
+                for line in BufReader::new(stdout).lines().map_while(Result::ok) {
+                    if line.starts_with("S203B_READY") {
+                        let _ = send.send(());
+                    }
+                }
+            });
+            let mut victim = Victim(child);
+            assert!(
+                receive.recv_timeout(Duration::from_secs(30)).is_ok(),
+                "interaction crash barrier not reached"
+            );
+            victim.0.kill().unwrap();
+            victim.0.wait().unwrap();
+            let reopened = f.reopened().await;
+            reopened.store.check_integrity().await.unwrap();
+            let last: i64 =
+                sqlx::query_scalar("SELECT last_human_at FROM human_sessions WHERE session_id=?")
+                    .bind(t.metadata.id.as_str())
+                    .fetch_one(&reopened.store.pool)
+                    .await
+                    .unwrap();
+            let (count,consumed):(i64,i64)=sqlx::query_as("SELECT count(*),coalesce(sum(consumed_at IS NOT NULL),0) FROM human_browser_interactions").fetch_one(&reopened.store.pool).await.unwrap();
+            if operation == "logout" {
+                let (revoked,blocked):(Option<i64>,bool)=sqlx::query_as("SELECT s.revoked_at,EXISTS(SELECT 1 FROM human_primary_blocks b WHERE b.evidence_id=s.source_evidence) FROM human_sessions s WHERE session_id=?").bind(t.metadata.id.as_str()).fetch_one(&reopened.store.pool).await.unwrap();
+                assert_eq!(revoked, committed.then_some(f.a.now()));
+                assert_eq!(blocked, committed);
+                assert_eq!(count, 0);
+                assert_eq!(last, initial);
+            } else if operation == "interaction-prepare" {
+                assert_eq!(count, i64::from(committed));
+                assert_eq!(consumed, 0);
+                assert_eq!(last, initial);
+            } else {
+                assert_eq!(count, 1);
+                assert_eq!(consumed, i64::from(committed));
+                assert_eq!(last, if committed { f.a.now() } else { initial });
+            }
+        }
+    }
 }

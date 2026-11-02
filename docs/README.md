@@ -50,6 +50,7 @@ All Markdown documentation follows the [Obsidian-compatible documentation policy
 - [Browser platform asset checklist and production build verification](architecture/web-platform-artifact-and-capability-contract.md)
 - [UX and accessibility contract — without selected visual design](product/web-ux-and-accessibility-contract.md)
 - [Testing and verification strategy](development/testing.md)
+- [Secure human browser delivery, scoped REST/SSE and operational gates](development/secure-human-browser-delivery.md)
 - [Frontend source structure and single-application-JS build gates (proposed implementation plan)](development/web-frontend-source-and-build-plan.md)
 
 ## Architecture specifications now available

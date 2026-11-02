@@ -1,6 +1,98 @@
 use super::proof::{IdentityVersions, Proof};
 use super::*;
 impl HumanAuth {
+    // Available only to the accepted browser transport. Preparing an intent is
+    // background activity; confirming it requires a separate foreground POST.
+    pub(in crate::controller_keys::human_auth) async fn browser_interaction_intent(
+        &self,
+        h: &SessionHandle,
+        c: &BrowserContext,
+    ) -> Result<(Zeroizing<String>, i64), AuthError> {
+        let (mut tx, f, now) = self.browser_transaction(c, Operation::Write).await?;
+        if f.activity != Activity::Background || now > i64::MAX - 60 {
+            return Err(AuthError::Denied);
+        }
+        let row = self.session_row(&mut tx, h, &f, now, true).await?;
+        let deadline = self.original_deadline(&mut tx, h, &row).await?;
+        let lookup = self.handle_lookup(h);
+        sqlx::query("DELETE FROM human_browser_interactions WHERE commitment IN (SELECT commitment FROM human_browser_interactions WHERE expires_at<=? ORDER BY expires_at LIMIT 100)").bind(now).execute(&mut *tx).await?;
+        if sqlx::query_scalar::<_, i64>("SELECT count(*) FROM human_browser_interactions WHERE token_lookup=? AND expires_at>? AND consumed_at IS NULL").bind(lookup.as_slice()).bind(now).fetch_one(&mut *tx).await? >= 8 {
+            return Err(AuthError::Busy);
+        }
+        let nonce = Zeroizing::new(hex(&random::<32>()?[..]));
+        let tag = self.mac(
+            b"browser-human-interaction",
+            &[&lookup, nonce.as_bytes(), &now.to_be_bytes()],
+        );
+        if sqlx::query("INSERT INTO human_browser_interactions VALUES(?,?,?,?,NULL)")
+            .bind(tag.as_slice())
+            .bind(lookup.as_slice())
+            .bind(now)
+            .bind(now + 60)
+            .execute(&mut *tx)
+            .await?
+            .rows_affected()
+            != 1
+        {
+            return Err(AuthError::Denied);
+        }
+        self.session_checkpoint(
+            c,
+            Operation::Write,
+            deadline,
+            Checkpoint::BeforeSessionCommit,
+            (&f, now),
+        )?;
+        tx.commit().await?;
+        self.checkpoint(Checkpoint::AfterSessionCommit)?;
+        Ok((nonce, now))
+    }
+    pub(in crate::controller_keys::human_auth) async fn confirm_browser_interaction(
+        &self,
+        h: &SessionHandle,
+        nonce: &str,
+        issued: i64,
+        c: &BrowserContext,
+    ) -> Result<i64, AuthError> {
+        if nonce.len() != 64
+            || !nonce
+                .bytes()
+                .all(|b| b.is_ascii_hexdigit() && !b.is_ascii_uppercase())
+        {
+            return Err(AuthError::InvalidInput);
+        }
+        let (mut tx, f, now) = self.browser_transaction(c, Operation::Write).await?;
+        if f.activity != Activity::Human
+            || issued < 0
+            || now < issued
+            || now >= issued.saturating_add(60)
+        {
+            return Err(AuthError::Denied);
+        }
+        let row = self.session_row(&mut tx, h, &f, now, true).await?;
+        let deadline = self.original_deadline(&mut tx, h, &row).await?;
+        let lookup = self.handle_lookup(h);
+        let tag = self.mac(
+            b"browser-human-interaction",
+            &[&lookup, nonce.as_bytes(), &issued.to_be_bytes()],
+        );
+        if sqlx::query("UPDATE human_browser_interactions SET consumed_at=? WHERE commitment=? AND token_lookup=? AND issued_at=? AND expires_at>? AND consumed_at IS NULL").bind(now).bind(tag.as_slice()).bind(lookup.as_slice()).bind(issued).bind(now).execute(&mut *tx).await?.rows_affected()!=1 {
+            return Err(AuthError::Denied);
+        }
+        if sqlx::query("UPDATE human_sessions SET observed_at=?,last_human_at=? WHERE session_id=? AND generation=? AND revoked_at IS NULL").bind(now).bind(now).bind(row.try_get::<&str,_>("session_id")?).bind(row.try_get::<i64,_>("generation")?).execute(&mut *tx).await?.rows_affected()!=1 {
+            return Err(AuthError::Denied);
+        }
+        self.session_checkpoint(
+            c,
+            Operation::Write,
+            deadline.min(issued.saturating_add(60)),
+            Checkpoint::BeforeSessionCommit,
+            (&f, now),
+        )?;
+        tx.commit().await?;
+        self.checkpoint(Checkpoint::AfterSessionCommit)?;
+        Ok(now)
+    }
     fn family_binding(&self, r: &SqliteRow) -> Result<[u8; 32], AuthError> {
         Ok(self.mac(
             b"session-family",
@@ -361,7 +453,9 @@ impl HumanAuth {
             .try_get::<Option<i64>, _>("revoked_at")?
             .is_none()
         {
-            sqlx::query("UPDATE human_sessions SET revoked_at=? WHERE session_id=? AND user_id=? AND revoked_at IS NULL").bind(now).bind(&target.0).bind(user).execute(&mut *tx).await?;
+            if sqlx::query("UPDATE human_sessions SET revoked_at=? WHERE session_id=? AND user_id=? AND revoked_at IS NULL").bind(now).bind(&target.0).bind(user).execute(&mut *tx).await?.rows_affected()!=1 {
+                return Err(AuthError::Unavailable);
+            }
             self.block_family_proofs(&mut tx, &target.0, now).await?;
             self.revoke_owner_actions(&mut tx, &target.0).await?;
             self.session_event(
@@ -389,13 +483,18 @@ impl HumanAuth {
         let r = self.session_row(&mut tx, h, &f, now, true).await?;
         let deadline = self.original_deadline(&mut tx, h, &r).await?;
         let id: &str = r.try_get("session_id")?;
-        sqlx::query(
+        if sqlx::query(
             "UPDATE human_sessions SET revoked_at=? WHERE session_id=? AND revoked_at IS NULL",
         )
         .bind(now)
         .bind(id)
         .execute(&mut *tx)
-        .await?;
+        .await?
+        .rows_affected()
+            != 1
+        {
+            return Err(AuthError::Unavailable);
+        }
         self.block_family_proofs(&mut tx, id, now).await?;
         self.revoke_owner_actions(&mut tx, id).await?;
         self.session_event(
@@ -453,19 +552,36 @@ impl HumanAuth {
         now: i64,
     ) -> Result<(), AuthError> {
         sqlx::query("INSERT OR IGNORE INTO human_primary_blocks SELECT c.evidence_id,? FROM human_primary_context c JOIN human_authentications a USING(evidence_id) WHERE a.user_id=?").bind(now).bind(user).execute(&mut **tx).await?;
+        // Existing blocks legitimately ignore duplicates. Verify the durable
+        // postcondition instead of trusting an INSERT count or affected rows.
+        let missing:bool=sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM human_primary_context c JOIN human_authentications a USING(evidence_id) WHERE a.user_id=? AND NOT EXISTS(SELECT 1 FROM human_primary_blocks b WHERE b.evidence_id=c.evidence_id))").bind(user).fetch_one(&mut **tx).await?;
+        if missing {
+            return Err(AuthError::Unavailable);
+        }
         sqlx::query(
             "UPDATE human_owner_actions SET state='revoked' WHERE actor=? AND state='pending'",
         )
         .bind(user)
         .execute(&mut **tx)
         .await?;
-        sqlx::query(
+        let expected: i64 = sqlx::query_scalar(
+            "SELECT count(*) FROM human_sessions WHERE user_id=? AND revoked_at IS NULL",
+        )
+        .bind(user)
+        .fetch_one(&mut **tx)
+        .await?;
+        if sqlx::query(
             "UPDATE human_sessions SET revoked_at=? WHERE user_id=? AND revoked_at IS NULL",
         )
         .bind(now)
         .bind(user)
         .execute(&mut **tx)
-        .await?;
+        .await?
+        .rows_affected()
+            != u64::try_from(expected).map_err(|_| AuthError::Unavailable)?
+        {
+            return Err(AuthError::Unavailable);
+        }
         Ok(())
     }
     async fn block_family_proofs(
@@ -475,6 +591,10 @@ impl HumanAuth {
         now: i64,
     ) -> Result<(), AuthError> {
         sqlx::query("INSERT OR IGNORE INTO human_primary_blocks SELECT c.evidence_id,? FROM human_primary_context c JOIN human_authentications a USING(evidence_id) JOIN human_sessions s ON s.session_id=? WHERE a.user_id=s.user_id AND (c.parent_session=s.session_id OR c.browser=s.browser)").bind(now).bind(session).execute(&mut **tx).await?;
+        let missing:bool=sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM human_primary_context c JOIN human_authentications a USING(evidence_id) JOIN human_sessions s ON s.session_id=? WHERE a.user_id=s.user_id AND (c.parent_session=s.session_id OR c.browser=s.browser) AND NOT EXISTS(SELECT 1 FROM human_primary_blocks b WHERE b.evidence_id=c.evidence_id))").bind(session).fetch_one(&mut **tx).await?;
+        if missing {
+            return Err(AuthError::Unavailable);
+        }
         Ok(())
     }
     pub async fn contain_compromised_session(
@@ -500,13 +620,18 @@ impl HumanAuth {
         };
         self.incident_authority.verify(&context)?;
         if r.try_get::<Option<i64>, _>("revoked_at")?.is_none() {
-            sqlx::query(
+            if sqlx::query(
                 "UPDATE human_sessions SET revoked_at=? WHERE session_id=? AND revoked_at IS NULL",
             )
             .bind(now)
             .bind(context.session)
             .execute(&mut *tx)
-            .await?;
+            .await?
+            .rows_affected()
+                != 1
+            {
+                return Err(AuthError::Unavailable);
+            }
             self.block_family_proofs(&mut tx, context.session, now)
                 .await?;
             self.session_event(

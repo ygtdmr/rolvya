@@ -21,12 +21,12 @@ test("independent synthetic verification unblocks existing dependencies without 
       .getByText("Ready", { exact: true }),
   ).toBeVisible();
 });
-test("production has no demo fallback, gallery or credential UI", async ({
+test("HTTP production entry refuses credentials and has no demo or gallery fallback", async ({
   page,
 }) => {
   await page.goto("http://127.0.0.1:4173/");
   await expect(
-    page.getByRole("heading", { name: "Browser integration is not activated" }),
+    page.getByRole("heading", { name: "Secure sign-in unavailable" }),
   ).toBeVisible();
   await expect(page.getByText("DEMO WORKSPACE", { exact: true })).toHaveCount(
     0,
@@ -34,7 +34,7 @@ test("production has no demo fallback, gallery or credential UI", async ({
   await expect(
     page.getByRole("button", { name: "Advance scenario" }),
   ).toHaveCount(0);
-  await page.getByRole("button", { name: "Display preferences" }).click();
+  await expect(page.getByLabel("Password", { exact: true })).toHaveCount(0);
   await expect(
     page.getByRole("button", { name: "UI Elements gallery" }),
   ).toHaveCount(0);
@@ -241,4 +241,24 @@ test("combobox keyboard and open-listbox accessibility preserve nested focus", a
   await expect(
     page.getByRole("button", { name: "Display preferences" }),
   ).toBeFocused();
+});
+test("denied project can return to an authorized scope without retaining private task state", async ({
+  page,
+}) => {
+  await page.goto("/#/projects/not-authorized");
+  await expect(
+    page.getByRole("heading", { name: "Project access denied" }),
+  ).toBeVisible();
+  await expect(
+    page.getByText("Harden request validation", { exact: true }),
+  ).toHaveCount(0);
+  await page
+    .getByRole("button", { name: "Choose an authorized project" })
+    .click();
+  await expect(
+    page.getByRole("heading", {
+      name: "Atlas / developer platform",
+      exact: true,
+    }),
+  ).toBeVisible();
 });

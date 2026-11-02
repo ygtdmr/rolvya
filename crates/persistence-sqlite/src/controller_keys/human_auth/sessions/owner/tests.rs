@@ -3255,4 +3255,4 @@ impl GitOwnerFixture {
     }
 }
 
-mod panel;
+pub(in crate::controller_keys::human_auth) mod panel;

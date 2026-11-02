@@ -1,8 +1,8 @@
 {
   "schema": 1,
   "provenance": "controller",
-  "revision": 0,
-  "cursor": 0,
+  "revision": 2,
+  "cursor": 2,
   "asOf": "1970-01-01T02:46:40Z",
   "role": "owner",
   "project": {
