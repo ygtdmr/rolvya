@@ -682,10 +682,14 @@ impl Fixture {
                 contexts.insert(t.id.clone(), ctx);
             }
         }
+        if mode == "panel" {
+            a.execution.as_mut().unwrap().connection_ref = "openai-api-a".into();
+            b.execution.as_mut().unwrap().connection_ref = "openai-api-b".into();
+        }
         plan.tasks = vec![group, a, b, c];
         let authority = synthetic::Authority {
             fargate: mode == "fargate",
-            coding_agents: mode.starts_with("agents"),
+            coding_agents: mode.starts_with("agents") || mode == "panel",
             ..Default::default()
         };
         let valid = rolvya_plan_validator::validate(&plan, &authority, Limits::default()).unwrap();

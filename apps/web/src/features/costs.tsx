@@ -1,7 +1,7 @@
 import { useState } from "react";
 import type { Snapshot } from "../api/model";
 import { formatMoney, useLocale } from "../i18n/locale";
-import { Button, TextField } from "../ui/controls";
+import { Button } from "../ui/controls";
 import {
   Badge,
   DataTable,
@@ -11,15 +11,18 @@ import {
   Surface,
 } from "../ui/data";
 import { Dialog } from "../ui/overlays";
-import {
-  ApprovalPreview,
-  BudgetMeter,
-  CostBreakdown,
-  CostSummary,
-} from "../ui/patterns";
-export function Costs({ snapshot }: { snapshot: Snapshot }) {
-  const [open, setOpen] = useState(false),
-    [total, setTotal] = useState("30000");
+import { BudgetMeter, CostBreakdown, CostSummary } from "../ui/patterns";
+import { BudgetApproval } from "./budget-approval";
+export function Costs({
+  snapshot,
+  onRefresh = () => undefined,
+  commandsEnabled = false,
+}: {
+  snapshot: Snapshot;
+  onRefresh?: () => void;
+  commandsEnabled?: boolean;
+}) {
+  const [open, setOpen] = useState(false);
   const { locale, date } = useLocale();
   const f = snapshot.finance;
   return (
@@ -35,14 +38,18 @@ export function Costs({ snapshot }: { snapshot: Snapshot }) {
             onClick={() => setOpen(true)}
             disabled={!f}
           >
-            Preview approval
+            {!__DEMO__ && snapshot.capabilities.budgetIncrease
+              ? "Increase ceiling"
+              : "Preview approval"}
           </Button>
         }
       />
       {!f ? (
         <EmptyState title="Financial view unavailable">
-          This read capability requires current authorized Owner access. No
-          amounts are inferred or shown as zero.
+          {snapshot.role === "owner"
+            ? "No approved financial projection is recorded for this project."
+            : "This read capability requires current authorized Owner access."}{" "}
+          No amounts are inferred or shown as zero.
         </EmptyState>
       ) : (
         <>
@@ -105,13 +112,19 @@ export function Costs({ snapshot }: { snapshot: Snapshot }) {
               eyebrow="ESTIMATES / NOT AUTHORITY"
             >
               <div className="rv-forecasts">
-                {Object.entries(f.forecasts).map(([key, value]) => (
+                {Object.entries(f.forecasts ?? {}).map(([key, value]) => (
                   <div key={key}>
                     <span>{key}</span>
                     <strong>{formatMoney(value, f.currency, locale)}</strong>
                   </div>
                 ))}
               </div>
+              {f.forecasts === null && (
+                <p className="rv-surface-intro">
+                  No authoritative forecast projection is recorded. No estimate
+                  is inferred from the ceiling or settled charges.
+                </p>
+              )}
               <p className="rv-surface-intro">
                 Estimates do not authorize spending. A browser timeout or
                 successful stop request does not settle external billing.
@@ -150,32 +163,12 @@ export function Costs({ snapshot }: { snapshot: Snapshot }) {
             onClose={() => setOpen(false)}
             title="Exact-action approval preview"
           >
-            <div className="rv-section-stack">
-              <TextField
-                label="Proposed total · integer minor units"
-                inputMode="numeric"
-                value={total}
-                onChange={(e) => setTotal(e.target.value)}
-                error={
-                  !/^(0|[1-9][0-9]{0,18})$/.test(total)
-                    ? "Enter bounded integer minor units."
-                    : undefined
-                }
-              />
-              <ApprovalPreview
-                finance={f}
-                project={snapshot.project.id}
-                total={total}
-              />
-              <p className="rv-note">
-                Submission is unavailable. The browser command adapter must
-                verify a current Owner, fresh action-bound proof and exact
-                versions atomically with the financial effect.
-              </p>
-              <Button disabled icon="lock">
-                Submit requires verified Owner adapter
-              </Button>
-            </div>
+            <BudgetApproval
+              key={snapshot.project.id}
+              snapshot={snapshot}
+              onRefresh={onRefresh}
+              active={commandsEnabled}
+            />
           </Dialog>
         </>
       )}

@@ -1,7 +1,7 @@
 import { isId } from "./model";
 import { ReadError } from "./client";
 export interface Invalidation {
-  schema: 1;
+  schema: 1 | 2;
   project: string;
   cursor: number;
   revision: number;
@@ -17,11 +17,13 @@ export class EventOrder {
     if (raw.length > 4096) throw Error("event limit");
     const e = JSON.parse(raw) as Partial<Invalidation>;
     if (
-      e.schema !== 1 ||
+      ![1, 2].includes(Number(e.schema)) ||
       e.project !== this.project ||
       !Number.isSafeInteger(e.cursor) ||
       !Number.isSafeInteger(e.revision) ||
-      String(e.cursor) !== id ||
+      (e.schema === 1
+        ? String(e.cursor) !== id
+        : !new RegExp(`^${e.cursor}\\.[a-f0-9]{64}$`).test(id)) ||
       !isId(e.project) ||
       Number(e.cursor) < 0 ||
       Number(e.revision) < 0
@@ -110,11 +112,16 @@ export function reconnectDelay(attempt: number): number {
 }
 export async function streamProject(
   project: string,
-  cursor: number,
+  cursor: number | string,
   signal: AbortSignal,
   onEvent: (data: string, id: string) => void,
 ): Promise<void> {
-  if (!isId(project) || !Number.isSafeInteger(cursor) || cursor < 0)
+  if (
+    !isId(project) ||
+    (typeof cursor === "number"
+      ? !Number.isSafeInteger(cursor) || cursor < 0
+      : !/^[0-9]{1,16}\.[a-f0-9]{64}$/.test(cursor))
+  )
     throw Error("invalid stream scope");
   const response = await fetch(`/api/control/v1/projects/${project}/events`, {
     signal,

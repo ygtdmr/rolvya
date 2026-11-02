@@ -52,7 +52,7 @@ export function parseProjects(v: unknown): ProjectSummary[] {
 export function parseSnapshot(v: unknown, project: string): Snapshot {
   if (
     !object(v) ||
-    v.schema !== 1 ||
+    !member(v.schema, [1, 2]) ||
     v.provenance !== "controller" ||
     !integer(v.revision) ||
     !integer(v.cursor) ||
@@ -102,11 +102,29 @@ export function parseSnapshot(v: unknown, project: string): Snapshot {
         id(x.id) &&
         id(x.task) &&
         integer(x.epoch) &&
-        text(x.worker) &&
-        text(x.provider) &&
-        id(x.connection) &&
-        member(x.state, ["running", "terminated", "unknown", "fenced"]) &&
-        time(x.started) &&
+        (v.schema === 2
+          ? nullable(x.worker) &&
+            nullable(x.provider) &&
+            (x.connection === null || id(x.connection))
+          : text(x.worker) && text(x.provider) && id(x.connection)) &&
+        member(x.state, [
+          "running",
+          "terminated",
+          "unknown",
+          "fenced",
+          ...(v.schema === 2
+            ? ["admitted", "accepted", "blocked", "awaiting_verification"]
+            : []),
+        ]) &&
+        (v.schema === 2
+          ? (x.started === null || time(x.started)) &&
+            time(x.admitted) &&
+            integer(x.leaseUntil) &&
+            integer(x.observedAt) &&
+            x.logsAvailable === false &&
+            Array.isArray(x.logs) &&
+            x.logs.length === 0
+          : time(x.started)) &&
         (x.ended === null || time(x.ended)) &&
         text(x.phase) &&
         list(
@@ -126,7 +144,7 @@ export function parseSnapshot(v: unknown, project: string): Snapshot {
       (x) =>
         object(x) &&
         id(x.id) &&
-        member(x.provider, ["github", "openai", "anthropic", "aws"]) &&
+        member(x.provider, ["github", "openai", "anthropic", "aws", "other"]) &&
         text(x.label) &&
         text(x.account) &&
         member(x.mode, ["api", "cli", "repository", "infrastructure"]) &&
@@ -135,7 +153,20 @@ export function parseSnapshot(v: unknown, project: string): Snapshot {
           "unverified",
           "revoked",
           "unsupported",
+          ...(v.schema === 2
+            ? [
+                "registered",
+                "recorded_verified",
+                "expired",
+                "blocked",
+                "unavailable",
+              ]
+            : []),
         ]) &&
+        (v.schema !== 2 ||
+          (x.operational === false &&
+            strings(x.models, 64) &&
+            (x.verifiedUntil === null || integer(x.verifiedUntil)))) &&
         text(x.scope) &&
         integer(x.version) &&
         text(x.reason),
@@ -155,7 +186,22 @@ export function parseSnapshot(v: unknown, project: string): Snapshot {
         /^[a-f0-9]{64}$/.test(x.sha256) &&
         nullable(x.ref) &&
         typeof x.published === "boolean" &&
-        time(x.at),
+        time(x.at) &&
+        (v.schema !== 2 ||
+          (x.fingerprint === (v.plan as Record<string, unknown>).fingerprint &&
+            integer(x.epoch) &&
+            Number(x.epoch) > 0 &&
+            member(x.publicationState, [
+              "not_prepared",
+              "prepared",
+              "submitting",
+              "published",
+              "unknown",
+              "blocked",
+            ]) &&
+            (x.acceptance === null ||
+              (text(x.acceptance, 64) &&
+                /^[a-f0-9]{64}$/.test(x.acceptance))))),
     ) ||
     !list(
       v.activity,
@@ -164,7 +210,11 @@ export function parseSnapshot(v: unknown, project: string): Snapshot {
         object(x) &&
         id(x.id) &&
         (x.task === null || id(x.task)) &&
-        time(x.at) &&
+        (v.schema === 2
+          ? (x.at === null || time(x.at)) &&
+            text(x.source, 24) &&
+            integer(x.sequence)
+          : time(x.at)) &&
         member(x.kind, [
           "execution",
           "verification",
@@ -175,6 +225,28 @@ export function parseSnapshot(v: unknown, project: string): Snapshot {
         text(x.title) &&
         text(x.detail),
     )
+  )
+    throw new ReadError("invalid");
+  if (
+    v.schema === 2 &&
+    (!object(v.pages) ||
+      Object.keys(v.pages).length > 16 ||
+      !Object.entries(v.pages).every(
+        ([key, value]) =>
+          /^(attempts|results|approvals|connections\/(model|github|aws)|activity\/(scheduler|worker|activation|finance|governance|provider|publication))$/.test(
+            key,
+          ) &&
+          (value === null ||
+            (text(value, 256) && /^[A-Za-z0-9_-]+\.[a-f0-9]{64}$/.test(value))),
+      ) ||
+      !text(v.eventCursor, 96) ||
+      !new RegExp(`^${v.cursor}\\.[a-f0-9]{64}$`).test(v.eventCursor) ||
+      !["execution", "activity", "budgetIncrease"].every(
+        (k) =>
+          typeof (v.capabilities as Record<string, unknown>)[k] === "boolean",
+      ) ||
+      (v.capabilities.budgetIncrease === true &&
+        (v.role !== "owner" || v.finance === null)))
   )
     throw new ReadError("invalid");
   const tasks = v.tasks as Snapshot["tasks"];
@@ -200,12 +272,25 @@ export function parseSnapshot(v: unknown, project: string): Snapshot {
     ) ||
     attempts.some(
       (a) =>
-        !ids.has(a.task) || !connections.some((c) => c.id === a.connection),
+        !ids.has(a.task) ||
+        tasks.find((t) => t.id === a.task)?.kind !== "leaf" ||
+        (v.schema === 1 && !connections.some((c) => c.id === a.connection)),
     ) ||
     results.some(
       (r) =>
         !ids.has(r.task) ||
-        !attempts.some((a) => a.id === r.attempt && a.task === r.task) ||
+        (v.schema === 1
+          ? !attempts.some((a) => a.id === r.attempt && a.task === r.task)
+          : attempts.some(
+              (a) =>
+                a.id === r.attempt &&
+                (a.task !== r.task || a.epoch !== r.epoch),
+            )) ||
+        (v.schema === 2 &&
+          (r.accepted !== (r.acceptance !== null) ||
+            (r.ref !== null &&
+              (!r.published ||
+                !/^refs\/heads\/rolvya\/[a-zA-Z0-9/_-]+$/.test(r.ref))))) ||
         (r.accepted && r.verification !== "passed") ||
         (r.published && (!r.accepted || !r.ref)),
     ) ||
@@ -266,10 +351,11 @@ export function parseSnapshot(v: unknown, project: string): Snapshot {
       !(f.available === null || money(f.available)) ||
       !integer(f.unknownLiabilities) ||
       typeof f.paused !== "boolean" ||
-      !object(f.forecasts) ||
-      !["optimistic", "expected", "pessimistic"].every((k) =>
-        money((f.forecasts as Record<string, unknown>)[k]),
-      ) ||
+      (!(v.schema === 2 && f.forecasts === null) &&
+        (!object(f.forecasts) ||
+          !["optimistic", "expected", "pessimistic"].every((k) =>
+            money((f.forecasts as Record<string, unknown>)[k]),
+          ))) ||
       !list(
         f.categories,
         4,
@@ -278,7 +364,8 @@ export function parseSnapshot(v: unknown, project: string): Snapshot {
           member(x.id, ["ai", "compute", "storage", "transfer"]) &&
           (x.settled === null || money(x.settled)) &&
           money(x.reserved) &&
-          money(x.forecast),
+          ((v.schema === 2 && x.forecast === null) || money(x.forecast)) &&
+          (v.schema !== 2 || money(x.provisional)),
       ) ||
       f.categories.length !== 4 ||
       new Set(f.categories.map((x) => (x as { id: string }).id)).size !== 4 ||
@@ -295,6 +382,34 @@ export function parseSnapshot(v: unknown, project: string): Snapshot {
           time(x.at),
       ) ||
       (Number(f.unknownLiabilities) > 0 && f.available !== null)
+    )
+      throw new ReadError("invalid");
+  }
+  if (v.schema === 2 && v.finance !== null) {
+    const f = v.finance as unknown as NonNullable<Snapshot["finance"]>;
+    const sum = (key: "settled" | "reserved" | "provisional") =>
+      f.categories.reduce((n, row) => {
+        const value = row[key];
+        if (value === null || value === undefined || !money(value))
+          throw new ReadError("invalid");
+        return n + BigInt(value);
+      }, 0n);
+    const exposure =
+      BigInt(f.settled) + BigInt(f.reserved) + BigInt(f.provisional);
+    const remaining =
+      exposure > BigInt(f.ceiling) ? 0n : BigInt(f.ceiling) - exposure;
+    if (
+      sum("settled") !== BigInt(f.settled) ||
+      sum("reserved") !== BigInt(f.reserved) ||
+      sum("provisional") !== BigInt(f.provisional) ||
+      exposure > 9223372036854775807n ||
+      f.version < 1 ||
+      f.overCeiling !== exposure > BigInt(f.ceiling) ||
+      (f.unknownLiabilities === 0
+        ? f.available !== remaining.toString()
+        : f.available !== null) ||
+      ((f.overCeiling || f.unknownLiabilities > 0 || f.available === "0") &&
+        !f.paused)
     )
       throw new ReadError("invalid");
   }
@@ -382,4 +497,60 @@ export const controllerSource: ReadSource = {
       project,
     );
   },
+};
+
+/** Independently authorized page; existing validated display data supplies scope. */
+export function parseOperationalPage(
+  raw: unknown,
+  resource: import("./model").PageResource,
+  context: Snapshot,
+): import("./model").OperationalPage {
+  if (
+    !object(raw) ||
+    raw.schema !== 2 ||
+    raw.provenance !== "controller" ||
+    raw.project !== context.project.id ||
+    raw.resource !== resource ||
+    !Array.isArray(raw.items) ||
+    raw.items.length > 50 ||
+    !(
+      raw.next === null ||
+      (text(raw.next, 256) && /^[A-Za-z0-9_-]+\.[a-f0-9]{64}$/.test(raw.next))
+    )
+  )
+    throw new ReadError("invalid");
+  if (raw.role !== context.role) throw new ReadError("forbidden");
+  const key = resource.startsWith("connections/")
+    ? "connections"
+    : resource.startsWith("activity/")
+      ? "activity"
+      : resource;
+  const candidate = { ...context };
+  if (key === "approvals") {
+    if (!context.finance) throw new ReadError("forbidden");
+    candidate.finance = {
+      ...context.finance,
+      approvals: raw.items as NonNullable<Snapshot["finance"]>["approvals"],
+    };
+  } else Object.assign(candidate, { [key]: raw.items });
+  parseSnapshot(candidate, context.project.id);
+  return raw as unknown as import("./model").OperationalPage;
+}
+controllerSource.page = async (project, resource, cursor, context, signal) => {
+  if (
+    !isId(project) ||
+    context.project.id !== project ||
+    context.schema !== 2 ||
+    !/^(attempts|results|approvals|connections\/(model|github|aws)|activity\/(scheduler|worker|activation|finance|governance|provider|publication))$/.test(
+      resource,
+    ) ||
+    !/^[A-Za-z0-9_-]+\.[a-f0-9]{64}$/.test(cursor) ||
+    cursor.length > 256
+  )
+    throw new ReadError("invalid");
+  const raw = await read(
+    `/api/control/v1/projects/${project}/${resource}?limit=20&cursor=${encodeURIComponent(cursor)}`,
+    signal,
+  );
+  return parseOperationalPage(raw, resource, context);
 };

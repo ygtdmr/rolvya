@@ -1,5 +1,7 @@
 //! R09 bounded synthetic orchestration, not a cloud service or new state authority.
 mod artifacts;
+mod panel;
+pub(crate) use panel::panel_artifact_in;
 pub mod coding;
 mod coordinator;
 mod observability;

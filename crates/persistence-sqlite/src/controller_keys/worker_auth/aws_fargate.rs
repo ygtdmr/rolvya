@@ -15,7 +15,7 @@ pub use delivery::ProtectedDelivery;
 pub use possession::{PossessionChallenge, PossessionOperation};
 mod sdk;
 mod secrets_sdk;
-mod store;
+pub(in crate::controller_keys) mod store;
 mod trusted;
 pub use inspection::{InspectionAssessment, ProductionGate};
 pub use model::*;

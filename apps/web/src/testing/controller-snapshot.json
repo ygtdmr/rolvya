@@ -1,5 +1,5 @@
 {
-  "schema": 1,
+  "schema": 2,
   "provenance": "controller",
   "revision": 2,
   "cursor": 2,
@@ -38,12 +38,51 @@
   "attempts": [],
   "connections": [],
   "results": [],
-  "activity": [],
+  "activity": [
+    {
+      "id": "activation-1",
+      "task": null,
+      "at": null,
+      "kind": "execution",
+      "title": "activation: activated",
+      "detail": "Redacted journal metadata; payload and credentials withheld.",
+      "source": "activation",
+      "sequence": 1
+    },
+    {
+      "id": "governance-1",
+      "task": null,
+      "at": "1970-01-01T02:46:40Z",
+      "kind": "security",
+      "title": "governance: ownership bound",
+      "detail": "Redacted journal metadata; payload and credentials withheld.",
+      "source": "governance",
+      "sequence": 1
+    }
+  ],
   "capabilities": {
     "events": false,
     "finance": false,
-    "connections": false,
-    "results": false,
-    "mutations": false
+    "connections": true,
+    "results": true,
+    "mutations": false,
+    "execution": true,
+    "activity": true,
+    "budgetIncrease": false
+  },
+  "eventCursor": "2.0000000000000000000000000000000000000000000000000000000000000000",
+  "pages": {
+    "attempts": null,
+    "results": null,
+    "connections/model": null,
+    "connections/github": null,
+    "connections/aws": null,
+    "activity/scheduler": null,
+    "activity/worker": null,
+    "activity/activation": null,
+    "activity/finance": null,
+    "activity/governance": null,
+    "activity/provider": null,
+    "activity/publication": null
   }
 }

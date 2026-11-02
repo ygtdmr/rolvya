@@ -2,6 +2,8 @@
 
 G1-08 connects Connected Control to existing HumanAuth, session and project-membership authority through Rust Axum and actual rustls connections. It does not enroll users, bind legacy projects, change budgets, invoke providers or establish production deployment readiness. Base: merged PR #39, `e4c20e728b35ffbd22b999c910df6dbb26855170`.
 
+The G1-08 scope below is historical. [G1-09 operational delivery](operational-control-panel.md) extends the same adapter with authorized operational reads, scope-bound SSE cursors and one exact-action Owner budget-increase command.
+
 ## Accepted transport and sessions
 
 `human_auth::sessions::https::HumanBrowserServer::open` takes the existing controller bootstrap, a public-PKI-validated `worker_auth::https::tls::ServerIdentity`, canonical HTTPS origin and audited `BrowserAssets`. `serve` accepts TLS directly. Only its private router can create browser facts. The TLS exporter, socket peer, method, target, body commitment, request identity and operation are bound inside that boundary. Forwarded headers, worker bearers and client identity assertions are rejected. Reverse-proxy termination is unsupported until an independently authenticated proxy integration exists.

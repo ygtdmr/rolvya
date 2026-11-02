@@ -764,3 +764,36 @@ pub(super) async fn bind_cli_home(
     }
     Ok(())
 }
+
+/// Bounded metadata by a project-grant row, with the same signed-record checks
+/// as the existing inventory. No credential reference crosses this boundary.
+pub(in crate::controller_keys) async fn panel_metadata(
+    c: &mut SqliteConnection,
+    key: &ControllerKey,
+    p: &ProjectId,
+    after: i64,
+    limit: u16,
+) -> Result<Vec<(i64, ConnectionMetadata)>, RegistryError> {
+    let rows:Vec<(i64,String)>=sqlx::query_as("SELECT rowid,connection_id FROM provider_project_grants WHERE project_id=? AND rowid<? ORDER BY rowid DESC LIMIT ?").bind(p.as_str()).bind(after).bind(i64::from(limit)+1).fetch_all(&mut *c).await?;
+    let mut out = Vec::with_capacity(rows.len());
+    for (rowid, id) in rows {
+        let id = ConnectionId::parse(id)?;
+        let r = connection(c, key, &id).await?;
+        let g = grant(c, key, &id, p).await?;
+        out.push((
+            rowid,
+            ConnectionMetadata {
+                connection: id,
+                provider: r.provider,
+                account: r.account,
+                mode: r.mode,
+                connection_version: r.version,
+                grant_version: g.version,
+                revoked: r.revoked || g.revoked,
+                consented_models: g.models,
+                recorded_verification_deadline: g.entitlement.as_ref().map(Entitlement::deadline),
+            },
+        ));
+    }
+    Ok(out)
+}

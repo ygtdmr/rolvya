@@ -1,12 +1,15 @@
 import { useState } from "react";
-import type { Connection, Snapshot } from "../api/model";
+import type { Snapshot } from "../api/model";
 import { Button, Select } from "../ui/controls";
 import { Badge, EmptyState, PageHeader } from "../ui/data";
 import { Dialog } from "../ui/overlays";
 import { ConnectionCard, CredentialModeIndicator } from "../ui/patterns";
 export function Connections({ snapshot }: { snapshot: Snapshot }) {
   const [filter, setFilter] = useState("all"),
-    [selected, setSelected] = useState<Connection | null>(null);
+    [selectedId, setSelected] = useState<string | null>(null);
+  // A selection is never a second store of Owner-only account metadata.
+  const selected =
+    snapshot.connections.find((c) => c.id === selectedId) ?? null;
   const items = snapshot.connections.filter(
     (c) => filter === "all" || c.mode === filter,
   );
@@ -38,7 +41,15 @@ export function Connections({ snapshot }: { snapshot: Snapshot }) {
         <Badge icon="shield">Credentials stay in the Secret Broker</Badge>
       </div>
       {items.length === 0 && (
-        <EmptyState title="No available connection read model">
+        <EmptyState
+          title={
+            !snapshot.capabilities.connections
+              ? "Connection details unavailable"
+              : snapshot.connections.length
+                ? "No matching connections"
+                : "No registered connections"
+          }
+        >
           No account enrollment or entitlement is inferred from this view.
         </EmptyState>
       )}
@@ -47,7 +58,7 @@ export function Connections({ snapshot }: { snapshot: Snapshot }) {
           <ConnectionCard
             key={c.id}
             connection={c}
-            onInspect={() => setSelected(c)}
+            onInspect={() => setSelected(c.id)}
           />
         ))}
       </div>

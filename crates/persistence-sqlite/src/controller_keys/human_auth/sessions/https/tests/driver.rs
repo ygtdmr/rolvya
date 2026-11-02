@@ -10,11 +10,15 @@ async fn browser_https_driver() {
     let assets =
         std::path::PathBuf::from(std::env::var_os("ROLVYA_BROWSER_FIXTURE_ASSETS").unwrap());
     let factor = std::env::var_os("ROLVYA_BROWSER_FIXTURE_TOTP").is_some();
-    let r = Running::from_seed(
-        browser_seed(factor).await,
-        Some(BrowserAssets::load(&assets).await.unwrap()),
-    )
-    .await;
+    let operational = std::env::var_os("ROLVYA_BROWSER_FIXTURE_OPERATIONAL").is_some();
+    let (seed, _retained_git) = if operational {
+        let (seed, fixture) =
+            crate::controller_keys::github_app::operational_browser_seed(factor).await;
+        (seed, Some(fixture))
+    } else {
+        (browser_seed(factor).await, None)
+    };
+    let r = Running::from_seed(seed, Some(BrowserAssets::load(&assets).await.unwrap())).await;
     let code =
         r.seed.totp.as_ref().map(|seed| {
             super::super::super::tests::code(seed, r.seed.clock.load(Ordering::SeqCst)).0
@@ -71,6 +75,30 @@ async fn browser_https_driver() {
                 .execute(&r.seed.store.pool)
                 .await
                 .unwrap();
+            }
+            "role" => {
+                _retained_git
+                    .as_ref()
+                    .unwrap()
+                    .owner
+                    .change_browser_viewer_role()
+                    .await;
+            }
+            "factor" => {
+                r.seed.clock.fetch_add(30, Ordering::SeqCst);
+                let code = super::super::super::tests::code(
+                    r.seed.totp.as_ref().unwrap(),
+                    r.seed.clock.load(Ordering::SeqCst),
+                )
+                .0;
+                let mut file = std::fs::OpenOptions::new()
+                    .write(true)
+                    .create(true)
+                    .truncate(true)
+                    .mode(0o600)
+                    .open(dir.join("message"))
+                    .unwrap();
+                std::io::Write::write_all(&mut file, code.as_bytes()).unwrap();
             }
             "advance" => {
                 r.seed.clock.fetch_add(3600, Ordering::SeqCst);

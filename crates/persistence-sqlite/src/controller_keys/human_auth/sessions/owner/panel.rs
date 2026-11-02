@@ -2,6 +2,13 @@
 //! The accepted human HTTPS adapter delivers these reads; they confer no command authority.
 use super::*;
 use rolvya_domain::plan::{AccessMode, PlannedTask};
+mod budget;
+mod connections;
+mod financial;
+mod operational;
+mod results;
+use financial::PanelFinance;
+use operational::*;
 
 #[derive(Debug, Serialize)]
 pub struct PanelProject {
@@ -41,7 +48,11 @@ pub struct PanelTask {
     pub blockers: Vec<String>,
 }
 #[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct PanelCapabilities {
+    pub execution: bool,
+    pub activity: bool,
+    pub budget_increase: bool,
     pub events: bool,
     pub finance: bool,
     pub connections: bool,
@@ -52,20 +63,22 @@ pub struct PanelCapabilities {
 #[serde(rename_all = "camelCase")]
 pub struct PanelSnapshot {
     pub schema: u8,
+    pub pages: std::collections::BTreeMap<String, Option<String>>,
     pub provenance: &'static str,
     pub revision: i64,
     pub cursor: i64,
+    pub event_cursor: String,
     pub as_of: String,
     pub role: ProjectRole,
     pub project: PanelProjectIdentity,
     pub plan: PanelPlan,
     pub tasks: Vec<PanelTask>,
     // Explicit unavailable projections, not fabricated zero balances or fixture results.
-    pub finance: Option<()>,
-    pub attempts: [(); 0],
-    pub connections: [(); 0],
-    pub results: [(); 0],
-    pub activity: [(); 0],
+    pub finance: Option<PanelFinance>,
+    pub attempts: Vec<PanelAttempt>,
+    pub connections: Vec<PanelConnection>,
+    pub results: Vec<PanelResult>,
+    pub activity: Vec<PanelActivity>,
     pub capabilities: PanelCapabilities,
 }
 pub(super) fn resource_bounds(count: i64, maximum: i64, total: i64) -> Result<(), AuthError> {
@@ -82,40 +95,74 @@ impl HumanAuth {
         tx: &mut Transaction<'_, Sqlite>,
         p: &ProjectId,
     ) -> Result<i64, AuthError> {
-        let (scheduler,governance,activation):(i64,i64,i64)=sqlx::query_as("SELECT (SELECT coalesce(max(sequence),0) FROM scheduler_events WHERE project_id=?),(SELECT coalesce(max(sequence),0) FROM human_governance_events WHERE project_id=?),(SELECT coalesce(max(sequence),0) FROM activation_events WHERE project_id=?)").bind(p.as_str()).bind(p.as_str()).bind(p.as_str()).fetch_one(&mut **tx).await?;
-        scheduler
-            .checked_add(governance)
-            .and_then(|r| r.checked_add(activation))
-            .filter(|r| (0..=9_007_199_254_740_991).contains(r))
-            .ok_or(AuthError::Unavailable)
+        let row=sqlx::query("SELECT (SELECT coalesce(max(sequence),0) FROM scheduler_events WHERE project_id=?1),(SELECT coalesce(max(sequence),0) FROM human_governance_events WHERE project_id=?1),(SELECT coalesce(max(sequence),0) FROM activation_events WHERE project_id=?1),(SELECT coalesce(max(sequence),0) FROM worker_events WHERE project_id=?1),(SELECT coalesce(max(sequence),0) FROM financial_events WHERE project_id=?1),(SELECT coalesce(max(sequence),0) FROM provider_security_events WHERE project_id=?1),(SELECT coalesce(max(sequence),0) FROM secret_events WHERE project_id=?1),(SELECT coalesce(max(rowid),0) FROM git_publication_events WHERE project_id=?1),(SELECT coalesce(max(rowid),0) FROM coding_verifications WHERE project_id=?1),(SELECT coalesce(max(rowid),0) FROM coding_rejections WHERE project_id=?1),(SELECT coalesce(max(rowid),0) FROM aws_execution_events WHERE project_id=?1)").bind(p.as_str()).fetch_one(&mut **tx).await?;
+        let mut revision = 0i64;
+        for column in 0..11 {
+            revision = revision
+                .checked_add(row.try_get::<i64, _>(column)?)
+                .ok_or(AuthError::Unavailable)?;
+        }
+        if !(0..=9_007_199_254_740_991).contains(&revision) {
+            return Err(AuthError::Unavailable);
+        }
+        Ok(revision)
     }
-    /// Coalesced durable journal revision; payloads never provide state or authority.
-    /// A stale/forward cursor requires a fresh REST snapshot, never fabricated replay.
-    pub(in crate::controller_keys::human_auth) async fn panel_event_batch(
+    fn scoped_event_cursor(&self, s: &Scope, cursor: i64) -> Result<String, AuthError> {
+        Ok(format!(
+            "{cursor}.{}",
+            hex(&self.mac(
+                b"panel-event-cursor",
+                &[
+                    s.project.as_str().as_bytes(),
+                    s.user()?.as_bytes(),
+                    s.membership.role.name().as_bytes(),
+                    &s.membership.version.to_be_bytes(),
+                    &cursor.to_be_bytes()
+                ]
+            ))
+        ))
+    }
+    /// Accepted HTTPS uses this project/human/membership-bound cursor. The numeric
+    /// legacy library helper below cannot authenticate a transport cursor.
+    pub(in crate::controller_keys::human_auth) async fn scoped_panel_events(
         &self,
         h: &SessionHandle,
         p: &ProjectId,
-        after: i64,
+        cursor: Option<&str>,
         c: &BrowserContext,
-    ) -> Result<Vec<i64>, AuthError> {
-        if !(0..=9_007_199_254_740_991).contains(&after) {
-            return Err(AuthError::InvalidInput);
-        }
+    ) -> Result<(String, Vec<(i64, String)>), AuthError> {
         let (mut tx, f, now) = self.browser_transaction(c, Operation::Read).await?;
         let scope = self
             .project_scope(&mut tx, h, &f, p, ProjectPermission::Read, now)
             .await?;
-        // A coalesced revision of existing append-only journals, not a new event
-        // ledger. Intermediate/gapped revisions require REST reconciliation.
+        let after = if let Some(token) = cursor {
+            if token.len() > 96 {
+                return Err(AuthError::InvalidInput);
+            }
+            let (number, _) = token.split_once('.').ok_or(AuthError::InvalidInput)?;
+            let number = number.parse::<i64>().map_err(|_| AuthError::InvalidInput)?;
+            if number < 0
+                || !constant_eq(
+                    token.as_bytes(),
+                    self.scoped_event_cursor(&scope, number)?.as_bytes(),
+                )
+            {
+                return Err(AuthError::Denied);
+            }
+            number
+        } else {
+            0
+        };
         let current = self.panel_revision(&mut tx, p).await?;
         if after > current || current.saturating_sub(after) > 1000 {
             return Err(AuthError::Conflict);
         }
         let events = if current > after {
-            vec![current]
+            vec![(current, self.scoped_event_cursor(&scope, current)?)]
         } else {
             vec![]
         };
+        let bound = self.scoped_event_cursor(&scope, after)?;
         self.session_checkpoint(
             c,
             Operation::Read,
@@ -124,7 +171,7 @@ impl HumanAuth {
             (&f, now),
         )?;
         tx.commit().await?;
-        Ok(events)
+        Ok((bound, events))
     }
     /// Read-only pagination; every returned project also passes the current binding check.
     pub async fn panel_projects(
@@ -187,8 +234,8 @@ impl HumanAuth {
             bounds.try_get("maximum")?,
             bounds.try_get("total")?,
         )?;
-        let rows=sqlx::query("SELECT substr(t.definition,1,65537) AS definition,r.state,EXISTS(SELECT 1 FROM task_acceptances a WHERE a.project_id=t.project_id AND a.plan_id=t.plan_id AND a.version=t.version AND a.task_id=t.task_id AND a.fingerprint=?) AS accepted FROM tasks t JOIN task_runtime r USING(project_id,plan_id,version,task_id) WHERE t.project_id=? AND t.plan_id=? AND t.version=? ORDER BY t.task_id LIMIT 5001")
-            .bind(&fingerprint).bind(p.as_str()).bind(&plan_id).bind(version).fetch_all(&mut *tx).await?;
+        let rows=sqlx::query("SELECT substr(t.definition,1,65537) AS definition,r.state,EXISTS(SELECT 1 FROM task_acceptances a WHERE a.project_id=t.project_id AND a.plan_id=t.plan_id AND a.version=t.version AND a.task_id=t.task_id AND a.fingerprint=?1) AS accepted,EXISTS(SELECT 1 FROM task_dependencies d LEFT JOIN task_acceptances a ON a.project_id=d.project_id AND a.plan_id=d.plan_id AND a.version=d.version AND a.task_id=d.predecessor_id AND a.fingerprint=?1 WHERE d.project_id=t.project_id AND d.plan_id=t.plan_id AND d.version=t.version AND d.successor_id=t.task_id AND a.task_id IS NULL) AS dependency_blocked,EXISTS(SELECT 1 FROM task_fences f JOIN task_attempts a ON a.project_id=f.project_id AND a.attempt_id=f.current_attempt AND a.epoch=f.epoch JOIN attempt_states st ON st.project_id=a.project_id AND st.attempt_id=a.attempt_id AND st.state='admitted' JOIN worker_leases l ON l.project_id=a.project_id AND l.attempt_id=a.attempt_id AND l.lease_until>?5 JOIN dispatch_operations d ON d.project_id=a.project_id AND d.attempt_id=a.attempt_id AND d.state='active' JOIN worker_sessions w ON w.project_id=a.project_id AND w.attempt_id=a.attempt_id AND json_extract(w.state,'$.phase')='Executing' WHERE f.project_id=t.project_id AND f.plan_id=t.plan_id AND f.version=t.version AND f.task_id=t.task_id) AS current_running FROM tasks t JOIN task_runtime r USING(project_id,plan_id,version,task_id) WHERE t.project_id=?2 AND t.plan_id=?3 AND t.version=?4 ORDER BY t.task_id LIMIT 5001")
+            .bind(&fingerprint).bind(p.as_str()).bind(&plan_id).bind(version).bind(now).fetch_all(&mut *tx).await?;
         if i64::try_from(rows.len()).map_err(|_| AuthError::Unavailable)?
             != bounds.try_get::<i64, _>("n")?
         {
@@ -228,9 +275,20 @@ impl HumanAuth {
             ) {
                 ("succeeded", true) => "verified",
                 ("succeeded", false) => "unknown",
+                ("planned" | "waiting" | "ready", _)
+                    if r.try_get::<bool, _>("dependency_blocked")? =>
+                {
+                    "blocked"
+                }
                 ("waiting", _) => "blocked",
                 ("ready", _) => "ready",
-                ("running", _) => "running",
+                ("running", _)
+                    if t.kind == rolvya_domain::plan::TaskKind::ExecutableLeaf
+                        && r.try_get::<bool, _>("current_running")? =>
+                {
+                    "running"
+                }
+                ("running", _) => "unknown",
                 ("validating", _) => "awaiting_verification",
                 ("failed", _) => "failed",
                 ("canceled", _) => "paused",
@@ -281,11 +339,66 @@ impl HumanAuth {
                 .bind(now)
                 .fetch_one(&mut *tx)
                 .await?;
+        // Existing financial/governance visibility is Owner-only. Do not even
+        // materialize those records for a less-privileged project reader.
+        let mut finance = if scope.membership.role == ProjectRole::Owner {
+            self.panel_finance_in(&mut tx, p).await?
+        } else {
+            None
+        };
+        let finance_available = finance.is_some();
+        let attempts = self
+            .panel_attempts_in(&mut tx, &scope, i64::MAX, 20, now)
+            .await?;
+        let mut pages = std::collections::BTreeMap::new();
+        pages.insert("attempts".to_owned(), attempts.next);
+        if let Some(finance) = finance.as_mut() {
+            let approvals = self
+                .panel_approvals_in(&mut tx, &scope, i64::MAX, 20)
+                .await?;
+            pages.insert("approvals".to_owned(), approvals.next);
+            finance.approvals = approvals.items;
+        }
+        let results = self.panel_results_in(&mut tx, &scope, i64::MAX, 20).await?;
+        pages.insert("results".to_owned(), results.next);
+        let mut connections = Vec::new();
+        if scope.membership.role == ProjectRole::Owner {
+            for source in ["model", "github", "aws"] {
+                let page = self
+                    .panel_connections_in(&mut tx, &scope, source, i64::MAX, 20, now)
+                    .await?;
+                pages.insert(format!("connections/{source}"), page.next);
+                connections.extend(page.items);
+            }
+        }
+        let mut activity = Vec::new();
+        for source in [
+            "scheduler",
+            "worker",
+            "activation",
+            "finance",
+            "governance",
+            "provider",
+            "publication",
+        ] {
+            if scope.membership.role != ProjectRole::Owner
+                && matches!(source, "finance" | "governance" | "provider")
+            {
+                continue;
+            }
+            let page = self
+                .panel_activity_in(&mut tx, &scope, source, i64::MAX, 5)
+                .await?;
+            pages.insert(format!("activity/{source}"), page.next);
+            activity.extend(page.items);
+        }
         let snapshot = PanelSnapshot {
-            schema: 1,
+            schema: 2,
+            pages,
             provenance: "controller",
             revision,
             cursor: revision,
+            event_cursor: self.scoped_event_cursor(&scope, revision)?,
             as_of,
             role: scope.membership.role,
             project: PanelProjectIdentity {
@@ -302,16 +415,19 @@ impl HumanAuth {
                 complete: true,
             },
             tasks,
-            finance: None,
-            attempts: [],
-            connections: [],
-            results: [],
-            activity: [],
+            finance,
+            attempts: attempts.items,
+            connections,
+            results: results.items,
+            activity,
             capabilities: PanelCapabilities {
+                execution: true,
+                activity: true,
+                budget_increase: finance_available && scope.membership.role == ProjectRole::Owner,
                 events: false,
-                finance: false,
-                connections: false,
-                results: false,
+                finance: finance_available,
+                connections: scope.membership.role == ProjectRole::Owner,
+                results: true,
                 mutations: false,
             },
         };

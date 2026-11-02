@@ -232,7 +232,7 @@ impl SyntheticCoordinator {
         Ok(())
     }
 }
-fn check_artifact(
+pub(super) fn check_artifact(
     task: &PlannedTask,
     job: &Job,
     bytes: &[u8],

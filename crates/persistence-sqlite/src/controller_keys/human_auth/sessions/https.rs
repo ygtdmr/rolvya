@@ -8,6 +8,7 @@ use axum::{
 use sha2::Digest;
 use std::{collections::BTreeMap, sync::Mutex};
 mod assets;
+mod budget;
 mod context;
 mod events;
 mod routes;

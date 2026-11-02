@@ -49,7 +49,7 @@ async fn migrations_replay_reopen_and_consistent_snapshot_restore() {
             .fetch_one(&raw)
             .await
             .unwrap(),
-        21
+        22
     );
     assert_eq!(
         sqlx::query_scalar::<_, String>("SELECT sqlite_version()")
@@ -123,8 +123,8 @@ async fn failed_migration_rolls_back_ddl_and_data() {
     let f = Fixture::new().await;
     let raw = f.raw().await;
     let scripts = tempfile::tempdir().unwrap();
-    std::fs::write(scripts.path().join("0022_injected_failure.sql"),"CREATE TABLE should_rollback(value TEXT); INSERT INTO should_rollback VALUES ('temporary'); SELECT absent_column FROM absent_table;").unwrap();
-    // Replay real migrations, then verify failing v22 executes and rolls back atomically.
+    std::fs::write(scripts.path().join("0023_injected_failure.sql"),"CREATE TABLE should_rollback(value TEXT); INSERT INTO should_rollback VALUES ('temporary'); SELECT absent_column FROM absent_table;").unwrap();
+    // Replay real migrations, then verify failing v23 executes and rolls back atomically.
     std::fs::write(
         scripts.path().join("0001_plan_store.sql"),
         include_str!("../migrations/0001_plan_store.sql"),
@@ -232,10 +232,15 @@ async fn failed_migration_rolls_back_ddl_and_data() {
         include_str!("../migrations/0021_human_browser_delivery.sql"),
     )
     .unwrap();
+    std::fs::write(
+        scripts.path().join("0022_operational_panel_indexes.sql"),
+        include_str!("../migrations/0022_operational_panel_indexes.sql"),
+    )
+    .unwrap();
     let migrator = Migrator::new(scripts.path()).await.unwrap();
     let error = migrator.run(&raw).await.unwrap_err();
     assert!(
-        matches!(error, sqlx::migrate::MigrateError::ExecuteMigration(_, 22)),
+        matches!(error, sqlx::migrate::MigrateError::ExecuteMigration(_, 23)),
         "must execute the injected next migration, not reject migration metadata"
     );
     assert_eq!(
@@ -402,7 +407,7 @@ async fn real_v1_upgrade_preserves_projects_and_failed_v2_leaves_v1_intact() {
                 .fetch_one(&raw)
                 .await
                 .unwrap(),
-            21
+            22
         );
         assert_eq!(
             sqlx::query_scalar::<_, i64>("SELECT count(*) FROM financial_events")
@@ -1941,6 +1946,102 @@ async fn v20_project_survives_browser_migration_and_injected_failure_rolls_back(
             ] {
                 let rows:Vec<(i64,i64,i64,String)>=sqlx::query_as(&format!("EXPLAIN QUERY PLAN SELECT max(sequence) FROM {table} WHERE project_id='browser-upgrade'")).fetch_all(&raw).await.unwrap();
                 assert!(rows.iter().any(|r| r.3.contains(index)));
+            }
+            Migrator::new(scripts.path())
+                .await
+                .unwrap()
+                .run(&raw)
+                .await
+                .unwrap();
+        }
+        raw.close().await;
+    }
+}
+
+#[tokio::test]
+async fn v21_populated_upgrade_adds_bounded_operational_indexes_or_rolls_back() {
+    for fail in [false, true] {
+        let dir = tempfile::tempdir().unwrap();
+        let scripts = tempfile::tempdir().unwrap();
+        for entry in std::fs::read_dir(concat!(env!("CARGO_MANIFEST_DIR"), "/migrations")).unwrap()
+        {
+            let entry = entry.unwrap();
+            if entry.file_name().to_str().unwrap() < "0022" {
+                std::fs::copy(entry.path(), scripts.path().join(entry.file_name())).unwrap();
+            }
+        }
+        let raw = sqlx::SqlitePool::connect(&format!(
+            "sqlite:{}?mode=rwc",
+            dir.path().join("upgrade.sqlite").display()
+        ))
+        .await
+        .unwrap();
+        Migrator::new(scripts.path())
+            .await
+            .unwrap()
+            .run(&raw)
+            .await
+            .unwrap();
+        sqlx::query("INSERT INTO projects(project_id,owner_actor) VALUES('operational-upgrade','legacy-not-human')").execute(&raw).await.unwrap();
+        let sql = include_str!("../migrations/0022_operational_panel_indexes.sql");
+        std::fs::write(
+            scripts.path().join("0022_operational_panel_indexes.sql"),
+            if fail {
+                format!("{sql}\nSELECT absent FROM missing;")
+            } else {
+                sql.into()
+            },
+        )
+        .unwrap();
+        assert_eq!(
+            Migrator::new(scripts.path())
+                .await
+                .unwrap()
+                .run(&raw)
+                .await
+                .is_err(),
+            fail
+        );
+        assert_eq!(
+            sqlx::query_scalar::<_, String>(
+                "SELECT owner_actor FROM projects WHERE project_id='operational-upgrade'"
+            )
+            .fetch_one(&raw)
+            .await
+            .unwrap(),
+            "legacy-not-human"
+        );
+        assert_eq!(
+            sqlx::query_scalar::<_, i64>("SELECT count(*) FROM _sqlx_migrations WHERE success=1")
+                .fetch_one(&raw)
+                .await
+                .unwrap(),
+            if fail { 21 } else { 22 }
+        );
+        assert_eq!(sqlx::query_scalar::<_,i64>("SELECT count(*) FROM sqlite_schema WHERE name LIKE 'panel_%' AND name NOT IN ('panel_scheduler_revision','panel_governance_revision','panel_activation_revision')").fetch_one(&raw).await.unwrap(), if fail {0} else {10});
+        if !fail {
+            for (table, field, index) in [
+                ("worker_events", "sequence", "panel_worker_revision"),
+                (
+                    "provider_security_events",
+                    "sequence",
+                    "panel_provider_revision",
+                ),
+                ("secret_events", "sequence", "panel_secret_revision"),
+                ("git_publication_events", "rowid", "panel_git_revision"),
+                (
+                    "coding_verifications",
+                    "rowid",
+                    "panel_verification_revision",
+                ),
+                ("coding_rejections", "rowid", "panel_rejection_revision"),
+                ("aws_execution_events", "rowid", "panel_aws_revision"),
+            ] {
+                let rows: Vec<(i64,i64,i64,String)> = sqlx::query_as(&format!("EXPLAIN QUERY PLAN SELECT max({field}) FROM {table} WHERE project_id='operational-upgrade'")).fetch_all(&raw).await.unwrap();
+                assert!(
+                    rows.iter().any(|r| r.3.contains(index)),
+                    "{table}: {rows:?}"
+                );
             }
             Migrator::new(scripts.path())
                 .await

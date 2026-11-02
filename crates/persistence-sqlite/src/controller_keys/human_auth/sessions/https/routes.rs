@@ -158,7 +158,29 @@ impl HumanBrowserServer {
         let method = r.method().clone();
         let c = cookies(&r)?;
         let query = r.uri().query().map(str::to_owned);
-        if query.is_some() && path != "/api/control/v1/projects" {
+        let project_resource = path
+            .strip_prefix("/api/control/v1/projects/")
+            .and_then(|s| s.split_once('/'))
+            .map(|(_, kind)| kind);
+        let paged = project_resource.is_some_and(|k| {
+            matches!(
+                k,
+                "attempts"
+                    | "approvals"
+                    | "results"
+                    | "connections/model"
+                    | "connections/github"
+                    | "connections/aws"
+                    | "activity/scheduler"
+                    | "activity/worker"
+                    | "activity/activation"
+                    | "activity/finance"
+                    | "activity/governance"
+                    | "activity/provider"
+                    | "activity/publication"
+            )
+        });
+        if query.is_some() && path != "/api/control/v1/projects" && !paged {
             return Err(AuthError::InvalidInput);
         }
         if method == axum::http::Method::POST
@@ -228,6 +250,12 @@ impl HumanBrowserServer {
             response.headers_mut().append(header::SET_COOKIE, cookie);
             return Ok(response);
         }
+        let mut budget_command =
+            if project_resource == Some("budget") && method == axum::http::Method::POST {
+                Some(decode::<super::budget::Command>(&body)?)
+            } else {
+                None
+            };
         let login = matches!(
             path.as_str(),
             "/api/control/v1/auth/password"
@@ -235,7 +263,7 @@ impl HumanBrowserServer {
                 | "/api/control/v1/auth/email"
                 | "/api/control/v1/auth/email/confirm"
         );
-        let (browser, preauth_csrf) = if login {
+        let (mut browser, preauth_csrf) = if login {
             if method != axum::http::Method::POST {
                 return Ok(json(
                     StatusCode::METHOD_NOT_ALLOWED,
@@ -267,12 +295,24 @@ impl HumanBrowserServer {
             | "/api/control/v1/auth/logout-all"
             | "/api/control/v1/auth/activity"
             | "/api/control/v1/auth/interaction" => Operation::Write,
+            _ if budget_command.is_some() => Operation::Write,
             _ => Operation::Read,
         };
         if !login && (op == Operation::Read) != (method == axum::http::Method::GET) {
             return Err(AuthError::InvalidInput);
         }
         let h = if login { None } else { Some(session(&c)?) };
+        if budget_command.is_some() {
+            // Stable for this exact authenticated cookie generation across TLS
+            // connections; each request still binds its actual TLS exporter.
+            // Copied current cookies/CSRF are not physical-device attestation.
+            browser = self.auth.mac(
+                b"owner-browser-generation",
+                &[&self
+                    .auth
+                    .handle_lookup(h.as_ref().ok_or(AuthError::Denied)?)],
+            );
+        }
         let csrf = submitted_csrf
             .as_ref()
             .map(|v| self.auth.csrf_commitment(v));
@@ -292,7 +332,7 @@ impl HumanBrowserServer {
             preauth_csrf,
             // Only this dedicated CSRF-protected, one-use ceremony can count as
             // foreground activity. Headers and ordinary reads cannot select it.
-            activity: if path == "/api/control/v1/auth/interaction" {
+            activity: if path == "/api/control/v1/auth/interaction" || budget_command.is_some() {
                 Activity::Human
             } else {
                 Activity::Background
@@ -318,7 +358,9 @@ impl HumanBrowserServer {
                 "/api/control/v1/auth/password" => Some(TransportOperation::Password),
                 "/api/control/v1/auth/email" => Some(TransportOperation::IssueEmail),
                 "/api/control/v1/auth/email/confirm" => Some(TransportOperation::ConfirmEmail),
-                _ => None,
+                _ => budget_command
+                    .as_ref()
+                    .and_then(super::budget::Command::transport),
             },
             peer: channel.peer,
             expires: now + if path.ends_with("/events") { 120 } else { 15 },
@@ -583,7 +625,53 @@ impl HumanBrowserServer {
                 let p =
                     rolvya_domain::ids::ProjectId::new(p).map_err(|_| AuthError::InvalidInput)?;
                 let handle = h.as_ref().ok_or(AuthError::Denied)?;
+                if kind == "budget" {
+                    return self
+                        .budget_command(
+                            handle,
+                            &p,
+                            budget_command.take().ok_or(AuthError::InvalidInput)?,
+                            context,
+                            &client,
+                        )
+                        .await;
+                }
+                if let Some(id) = kind.strip_prefix("budget/") {
+                    return self.budget_status(handle, &p, id, context).await;
+                }
                 self.auth.inspect_session(handle, context).await?;
+                if paged {
+                    let mut after = None;
+                    let mut limit = 20;
+                    let mut seen = std::collections::BTreeSet::new();
+                    if let Some(q) = &query {
+                        for (key, value) in url::form_urlencoded::parse(q.as_bytes()) {
+                            if !seen.insert(key.to_string()) {
+                                return Err(AuthError::InvalidInput);
+                            }
+                            match key.as_ref() {
+                                "cursor" if value.len() <= 256 => after = Some(value.to_string()),
+                                "limit" => {
+                                    limit =
+                                        value.parse::<u16>().map_err(|_| AuthError::InvalidInput)?
+                                }
+                                _ => return Err(AuthError::InvalidInput),
+                            }
+                        }
+                    }
+                    return match self
+                        .auth
+                        .panel_collection(handle, &p, kind, after.as_deref(), limit, context)
+                        .await
+                    {
+                        Ok(page) => Ok(json(StatusCode::OK, &page)),
+                        Err(AuthError::Denied) => Ok(json(
+                            StatusCode::FORBIDDEN,
+                            &serde_json::json!({"schema":1,"error":"project_access_denied"}),
+                        )),
+                        Err(e) => Err(e),
+                    };
+                }
                 if kind == "events" {
                     return self.events(handle, p, cursor.as_deref(), guard).await;
                 }

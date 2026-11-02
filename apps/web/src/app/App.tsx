@@ -1,4 +1,10 @@
-import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
+import {
+  useCallback,
+  useEffect,
+  useState,
+  useSyncExternalStore,
+  useRef,
+} from "react";
 import { flushSync } from "react-dom";
 import { transitionView } from "../platform/motion";
 import type {
@@ -6,9 +12,10 @@ import type {
   ProjectSummary as ProjectInfo,
   Section,
   Snapshot,
+  PageResource,
 } from "../api/model";
 import { SECTIONS } from "../api/model";
-import { controllerSource, ReadError } from "../api/client";
+import { controllerSource, parseSnapshot, ReadError } from "../api/client";
 import {
   coalesceInvalidations,
   EventOrder,
@@ -48,6 +55,7 @@ import {
   type Preferences,
 } from "./preferences";
 import { parseRoute, routeHash, type Route } from "./route";
+import { OperationalPagination } from "../ui/operational-pagination";
 import { SessionGate } from "../auth/Gate";
 import { humanSession } from "../auth/session";
 const icons: Record<Section, IconName> = {
@@ -122,6 +130,86 @@ function Panel({
     [gallery, setGallery] = useState(false),
     [toast, setToast] = useState(""),
     [hidden, setHidden] = useState(false);
+  const [paging, setPaging] = useState(false);
+  const pageAbort = useRef<AbortController | null>(null);
+  useEffect(() => {
+    setPaging(false);
+    return () => pageAbort.current?.abort();
+  }, [route.project]);
+  const loadPage = async (resource: PageResource, cursor: string) => {
+    if (!snapshot || !source.page || paging) return;
+    const initial = snapshot;
+    const c = new AbortController();
+    pageAbort.current?.abort();
+    pageAbort.current = c;
+    setPaging(true);
+    try {
+      const page = await source.page(
+        initial.project.id,
+        resource,
+        cursor,
+        initial,
+        c.signal,
+      );
+      if (c.signal.aborted) return;
+      const current = initial;
+      const candidate = {
+        ...current,
+        pages: { ...current.pages, [resource]: page.next },
+      };
+      if (resource === "approvals") {
+        if (!candidate.finance) throw new ReadError("forbidden");
+        candidate.finance = {
+          ...candidate.finance,
+          approvals: page.items as NonNullable<
+            Snapshot["finance"]
+          >["approvals"],
+        };
+      } else if (resource.startsWith("activity/")) {
+        candidate.activity = [
+          ...current.activity.filter((e) => e.source !== resource.slice(9)),
+          ...(page.items as Snapshot["activity"]),
+        ];
+      } else if (resource.startsWith("connections/")) {
+        const mode =
+          resource === "connections/aws"
+            ? "infrastructure"
+            : resource === "connections/github"
+              ? "repository"
+              : "model";
+        candidate.connections = [
+          ...current.connections.filter((c) =>
+            mode === "model"
+              ? !["api", "cli"].includes(c.mode)
+              : c.mode !== mode,
+          ),
+          ...(page.items as Snapshot["connections"]),
+        ];
+      } else Object.assign(candidate, { [resource]: page.items });
+      const verified = parseSnapshot(candidate, initial.project.id);
+      setSnapshot((latest) => (latest === initial ? verified : latest));
+    } catch (error) {
+      if (c.signal.aborted) return;
+      if (
+        error instanceof ReadError &&
+        ["unauthorized", "forbidden"].includes(error.kind)
+      ) {
+        setSnapshot(null);
+        setProjects([]);
+        setAvailability(
+          error.kind === "unauthorized" ? "unauthorized" : "forbidden",
+        );
+        if (error.kind === "unauthorized") void humanSession.invalidate();
+      } else {
+        setToast(
+          "Older records could not be verified. Refresh authoritative data before continuing.",
+        );
+        setAvailability("stale");
+      }
+    } finally {
+      if (!c.signal.aborted) setPaging(false);
+    }
+  };
   const navigate = useCallback((next: Route, replace = false) => {
     const target = routeHash(next);
     if (replace) {
@@ -139,10 +227,15 @@ function Panel({
     }
     setNavOpen(false);
   }, []);
+  const requestedScope = useRef<string | null | undefined>(undefined);
   useEffect(() => {
     const c = new AbortController();
-    setLoading(true);
-    setSnapshot(null);
+    const sameScope = requestedScope.current === route.project;
+    requestedScope.current = route.project;
+    if (!sameScope) {
+      setLoading(true);
+      setSnapshot(null);
+    }
     setHidden(false);
     setAvailability(navigator.onLine ? "connecting" : "offline");
     void source
@@ -205,7 +298,7 @@ function Panel({
       try {
         await streamProject(
           route.project!,
-          snapshot.cursor,
+          snapshot.eventCursor ?? snapshot.cursor,
           c.signal,
           (data, id) => {
             if (order.accept(data, id) !== "duplicate") {
@@ -258,6 +351,7 @@ function Panel({
     snapshot?.cursor,
     snapshot?.revision,
     snapshot?.capabilities.events,
+    snapshot?.eventCursor,
   ]);
   useEffect(() => {
     const offline = () => setAvailability("offline");
@@ -342,7 +436,7 @@ function Panel({
         <div className="rv-workspace-label">
           <span>WORKSPACE</span>
           <Badge tone={__DEMO__ ? "caution" : "neutral"}>
-            {__DEMO__ ? "DEMO" : "READ ONLY"}
+            {__DEMO__ ? "DEMO" : "AUTHENTICATED"}
           </Badge>
         </div>
         {navigation}
@@ -588,8 +682,9 @@ function Panel({
                 </Button>
               )}
               <p className="rv-note">
-                This panel uses authenticated read capabilities. Privileged
-                commands remain unavailable through this browser adapter.
+                Every record requires current project permission. Budget changes
+                additionally require a current Owner and fresh exact-action
+                proof.
               </p>
             </>
           ) : route.section === "projects" ? (
@@ -605,7 +700,11 @@ function Panel({
               onSelect={selectTask}
             />
           ) : route.section === "costs-approvals" ? (
-            <Costs snapshot={snapshot} />
+            <Costs
+              snapshot={snapshot}
+              commandsEnabled={availability === "live"}
+              onRefresh={() => setRefresh((n) => n + 1)}
+            />
           ) : route.section === "connections" ? (
             <Connections snapshot={snapshot} />
           ) : (
@@ -614,6 +713,16 @@ function Panel({
               snapshot={snapshot}
               selected={route.task}
               onSelect={selectTask}
+            />
+          )}
+          {!loading && snapshot && (
+            <OperationalPagination
+              snapshot={snapshot}
+              section={route.section}
+              busy={paging}
+              load={(resource, cursor) => {
+                void loadPage(resource, cursor);
+              }}
             />
           )}
           {!loading && availability === "unavailable" && snapshot && (

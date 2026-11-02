@@ -1,3 +1,10 @@
+import { isId } from "../api/model";
+import {
+  BudgetFailure,
+  parseBudgetReceipt,
+  type BudgetCommand,
+  type BudgetReceipt,
+} from "../api/budget";
 export type AuthPhase =
   | "checking"
   | "unauthenticated"
@@ -147,7 +154,7 @@ export class BrowserSession {
     this.#listeners.forEach((f) => f());
   }
   async #request(
-    endpoint: Endpoint,
+    endpoint: Endpoint | { budget: string; status?: string },
     body?: Record<string, unknown>,
     csrf?: string,
   ): Promise<Record<string, unknown>> {
@@ -157,7 +164,11 @@ export class BrowserSession {
     this.#abort.signal.addEventListener("abort", abort, { once: true });
     const timer = setTimeout(abort, 10000);
     try {
-      const response = await fetch(`/api/control/v1/auth/${endpoint}`, {
+      const path =
+        typeof endpoint === "string"
+          ? `/api/control/v1/auth/${endpoint}`
+          : `/api/control/v1/projects/${endpoint.budget}/budget${endpoint.status ? `/${endpoint.status}` : ""}`;
+      const response = await fetch(path, {
         method: body ? "POST" : "GET",
         credentials: "same-origin",
         cache: "no-store",
@@ -214,6 +225,50 @@ export class BrowserSession {
       this.#abort.signal.removeEventListener("abort", abort);
     }
   }
+  /** One fixed command family; session/CSRF material never leaves this class. */
+  budget = async (
+    project: string,
+    input: BudgetCommand | { status: string },
+  ): Promise<BudgetReceipt> => {
+    if (
+      !isId(project) ||
+      this.#state.phase !== "authenticated" ||
+      !this.#csrf ||
+      ("status" in input && !hex(input.status, 32))
+    )
+      throw new BudgetFailure(401);
+    const epoch = this.#epoch;
+    try {
+      const value =
+        "status" in input
+          ? await this.#request({ budget: project, status: input.status })
+          : await this.#request(
+              { budget: project },
+              input as unknown as Record<string, unknown>,
+              this.#csrf,
+            );
+      if (epoch !== this.#epoch || this.#state.phase !== "authenticated")
+        throw new BudgetFailure(401);
+      return parseBudgetReceipt(value);
+    } catch (error) {
+      if (error instanceof AuthFailure) {
+        // A denied step-up is not by itself evidence that the login was revoked.
+        // Revalidate the actual cookie; never replay a potentially billable effect.
+        if ([401, 403, 422].includes(error.status)) {
+          try {
+            await this.#inspect(epoch);
+          } catch {
+            await this.invalidate(
+              "expired",
+              "Sign in again before continuing.",
+            );
+          }
+        }
+        throw new BudgetFailure(error.status);
+      }
+      throw error;
+    }
+  };
   async #inspect(epoch: number) {
     const value = await this.#request("session");
     if (

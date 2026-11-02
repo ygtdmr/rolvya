@@ -443,3 +443,313 @@ test.describe("controlled network responses", () => {
     );
   });
 });
+
+test("operational TOTP Owner inspects real R09/Git evidence and commits one exact budget increase", async ({
+  page,
+  controller,
+}) => {
+  await controller.signIn(page);
+  const base = `/api/control/v1/projects/${controller.info.project}`;
+  const initial = await page.evaluate(
+    async (path) =>
+      (await fetch(path + "/snapshot", { cache: "no-store" })).json(),
+    base,
+  );
+  expect(initial.schema).toBe(2);
+  expect(initial.attempts).toHaveLength(2);
+  expect(
+    initial.results.filter((r: { accepted: boolean }) => r.accepted),
+  ).toHaveLength(1);
+  expect(
+    initial.results.filter((r: { published: boolean }) => r.published),
+  ).toHaveLength(1);
+  expect(BigInt(initial.finance.reserved)).toBeGreaterThan(0n);
+  await page
+    .locator(".rv-sidebar")
+    .getByRole("link", { name: /Execution/ })
+    .click();
+  await expect(
+    page.getByText("Raw logs have no approved redacted projection", {
+      exact: false,
+    }),
+  ).toHaveCount(2);
+  await page
+    .locator(".rv-sidebar")
+    .getByRole("link", { name: /Connections/ })
+    .click();
+  await expect(
+    page.getByText("GitHub App", { exact: true }).first(),
+  ).toBeVisible();
+  await page
+    .locator(".rv-sidebar")
+    .getByRole("link", { name: /Results/ })
+    .click();
+  await expect(
+    page
+      .locator(".rv-result-evidence")
+      .getByText("Independently accepted", { exact: true })
+      .first(),
+  ).toBeVisible();
+  await expect(
+    page
+      .locator(".rv-result-evidence")
+      .getByText("Unaccepted candidate", { exact: true })
+      .first(),
+  ).toBeVisible();
+  await expect(
+    page.getByText("Isolated reference reconciled", { exact: true }),
+  ).toBeVisible();
+  await page
+    .locator(".rv-sidebar")
+    .getByRole("link", { name: /Costs/ })
+    .click();
+  await page
+    .getByRole("button", { name: "Increase ceiling", exact: true })
+    .click();
+  const dialog = page.getByRole("dialog", {
+    name: "Exact-action approval preview",
+  });
+  const total = (BigInt(initial.finance.ceiling) + 5000n).toString();
+  await dialog
+    .getByLabel("New total ceiling · integer minor units")
+    .fill(total);
+  await dialog.getByRole("checkbox").check();
+  await dialog.getByRole("button", { name: "Prepare exact approval" }).click();
+  // Real journal invalidations must not discard an unfinished ceremony.
+  await page.waitForTimeout(2200);
+  await expect(dialog).toBeVisible();
+  await privateInput(
+    dialog.getByLabel("Current password · fresh Owner verification"),
+    controller.info.password,
+  );
+  await privateInput(
+    dialog.getByLabel("Fresh authenticator code"),
+    await controller.freshFactor(),
+  );
+  await dialog.getByRole("button", { name: "Verify this action" }).click();
+  await expect(dialog.getByText(/Fresh action proof:/)).toBeVisible();
+  await page.waitForTimeout(2200);
+  await expect(dialog).toBeVisible();
+  await dialog
+    .getByRole("button", { name: "Commit exact ceiling increase" })
+    .click();
+  await expect(dialog.getByText(/Ceiling increase committed/)).toBeVisible();
+  const after = await page.evaluate(
+    async (path) =>
+      (await fetch(path + "/snapshot", { cache: "no-store" })).json(),
+    base,
+  );
+  expect(after.finance.ceiling).toBe(total);
+  expect(after.finance.version).toBe(initial.finance.version + 1);
+  expect(after.finance.reserved).toBe(initial.finance.reserved);
+  expect(after.attempts).toHaveLength(2);
+  expect(after.plan.fingerprint).toBe(initial.plan.fingerprint);
+  expect(after.cursor).toBeGreaterThan(initial.cursor);
+  expect(after.finance.approvals[0].total).toBe(total);
+  await dialog.getByRole("button", { name: "Close", exact: true }).click();
+  expect(
+    (
+      await new AxeBuilder({ page })
+        .withTags(["wcag2a", "wcag2aa", "wcag21aa", "wcag22aa"])
+        .analyze()
+    ).violations,
+  ).toEqual([]);
+  await page.getByRole("button", { name: "Session", exact: true }).click();
+  await page.getByRole("menuitem", { name: "Sign out", exact: true }).click();
+  await expect(
+    page.getByRole("heading", { name: "Sign in to Rolvya" }),
+  ).toBeVisible();
+  expect(
+    await page.evaluate(
+      async (path) => (await fetch(path + "/snapshot")).status,
+      base,
+    ),
+  ).toBe(401);
+});
+
+test("operational Viewer sees candidate versus acceptance but no financial or connection records", async ({
+  page,
+  controller,
+}) => {
+  await controller.signIn(page, true);
+  const base = `/api/control/v1/projects/${controller.info.project}`;
+  const snapshot = await page.evaluate(
+    async (path) => (await fetch(path + "/snapshot")).json(),
+    base,
+  );
+  expect(snapshot.finance).toBeNull();
+  expect(snapshot.connections).toEqual([]);
+  expect(
+    snapshot.results.filter((r: { accepted: boolean }) => r.accepted),
+  ).toHaveLength(1);
+  for (const resource of ["approvals", "activity/finance", "connections/model"])
+    expect(
+      await page.evaluate(
+        async (path) => (await fetch(path)).status,
+        base + "/" + resource,
+      ),
+    ).toBe(403);
+  await page
+    .locator(".rv-sidebar")
+    .getByRole("link", { name: /Costs/ })
+    .click();
+  await expect(
+    page.getByText("Financial view unavailable", { exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Increase ceiling", exact: true }),
+  ).toHaveCount(0);
+});
+
+test("operational membership version change closes an open SSE and clears the old projection", async ({
+  page,
+  controller,
+}) => {
+  await controller.signIn(page, true);
+  const old = await page.evaluate(
+    async (project) =>
+      (await fetch(`/api/control/v1/projects/${project}/snapshot`)).json(),
+    controller.info.project,
+  );
+  await controller.command("role");
+  await expect(
+    page.getByRole("heading", { name: "Project access denied" }),
+  ).toBeVisible();
+  await expect(page.locator(".rv-result-evidence")).toHaveCount(0);
+  const current = await page.evaluate(
+    async (project) =>
+      (await fetch(`/api/control/v1/projects/${project}/snapshot`)).json(),
+    controller.info.project,
+  );
+  expect(old.role).toBe("viewer");
+  expect(current.role).toBe("editor");
+  expect(current.eventCursor).not.toBe(old.eventCursor);
+  expect(current.finance).toBeNull();
+});
+
+test.describe("controlled approval acknowledgements", () => {
+  test.use({ serviceWorkers: "block" });
+  test("operational lost approval response is reconciled without repeating the financial effect", async ({
+    page,
+    controller,
+  }) => {
+    await controller.signIn(page);
+    const base = `/api/control/v1/projects/${controller.info.project}`;
+    const initial = await page.evaluate(
+      async (p) => (await fetch(p + "/snapshot")).json(),
+      base,
+    );
+    await page
+      .locator(".rv-sidebar")
+      .getByRole("link", { name: /Costs/ })
+      .click();
+    await page
+      .getByRole("button", { name: "Increase ceiling", exact: true })
+      .click();
+    const dialog = page.getByRole("dialog", {
+      name: "Exact-action approval preview",
+    });
+    const total = (BigInt(initial.finance.ceiling) + 50n).toString();
+    await dialog
+      .getByLabel("New total ceiling · integer minor units")
+      .fill(total);
+    await dialog.getByRole("checkbox").check();
+    await dialog
+      .getByRole("button", { name: "Prepare exact approval" })
+      .click();
+    await privateInput(
+      dialog.getByLabel("Current password · fresh Owner verification"),
+      controller.info.password,
+    );
+    await dialog.getByRole("button", { name: "Verify this action" }).click();
+    // Keep the genuine browser TLS/cookie/Fetch-Metadata request. Discard its
+    // successful response before the application can observe the receipt.
+    await page.evaluate(() => {
+      const original = window.fetch.bind(window);
+      Reflect.set(window, "budgetExecutions", 0);
+      window.fetch = async (...args: Parameters<typeof fetch>) => {
+        const response = await original(...args);
+        if (
+          typeof args[0] === "string" &&
+          args[0].endsWith("/budget") &&
+          typeof args[1]?.body === "string" &&
+          JSON.parse(args[1].body).stage === "execute"
+        ) {
+          Reflect.set(
+            window,
+            "budgetExecutions",
+            Number(Reflect.get(window, "budgetExecutions")) + 1,
+          );
+          if (response.status === 200) {
+            await response.body?.cancel();
+            throw new TypeError("Private fixture discarded acknowledgement");
+          }
+        }
+        return response;
+      };
+    });
+    await dialog
+      .getByRole("button", { name: "Commit exact ceiling increase" })
+      .click();
+    await expect(dialog.getByText(/effect is unconfirmed/)).toBeVisible();
+    await dialog
+      .getByRole("button", { name: "Inspect recorded approval status" })
+      .click();
+    await expect(dialog.getByText(/Ceiling increase committed/)).toBeVisible();
+    expect(
+      await page.evaluate(() => Reflect.get(window, "budgetExecutions")),
+    ).toBe(1);
+    const after = await page.evaluate(
+      async (p) => (await fetch(p + "/snapshot")).json(),
+      base,
+    );
+    expect(after.finance.ceiling).toBe(total);
+    expect(after.finance.version).toBe(initial.finance.version + 1);
+    expect(after.finance.reserved).toBe(initial.finance.reserved);
+    expect(after.attempts).toHaveLength(2);
+  });
+  test("operational browser reload during preparation cannot restore generic approval authority", async ({
+    page,
+    controller,
+  }) => {
+    await controller.signIn(page);
+    await page
+      .locator(".rv-sidebar")
+      .getByRole("link", { name: /Costs/ })
+      .click();
+    await page
+      .getByRole("button", { name: "Increase ceiling", exact: true })
+      .click();
+    const dialog = page.getByRole("dialog", {
+      name: "Exact-action approval preview",
+    });
+    const path = `/api/control/v1/projects/${controller.info.project}/snapshot`;
+    const initial = await page.evaluate(
+      async (p) => (await fetch(p)).json(),
+      path,
+    );
+    await dialog
+      .getByLabel("New total ceiling · integer minor units")
+      .fill((BigInt(initial.finance.ceiling) + 50n).toString());
+    await dialog.getByRole("checkbox").check();
+    await dialog
+      .getByRole("button", { name: "Prepare exact approval" })
+      .click();
+    await expect(
+      dialog.getByLabel("Current password · fresh Owner verification"),
+    ).toBeVisible();
+    await page.reload();
+    await expect(
+      page.getByRole("button", { name: "Increase ceiling", exact: true }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: "Commit exact ceiling increase" }),
+    ).toHaveCount(0);
+    const after = await page.evaluate(
+      async (p) => (await fetch(p)).json(),
+      path,
+    );
+    expect(after.finance.ceiling).toBe(initial.finance.ceiling);
+    expect(after.finance.version).toBe(initial.finance.version);
+  });
+});

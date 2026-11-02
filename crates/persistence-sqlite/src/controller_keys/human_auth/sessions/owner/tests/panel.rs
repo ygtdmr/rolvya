@@ -6,9 +6,8 @@ use rolvya_domain::{
     plan::*,
 };
 use sqlx::Connection;
-pub(in crate::controller_keys::human_auth) type MailProbe =
-    Arc<dyn Fn(&str) -> Option<String> + Send + Sync>;
-pub(in crate::controller_keys::human_auth) struct BrowserSeed {
+pub(in crate::controller_keys) type MailProbe = Arc<dyn Fn(&str) -> Option<String> + Send + Sync>;
+pub(in crate::controller_keys) struct BrowserSeed {
     pub auth: HumanAuth,
     pub root: tempfile::TempDir,
     pub store: PlanStore,
@@ -37,6 +36,10 @@ pub(in crate::controller_keys::human_auth) async fn browser_seed(factor: bool) -
     )
     .await;
     let fingerprint = activate(&f).await;
+    let initial_budget = budget(0, 0, 20000);
+    let action = f.prepare(&initial_budget).await;
+    f.prove(&action).await;
+    f.execute(&action, &initial_budget).await.unwrap();
     let viewer = f.account(2, true).await;
     let invite = f.invite(&viewer, ProjectRole::Viewer).await;
     f.redeem(&viewer, &invite).await.unwrap();
@@ -290,7 +293,16 @@ async fn panel_projection_preserves_fingerprint_and_redacts_private_context_and_
         "/../../apps/web/src/testing/controller-snapshot.json"
     )))
     .unwrap();
-    assert_eq!(serde_json::to_value(&snapshot).unwrap(), contract);
+    let mut actual = serde_json::to_value(&snapshot).unwrap();
+    // The cursor MAC is installation-specific; its cross-scope verification is
+    // exercised through accepted TLS. Normalize only that opaque contract field.
+    assert_eq!(
+        snapshot.event_cursor.split_once('.').unwrap().0,
+        snapshot.cursor.to_string()
+    );
+    assert_eq!(snapshot.event_cursor.split_once('.').unwrap().1.len(), 64);
+    actual["eventCursor"] = contract["eventCursor"].clone();
+    assert_eq!(actual, contract);
     for secret in [
         "PRIVATE-INSTRUCTIONS",
         "PRIVATE-CONTEXT",
@@ -438,4 +450,308 @@ async fn panel_preflight_uses_byte_limits_before_materializing_definitions() {
         Err(AuthError::Unavailable)
     );
     assert!(super::super::panel::resource_bounds(10, 2000, 20000).is_ok());
+}
+
+#[tokio::test]
+async fn panel_finance_projects_real_owner_ledger_without_inventing_forecasts() {
+    let f = Fixture::new().await;
+    activate(&f).await;
+    let action = budget(0, 0, 1200);
+    let id = f.prepare(&action).await;
+    f.prove(&id).await;
+    f.execute(&id, &action).await.unwrap();
+    let snapshot =
+        f.s.a
+            .auth
+            .panel_snapshot(
+                &f.owner.handle,
+                &f.project,
+                &f.ctx(&f.owner, Operation::Read, 1),
+            )
+            .await
+            .unwrap();
+    let value = serde_json::to_value(snapshot).unwrap();
+    assert_eq!(value["finance"]["ceiling"], "1200");
+    assert_eq!(value["finance"]["version"], 1);
+    assert_eq!(value["finance"]["forecasts"], serde_json::Value::Null);
+    assert_eq!(value["finance"]["categories"].as_array().unwrap().len(), 4);
+    assert_eq!(value["capabilities"]["finance"], true);
+}
+
+impl GitOwnerFixture {
+    pub(in crate::controller_keys) async fn operational_snapshot(&self) -> PanelSnapshot {
+        self.try_operational_snapshot().await.unwrap()
+    }
+    pub(in crate::controller_keys) async fn try_operational_snapshot(
+        &self,
+    ) -> Result<PanelSnapshot, AuthError> {
+        let f = &self.0;
+        f.s.a
+            .auth
+            .panel_snapshot(
+                &f.owner.handle,
+                &f.project,
+                &f.ctx(&f.owner, Operation::Read, 1),
+            )
+            .await
+    }
+}
+
+#[tokio::test]
+async fn panel_never_calls_stale_runtime_without_current_worker_running() {
+    let f = Fixture::new().await;
+    activate(&f).await;
+    sqlx::query("UPDATE task_runtime SET state='running' WHERE project_id=?")
+        .bind(f.project.as_str())
+        .execute(&f.s.a.store.pool)
+        .await
+        .unwrap();
+    let snapshot =
+        f.s.a
+            .auth
+            .panel_snapshot(
+                &f.owner.handle,
+                &f.project,
+                &f.ctx(&f.owner, Operation::Read, 1),
+            )
+            .await
+            .unwrap();
+    assert_eq!(snapshot.tasks[0].status, "unknown");
+    assert!(snapshot.attempts.is_empty());
+}
+
+impl GitOwnerFixture {
+    pub(in crate::controller_keys) async fn operational_browser_seed(
+        &self,
+        bootstrap: &crate::controller_keys::ControllerBootstrap,
+        fingerprint: &str,
+        factor: bool,
+    ) -> BrowserSeed {
+        let f = &self.0;
+        let viewer = f.account(2, true).await;
+        let invite = f.invite(&viewer, ProjectRole::Viewer).await;
+        f.redeem(&viewer, &invite).await.unwrap();
+        f.bind(&ProjectId::new("project-b").unwrap()).await;
+        let (totp, recovery) = if factor {
+            let (enrollment, active) = f.s.factor().await;
+            f.s.a.advance(30);
+            (
+                Some(enrollment.seed),
+                active.recovery.codes.into_iter().map(|c| c.0).collect(),
+            )
+        } else {
+            (None, vec![])
+        };
+        let mut auth = HumanAuth::open(bootstrap).await.unwrap();
+        // Existing Git/R09 private fixtures enroll with the test-only low-cost
+        // Argon2 profile; the separate ordinary browser fixture uses defaults.
+        auth.passwords = super::super::super::super::credentials::PasswordEngine::synthetic();
+        auth.clock = f.s.a.auth.clock.clone();
+        BrowserSeed {
+            auth,
+            root: tempfile::tempdir().unwrap(),
+            store: f.s.a.store.clone(),
+            clock: f.s.a.browser_clock(),
+            mail: f.s.a.browser_mail_probe(),
+            user: f.s.user.clone(),
+            email: f.s.email.clone(),
+            credential: Password::new(f.s.password.0.to_vec()).unwrap(),
+            viewer_email: viewer.email,
+            viewer_credential: viewer.credential.unwrap(),
+            project: f.project.clone(),
+            fingerprint: fingerprint.to_owned(),
+            totp,
+            recovery,
+        }
+    }
+}
+
+#[tokio::test]
+async fn operational_pages_are_bounded_scoped_and_revocation_is_current() {
+    let f = Fixture::new().await;
+    activate(&f).await;
+    let viewer = f.account(2, true).await;
+    let invite = f.invite(&viewer, ProjectRole::Viewer).await;
+    f.redeem(&viewer, &invite).await.unwrap();
+    for _ in 0..31 {
+        sqlx::query("INSERT INTO scheduler_events(project_id,request_id,kind,actor,recorded_at,payload) VALUES(?,?,'validate',?,?,'{\"private\":\"PRIVATE-CREDENTIAL\"}')").bind(f.project.as_str()).bind(new_id().unwrap()).bind(f.s.user.as_str()).bind(f.s.a.now()).execute(&f.s.a.store.pool).await.unwrap();
+    }
+    let auth = &f.s.a.auth;
+    let ctx = f.ctx(&viewer.session, Operation::Read, 2);
+    let mut cursor = None;
+    let mut seen = std::collections::BTreeSet::new();
+    for _ in 0..20 {
+        let page = auth
+            .panel_collection(
+                &viewer.session.handle,
+                &f.project,
+                "activity/scheduler",
+                cursor.as_deref(),
+                3,
+                &ctx,
+            )
+            .await
+            .unwrap();
+        assert!(page["items"].as_array().unwrap().len() <= 3);
+        assert!(!page.to_string().contains("PRIVATE-CREDENTIAL"));
+        for item in page["items"].as_array().unwrap() {
+            assert!(seen.insert(item["id"].as_str().unwrap().to_owned()));
+        }
+        cursor = page["next"].as_str().map(str::to_owned);
+        if cursor.is_none() {
+            break;
+        }
+    }
+    assert_eq!(seen.len(), 31);
+    let first = auth
+        .panel_collection(
+            &viewer.session.handle,
+            &f.project,
+            "activity/scheduler",
+            None,
+            1,
+            &ctx,
+        )
+        .await
+        .unwrap();
+    let token = first["next"].as_str().unwrap();
+    assert!(
+        auth.panel_collection(
+            &f.owner.handle,
+            &f.project,
+            "activity/scheduler",
+            Some(token),
+            1,
+            &f.ctx(&f.owner, Operation::Read, 1)
+        )
+        .await
+        .is_err()
+    );
+    let snapshot = auth
+        .panel_snapshot(&viewer.session.handle, &f.project, &ctx)
+        .await
+        .unwrap();
+    let action = OwnerAction::membership(&viewer.id, 1, Some(ProjectRole::Editor)).unwrap();
+    let id = f.prepare(&action).await;
+    f.prove(&id).await;
+    f.execute(&id, &action).await.unwrap();
+    assert!(
+        auth.scoped_panel_events(
+            &viewer.session.handle,
+            &f.project,
+            Some(&snapshot.event_cursor),
+            &ctx
+        )
+        .await
+        .is_err()
+    );
+    let action = OwnerAction::membership(&viewer.id, 2, None).unwrap();
+    let id = f.prepare(&action).await;
+    f.prove(&id).await;
+    f.execute(&id, &action).await.unwrap();
+    assert!(
+        auth.panel_collection(
+            &viewer.session.handle,
+            &f.project,
+            "activity/scheduler",
+            Some(token),
+            1,
+            &ctx
+        )
+        .await
+        .is_err()
+    );
+    assert!(
+        auth.panel_collection(
+            &f.owner.handle,
+            &f.project,
+            "activity/scheduler",
+            None,
+            51,
+            &f.ctx(&f.owner, Operation::Read, 1)
+        )
+        .await
+        .is_err()
+    );
+}
+impl GitOwnerFixture {
+    pub(in crate::controller_keys) async fn change_browser_viewer_role(&self) {
+        let f = &self.0;
+        let (id,version):(String,i64)=sqlx::query_as("SELECT user_id,version FROM human_memberships WHERE project_id=? AND role='viewer' AND state='active'").bind(f.project.as_str()).fetch_one(&f.s.a.store.pool).await.unwrap();
+        let action = OwnerAction::membership(
+            &HumanId::parse(id).unwrap(),
+            version,
+            Some(ProjectRole::Editor),
+        )
+        .unwrap();
+        let id = f.prepare(&action).await;
+        f.prove(&id).await;
+        f.execute(&id, &action).await.unwrap();
+    }
+}
+
+#[tokio::test]
+async fn panel_uses_latest_liability_revision_and_preserves_unknown_headroom() {
+    use crate::finance::{
+        EvidenceRef, FinancialAuthorization, FinancialCommand, FinancialRequest, LiabilityId,
+    };
+    struct ReportOnly;
+    impl FinancialAuthorization for ReportOnly {
+        fn permits(&self, owner: &PrincipalId, r: &FinancialRequest, _: i64) -> bool {
+            r.actor == *owner && matches!(r.command, FinancialCommand::Report { .. })
+        }
+    }
+    let f = Fixture::new().await;
+    activate(&f).await;
+    let action = budget(0, 0, 1200);
+    let id = f.prepare(&action).await;
+    f.prove(&id).await;
+    f.execute(&id, &action).await.unwrap();
+    for (revision, value) in [(0, 10), (1, 30)] {
+        f.s.a
+            .store
+            .apply_financial(
+                &FinancialRequest {
+                    project: f.project.clone(),
+                    request_id: request(),
+                    actor: PrincipalId::new("legacy-only-actor").unwrap(),
+                    reason: "Private independently attributable billing observation".into(),
+                    command: FinancialCommand::Report {
+                        liability: LiabilityId::new("panel-observation").unwrap(),
+                        expected_revision: revision,
+                        unreserved: CostBreakdown {
+                            ai_api: usd(value),
+                            compute: usd(0),
+                            storage: usd(0),
+                            transfer: usd(0),
+                        },
+                        uncertain: true,
+                        evidence: EvidenceRef::new(format!("panel-observation-{revision}"))
+                            .unwrap(),
+                    },
+                },
+                &ReportOnly,
+            )
+            .await
+            .unwrap();
+    }
+    let v = serde_json::to_value(
+        f.s.a
+            .auth
+            .panel_snapshot(
+                &f.owner.handle,
+                &f.project,
+                &f.ctx(&f.owner, Operation::Read, 1),
+            )
+            .await
+            .unwrap(),
+    )
+    .unwrap();
+    assert_eq!(v["finance"]["provisional"], "30"); // cumulative positions, not 10+30
+    assert_eq!(v["finance"]["unknownLiabilities"], 1);
+    assert!(v["finance"]["available"].is_null());
+    assert!(v["finance"]["forecasts"].is_null());
+    assert_eq!(v["finance"]["paused"], true);
+    assert_eq!(v["finance"]["ceiling"], "1200");
+    assert_eq!(f.s.a.count("task_attempts").await, 0);
 }

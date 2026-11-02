@@ -52,12 +52,15 @@ test("five sections preserve task identity and exact financial boundaries", asyn
     page.getByText("Unknown", { exact: true }).first(),
   ).toBeVisible();
   await page.getByRole("button", { name: "Preview approval" }).click();
-  await page.getByLabel("Proposed total").fill("999999");
+  await page
+    .getByLabel("New total ceiling · integer minor units")
+    .fill("999999");
   await expect(
     page.getByRole("button", {
-      name: "Submit requires verified Owner adapter",
+      name: "Prepare exact approval",
     }),
   ).toBeDisabled();
+  await expect(page.getByRole("checkbox")).toBeDisabled();
   await page.getByRole("button", { name: "Close", exact: true }).click();
   await expect(
     page.getByText("$240.00", { exact: true }).first(),

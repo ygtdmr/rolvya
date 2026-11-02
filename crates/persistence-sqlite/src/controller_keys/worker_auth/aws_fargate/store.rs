@@ -840,3 +840,54 @@ impl AccountRecord {
         self.origin == Origin::ReviewedControllerRegistration
     }
 }
+
+/// Historical signed registration metadata, not effective IAM or launch permission.
+pub(in crate::controller_keys) async fn panel_metadata(
+    c: &mut SqliteConnection,
+    key: &crate::controller_keys::ControllerKey,
+    p: &ProjectId,
+    after: i64,
+    limit: u16,
+) -> Result<Vec<(i64, String, String, i64, &'static str, i64)>, E> {
+    let rows=sqlx::query("SELECT h.rowid AS ordinal,h.account_ref,v.version,v.record,v.record_mac FROM aws_infrastructure_accounts h JOIN aws_infrastructure_account_versions v ON v.project_id=h.project_id AND v.account_ref=h.account_ref AND v.version=h.current_version WHERE h.project_id=? AND h.rowid<? ORDER BY h.rowid DESC LIMIT ?").bind(p.as_str()).bind(after).bind(i64::from(limit)+1).fetch_all(&mut *c).await?;
+    let mut out = Vec::with_capacity(rows.len());
+    for row in rows {
+        let id: &str = row.try_get("account_ref")?;
+        let version: i64 = row.try_get("version")?;
+        let text: &str = row.try_get("record")?;
+        if !super::super::equal(
+            row.try_get("record_mac")?,
+            &key.worker_record_mac(
+                b"aws-account-record",
+                &[
+                    p.as_str().as_bytes(),
+                    id.as_bytes(),
+                    &version.to_be_bytes(),
+                    text.as_bytes(),
+                ],
+            ),
+        ) {
+            return Err(E::Integrity);
+        }
+        let r: AccountRecord = serde_json::from_str(text).map_err(|_| E::Integrity)?;
+        r.workload.validate()?;
+        if version <= 0
+            || r.format != 1
+            || r.installation != key.coding_installation()
+            || r.project != *p
+            || r.account_ref.as_str() != id
+            || r.version != version as u64
+        {
+            return Err(E::Integrity);
+        }
+        out.push((
+            row.try_get("ordinal")?,
+            id.to_owned(),
+            r.workload.cluster.account().as_str().to_owned(),
+            version,
+            if r.revoked { "revoked" } else { "registered" },
+            r.valid_until,
+        ));
+    }
+    Ok(out)
+}

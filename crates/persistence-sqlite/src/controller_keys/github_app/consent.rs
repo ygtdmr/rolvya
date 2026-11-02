@@ -236,3 +236,39 @@ pub(in crate::controller_keys) async fn current(
     super::super::secret_broker::github_consumer::references(c, k, &v.binding).await?;
     Ok(v)
 }
+
+/// Scoped display metadata only. This never activates the disabled remote client.
+pub(in crate::controller_keys) async fn panel_metadata(
+    c: &mut SqliteConnection,
+    k: &ControllerKey,
+    p: &ProjectId,
+    now: i64,
+) -> Result<Option<(String, String, i64, &'static str, i64)>, GitError> {
+    let exists: bool =
+        sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM git_binding_heads WHERE project_id=?)")
+            .bind(p.as_str())
+            .fetch_one(&mut *c)
+            .await?;
+    if !exists {
+        return Ok(None);
+    }
+    let v = load(c, k, p).await?;
+    let status = if !v.binding.enabled {
+        "revoked"
+    } else if now >= v.binding.valid_until {
+        "expired"
+    } else {
+        match current(c, k, p, now).await {
+            Ok(_) => "registered",
+            Err(GitError::Revoked | GitError::Denied) => "revoked",
+            Err(e) => return Err(e),
+        }
+    };
+    Ok(Some((
+        v.binding.repository.get().to_string(),
+        v.binding.location,
+        v.version,
+        status,
+        v.binding.valid_until,
+    )))
+}

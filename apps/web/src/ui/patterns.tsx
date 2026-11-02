@@ -220,8 +220,8 @@ export function WorkerStatus({ attempt }: { attempt: Attempt }) {
         <Icon name="execution" />
       </span>
       <div>
-        <strong>{attempt.worker}</strong>
-        <small>{attempt.provider}</small>
+        <strong>{attempt.worker ?? "Worker not assigned"}</strong>
+        <small>{attempt.provider ?? "Infrastructure not recorded"}</small>
       </div>
       <Badge
         tone={
@@ -303,6 +303,13 @@ export function CostBreakdown({ finance }: { finance: Finance }) {
           <strong>{formatMoney(c.settled, finance.currency, locale)}</strong>
           <small>
             Reserved {formatMoney(c.reserved, finance.currency, locale)}
+            {c.provisional !== undefined && (
+              <>
+                {" "}
+                · Provisional{" "}
+                {formatMoney(c.provisional, finance.currency, locale)}
+              </>
+            )}
           </small>
         </div>
       ))}
@@ -313,15 +320,17 @@ export function ApprovalPreview({
   finance,
   project,
   total,
+  actor,
 }: {
   finance: Finance;
   project: string;
   total: string;
+  actor?: string | undefined;
 }) {
   const { locale } = useLocale();
   return (
     <div className="rv-note" data-ui="approval-preview">
-      <p className="rv-eyebrow">Read-only proposal preview</p>
+      <p className="rv-eyebrow">Exact proposal preview</p>
       <h3>Budget ceiling change</h3>
       <dl className="rv-key-values">
         <dt>Exact project</dt>
@@ -330,10 +339,25 @@ export function ApprovalPreview({
         <dd>{formatMoney(finance.ceiling, finance.currency, locale)}</dd>
         <dt>Proposed ceiling</dt>
         <dd>{formatMoney(total, finance.currency, locale)}</dd>
+        <dt>Increase</dt>
+        <dd>
+          {/^(0|[1-9][0-9]{0,18})$/.test(total) &&
+          BigInt(total) > BigInt(finance.ceiling)
+            ? formatMoney(
+                (BigInt(total) - BigInt(finance.ceiling)).toString(),
+                finance.currency,
+                locale,
+              )
+            : "Enter a valid increase"}
+        </dd>
+        <dt>Currency</dt>
+        <dd>{finance.currency}</dd>
+        <dt>Unresolved liabilities</dt>
+        <dd>{finance.unknownLiabilities} · holds remain unchanged</dd>
         <dt>Expected version</dt>
         <dd>{finance.version}</dd>
         <dt>Actor</dt>
-        <dd>Requires current verified Owner</dd>
+        <dd>{actor ?? "Requires current verified Owner"}</dd>
         <dt>Effect</dt>
         <dd>Ceiling only. No worker dispatch or authority expansion.</dd>
       </dl>
@@ -387,7 +411,15 @@ export function ConnectionCard({
             ? "Fixture verified"
             : connection.status === "unverified"
               ? "Unverified"
-              : "Unavailable"}
+              : connection.status === "recorded_verified"
+                ? "Recorded verification"
+                : connection.status === "registered"
+                  ? "Registered · gated"
+                  : connection.status === "expired"
+                    ? "Expired"
+                    : connection.status === "revoked"
+                      ? "Revoked"
+                      : "Unavailable"}
         </Badge>
       </div>
       <h2>{connection.label}</h2>
@@ -398,6 +430,22 @@ export function ConnectionCard({
         <dd>
           <code>{connection.scope}</code>
         </dd>
+        {connection.operational === false && (
+          <>
+            <dt>Operational execution</dt>
+            <dd>Unavailable · independent production gates remain</dd>
+          </>
+        )}
+        {connection.models && (
+          <>
+            <dt>Recorded model grants</dt>
+            <dd>
+              {connection.models.length
+                ? connection.models.join(", ")
+                : "None recorded"}
+            </dd>
+          </>
+        )}
         <dt>Version</dt>
         <dd>{connection.version}</dd>
       </dl>
@@ -432,9 +480,35 @@ export function ResultEvidence({ result }: { result: Result }) {
         <dd>
           <code>{result.attempt}</code>
         </dd>
+        {result.fingerprint && (
+          <>
+            <dt>Frozen plan fingerprint</dt>
+            <dd>
+              <code>{result.fingerprint}</code>
+            </dd>
+            <dt>Attempt epoch</dt>
+            <dd>{result.epoch}</dd>
+          </>
+        )}
+        {result.acceptance && (
+          <>
+            <dt>R09 acceptance SHA-256</dt>
+            <dd>
+              <code>{result.acceptance}</code>
+            </dd>
+          </>
+        )}
         <dt>Artifact SHA-256</dt>
         <dd>
           <code>{result.sha256}</code>
+        </dd>
+        <dt>Independent verification</dt>
+        <dd>
+          {result.verification === "passed"
+            ? "Verification evidence recorded"
+            : result.verification === "failed"
+              ? "Verification failed"
+              : "Awaiting trusted verification"}
         </dd>
         <dt>Test evidence</dt>
         <dd>
@@ -446,8 +520,14 @@ export function ResultEvidence({ result }: { result: Result }) {
         <dd>
           {result.published && result.accepted
             ? "Isolated reference reconciled"
-            : "No accepted publication"}
+            : `Publication ${result.publicationState ?? "not recorded"}`}
         </dd>
+        {result.publicationState && (
+          <>
+            <dt>Publication journal state</dt>
+            <dd>{result.publicationState}</dd>
+          </>
+        )}
         {result.ref && result.published && (
           <>
             <dt>Review reference</dt>
@@ -483,8 +563,16 @@ export function ActivityTimeline({ events }: { events: Snapshot["activity"] }) {
             <strong>{e.title}</strong>
             <p>{e.detail}</p>
             <small>
-              <time dateTime={e.at}>{date(e.at)} UTC</time> ·{" "}
-              <code>{e.id}</code>
+              {e.source ? `${e.source} · sequence ${e.sequence} · ` : ""}
+              {e.id}
+            </small>
+            <small>
+              {e.at === null ? (
+                "Time not recorded"
+              ) : (
+                <time dateTime={e.at}>{date(e.at)} UTC</time>
+              )}{" "}
+              · <code>{e.id}</code>
             </small>
           </div>
         </li>

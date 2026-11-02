@@ -949,3 +949,96 @@ async fn old_signed_revocation_replay_cannot_revoke_a_fresh_binding_with_same_we
 }
 
 mod coding;
+
+#[tokio::test]
+async fn operational_panel_reads_real_r06_r08_r09_attempts_without_changing_holds() {
+    let f = Fixture::new().await;
+    let before = f.store.financial_snapshot(&f.project).await.unwrap();
+    let snapshot = f.owner.operational_snapshot().await;
+    let v = serde_json::to_value(snapshot).unwrap();
+    assert_eq!(v["attempts"].as_array().unwrap().len(), 2);
+    for a in v["attempts"].as_array().unwrap() {
+        assert_eq!(a["state"], "accepted");
+        assert!(a["worker"].as_str().is_some());
+        assert_eq!(a["logsAvailable"], false);
+        assert!(
+            a["started"].is_null(),
+            "No process start time is invented from admission"
+        );
+    }
+    assert_eq!(
+        v["finance"]["ceiling"],
+        before.ceiling.minor_units().to_string()
+    );
+    assert_eq!(
+        f.store.financial_snapshot(&f.project).await.unwrap(),
+        before
+    );
+    assert_eq!(f.count("task_attempts").await, 2);
+}
+
+/// Existing R06/R08/R09 and Git HTTP fixtures, retained for the HTTPS browser.
+/// No accepted rows, financial effects, or provider receipts are fabricated.
+pub(in crate::controller_keys) async fn operational_browser_seed(
+    factor: bool,
+) -> (
+    crate::controller_keys::human_auth::sessions::owner::BrowserSeed,
+    fixture::Fixture,
+) {
+    let f = Fixture::new_coding_mode("panel").await;
+    let leases = f.coding_admit().await;
+    let a = f.coding_result(&leases[0]).await;
+    let b = f.coding_result(&leases[1]).await;
+    f.coding_receive_many(&[(&leases[0], &a), (&leases[1], &b)])
+        .await;
+    f.coding_verify(&leases[0], &a).await;
+    f.coding_accept(&leases[0]).await;
+    let publication = f.remote.prepare_coding(&f.co, &leases[0]).await.unwrap();
+    let published = f
+        .remote
+        .publish(&f.co, &f.project, &publication.operation)
+        .await
+        .unwrap();
+    assert_eq!(published.state, PublicationState::Published);
+    assert_eq!(f.count("task_attempts").await, 2);
+    assert_eq!(f.count("task_acceptances").await, 1);
+    let seed = f
+        .owner
+        .operational_browser_seed(&f.bootstrap, f.co.fingerprint(), factor)
+        .await;
+    (seed, f)
+}
+
+#[tokio::test]
+async fn operational_projection_rejects_tampered_acceptance_report_and_publication() {
+    for (table, trigger, field) in [
+        ("coding_decisions", "coding_decisions_update", "seal"),
+        (
+            "coding_verifications",
+            "coding_verifications_update",
+            "seal",
+        ),
+        (
+            "git_publication_events",
+            "git_event_no_update",
+            "record_mac",
+        ),
+    ] {
+        let (_seed, f) = operational_browser_seed(false).await;
+        assert!(f.owner.try_operational_snapshot().await.is_ok());
+        let before = f.store.financial_snapshot(&f.project).await.unwrap();
+        sqlx::raw_sql(&format!(
+            "DROP TRIGGER {trigger}; UPDATE {table} SET {field}=zeroblob(32);"
+        ))
+        .execute(&f.store.pool)
+        .await
+        .unwrap();
+        assert!(f.owner.try_operational_snapshot().await.is_err());
+        assert_eq!(
+            f.store.financial_snapshot(&f.project).await.unwrap(),
+            before
+        );
+        assert_eq!(f.count("task_acceptances").await, 1);
+        assert_eq!(f.count("coding_artifacts").await, 2);
+    }
+}
