@@ -309,7 +309,14 @@ export function SessionGate({
           <summary>Need help signing in?</summary>
           <p>
             Self-service password reset is unavailable. Contact the instance
-            administrator. No support contact is configured.
+            administrator.{" "}
+            {state.supportUrl ? (
+              <a href={state.supportUrl} rel="noreferrer">
+                Contact instance support
+              </a>
+            ) : (
+              "No support contact is configured."
+            )}
           </p>
           <p>
             Email login is available only when operational delivery is

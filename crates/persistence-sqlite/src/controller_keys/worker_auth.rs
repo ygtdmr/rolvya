@@ -494,6 +494,9 @@ impl WorkerSecurity {
         g: &IdentityGrant,
         t: i64,
     ) -> Result<(), WorkerAuthError> {
+        if !crate::controller_keys::operations::external_authority_available(c).await? {
+            return Err(WorkerAuthError::Denied);
+        }
         self.grant_current(check, g, t)?;
         self.identity.current_in(c, check, g, t).await
     }

@@ -3,6 +3,54 @@ import AxeBuilder from "@axe-core/playwright";
 // No auth traces/automatic screenshots: they retain passwords/cookies/CSRF.
 // Genuine CSP and accessibility assertions remain active.
 test.use({ ignoreHTTPSErrors: true, trace: "off", screenshot: "off" });
+test("installation bootstrap uses independently evidenced enrollment and exact host-approved binding", async ({
+  page,
+  controller,
+}) => {
+  await controller.signIn(page, false, false);
+  await expect(
+    page.getByRole("button", { name: "Session", exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByText(
+      /contact the instance administrator for a verified host-approved binding/,
+    ),
+  ).toBeVisible();
+  const status = await page.evaluate(async (approval) => {
+    const session = await (
+      await fetch("/api/control/v1/auth/session", { cache: "no-store" })
+    ).json();
+    return (
+      await fetch("/api/control/v1/auth/project-binding", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Rolvya-CSRF": session.csrf,
+        },
+        body: JSON.stringify({ approval, confirm: true }),
+        redirect: "error",
+        cache: "no-store",
+      })
+    ).status;
+  }, controller.info.bindingApproval);
+  expect(status).toBe(200);
+  await page.reload();
+  await expect(
+    page.getByRole("heading", { name: controller.info.project, exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByText("Synthetic bounded task", { exact: true }).first(),
+  ).toBeVisible();
+  await controller.command("emit");
+  await expect(
+    page.getByText("Awaiting verification", { exact: true }).first(),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "Session", exact: true }).click();
+  await page.getByRole("menuitem", { name: "Sign out", exact: true }).click();
+  await expect(
+    page.getByRole("heading", { name: "Sign in to Rolvya" }),
+  ).toBeVisible();
+});
 test("real Rust password, scoped plan, durable SSE and committed logout", async ({
   page,
   context,
@@ -292,13 +340,16 @@ test("verified private email OTP uses the actual challenge and browser confirmat
   await page
     .getByRole("option", { name: "One-time email code", exact: true })
     .click();
-  const delivered = page.waitForResponse(
-    (r) => r.url().endsWith("/auth/email") && r.request().method() === "POST",
-  );
+  // Consume immediately on headers; navigation may otherwise evict the CDP body.
+  const delivered = page
+    .waitForResponse(
+      (r) => r.url().endsWith("/auth/email") && r.request().method() === "POST",
+    )
+    .then((response) => response.json());
   await page
     .getByRole("button", { name: "Continue with email", exact: true })
     .click();
-  const reference = String((await (await delivered).json()).challenge);
+  const reference = String((await delivered).challenge);
   await privateInput(
     page.getByLabel("Email code"),
     await controller.deliveredMessage(reference),
@@ -315,13 +366,16 @@ test("Magic Link opening cannot authenticate until explicit same-browser confirm
   await page.goto(controller.info.url);
   await page.getByRole("button", { name: "Other sign-in methods" }).click();
   await page.getByLabel("Email address").fill(controller.info.email);
-  const delivered = page.waitForResponse(
-    (r) => r.url().endsWith("/auth/email") && r.request().method() === "POST",
-  );
+  // Consume immediately on headers; navigation may otherwise evict the CDP body.
+  const delivered = page
+    .waitForResponse(
+      (r) => r.url().endsWith("/auth/email") && r.request().method() === "POST",
+    )
+    .then((response) => response.json());
   await page
     .getByRole("button", { name: "Continue with email", exact: true })
     .click();
-  const reference = String((await (await delivered).json()).challenge);
+  const reference = String((await delivered).challenge);
   const token = await controller.deliveredMessage(reference);
   // No trace or URL-bearing diagnostics are retained for this private fixture.
   try {
@@ -406,6 +460,7 @@ test.describe("controlled network responses", () => {
       return await response.json();
     });
     snapshot.tasks[0].title = text;
+    snapshot.recoveryRequired = true;
     await page.route("**/api/control/v1/projects/project-a/snapshot", (route) =>
       route.fulfill({
         json: snapshot,
@@ -417,6 +472,18 @@ test.describe("controlled network responses", () => {
       .getByRole("button", { name: "Refresh", exact: true })
       .click();
     await expect(page.getByText(text, { exact: true }).last()).toBeVisible();
+    const notice = page.locator("[data-ui=connectivity-banner]");
+    await expect(notice).toContainText(
+      "External state requires reconciliation",
+    );
+    await expect(notice).not.toContainText("Snapshot current");
+    await page.setViewportSize({ width: 320, height: 700 });
+    expect(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth <= innerWidth,
+      ),
+    ).toBe(true);
+
     expect(
       await page.evaluate(() => Reflect.get(window, "pwned")),
     ).toBeUndefined();

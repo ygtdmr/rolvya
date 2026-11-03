@@ -244,7 +244,7 @@ impl HumanAuth {
             || kind.name() != r.try_get::<&str, _>("kind")?
             || !constant_eq(&peer.browser, &f.browser)
             || !constant_eq(&f.browser, &r.try_get::<Vec<u8>, _>("browser")?)
-            || !self.delivery.delivered(&id.0, now)
+            || !self.delivery.verified_in(&mut tx, &id.0, now).await?
         {
             return Err(AuthError::Denied);
         }

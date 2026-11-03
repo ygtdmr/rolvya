@@ -186,6 +186,9 @@ impl SyntheticCoordinator {
         l: &LeaseRef,
         now: i64,
     ) -> Result<(CodingContext, PinnedSource, i64), OrchestrationError> {
+        if !crate::controller_keys::operations::external_authority_available(c).await? {
+            return Err(OrchestrationError::RecoveryRequired);
+        }
         let paused: bool = sqlx::query_scalar(
             "SELECT EXISTS(SELECT 1 FROM coding_recovery_holds WHERE project_id=?)",
         )

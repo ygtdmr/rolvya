@@ -8,6 +8,8 @@ tags: [operations, incident, recovery, budget]
 
 # Operations and incident runbooks
 
+G1-10 adds the executable [controller installation and recovery path](controller-installation.md). The historical proposals below are not deployment qualification; consult that guide for implemented boundaries and remaining gates.
+
 ## Use and authority
 
 These are **pre-deployment operational playbooks**. They contain logic and safety gates, not installed command-line services, a real on-call roster or verified automated incident actions. Only authorized operators may execute privileged recovery or approve changes. Consult [deployment](deployment.md), [worker lifecycle](worker-lifecycle.md), [secrets](secrets.md), [failure recovery](../architecture/failure-recovery.md), [observability](../architecture/observability.md) and [backup recovery](backup-recovery.md).

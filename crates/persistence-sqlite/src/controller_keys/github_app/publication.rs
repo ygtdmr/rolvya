@@ -364,6 +364,9 @@ impl GitHubRemote {
         co: &SyntheticCoordinator,
         i: &Intent,
     ) -> Result<(), GitError> {
+        if !crate::controller_keys::operations::external_authority_available(c).await? {
+            return Err(GitError::Denied);
+        }
         let b = consent::current(c, &self.key, &i.lease.task.plan.project_id, self.now()?).await?;
         if b.version != i.binding_version {
             return Err(GitError::Revoked);

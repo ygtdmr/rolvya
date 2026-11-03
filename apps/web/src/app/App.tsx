@@ -614,6 +614,11 @@ function Panel({
           </div>
         )}
         <ConnectivityBanner
+          recoveryRequired={
+            !!(
+              snapshot?.recoveryRequired || snapshot?.finance?.recoveryRequired
+            )
+          }
           state={availability}
           asOf={snapshot?.asOf ?? null}
           onRefresh={() => setRefresh((n) => n + 1)}
@@ -667,6 +672,14 @@ function Panel({
                     : availability === "forbidden"
                       ? "No private project data is displayed."
                       : "Select an authorized project or check the controller connection. No project data is inferred."}
+                  {projects.length === 0 && availability !== "unauthorized" && (
+                    <>
+                      {" "}
+                      If an existing project needs its initial Owner, contact
+                      the instance administrator for a verified host-approved
+                      binding.
+                    </>
+                  )}
                 </span>
               </EmptyState>
               {availability === "forbidden" && (

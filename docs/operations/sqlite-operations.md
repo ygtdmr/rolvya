@@ -8,6 +8,8 @@ tags: [sqlite, backup, wal, recovery, operations]
 
 # SQLite operational safety and recovery
 
+G1-10 adds the executable [controller installation and recovery path](controller-installation.md). The historical proposals below are not deployment qualification; consult that guide for implemented boundaries and remaining gates.
+
 ## Authority
 
 **SQLite is approved and mandatory** as Rolvya's authoritative database ([ADR 0005](../decisions/0005-authoritative-database.md)); this operations specification proposes how to use it safely. No actual SQLite file, production backup or restored system has been verified. All control-plane backend logic is Rust ([ADR 0004](../decisions/0004-control-plane-language.md)).

@@ -65,6 +65,7 @@ pub struct PanelSnapshot {
     pub schema: u8,
     pub pages: std::collections::BTreeMap<String, Option<String>>,
     pub provenance: &'static str,
+    pub recovery_required: bool,
     pub revision: i64,
     pub cursor: i64,
     pub event_cursor: String,
@@ -392,10 +393,13 @@ impl HumanAuth {
             pages.insert(format!("activity/{source}"), page.next);
             activity.extend(page.items);
         }
+        let recovery_required =
+            !crate::controller_keys::operations::external_authority_available(&mut tx).await?;
         let snapshot = PanelSnapshot {
             schema: 2,
             pages,
             provenance: "controller",
+            recovery_required,
             revision,
             cursor: revision,
             event_cursor: self.scoped_event_cursor(&scope, revision)?,

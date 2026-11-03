@@ -454,6 +454,11 @@ async fn apply_authorized(
     request: &FinancialRequest,
     gate: FinanceGate<'_>,
 ) -> Result<FinancialReceipt, FinanceError> {
+    if matches!(request.command, FinancialCommand::Reserve { .. })
+        && !crate::controller_keys::operations::external_authority_available(connection).await?
+    {
+        return Err(FinanceError::UncertainExposure);
+    }
     if request.reason.trim().is_empty()
         || request.reason.len() > 512
         || request.reason.chars().any(char::is_control)

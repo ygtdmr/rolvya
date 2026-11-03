@@ -1,0 +1,19 @@
+{
+  "version": 1,
+  "service_uid": 1001,
+  "database": "/var/lib/rolvya/controller.sqlite",
+  "custody": "/var/lib/rolvya-keys",
+  "scratch": "/var/lib/rolvya-scratch",
+  "assets": "/opt/rolvya/web",
+  "asset_sha256": "REPLACE_WITH_REVIEWED_DISTRIBUTION_DIGEST",
+  "backup_destination": "/srv/rolvya-backups",
+  "backup_key": "/var/lib/rolvya-backup-keys/backup.key",
+  "identity_verifier_key": "/etc/rolvya/enrollment.pub",
+  "identity_verifier_sha256": "REPLACE_WITH_INDEPENDENTLY_VERIFIED_PUBLIC_KEY_DIGEST",
+  "canonical_origin": "https://control.example.org:8443",
+  "listen": "0.0.0.0:8443",
+  "certificate_chain": ["/etc/rolvya/tls/leaf.der", "/etc/rolvya/tls/intermediate.der"],
+  "tls_key": "/etc/rolvya/tls/private.der",
+  "support_url": null,
+  "email": null
+}

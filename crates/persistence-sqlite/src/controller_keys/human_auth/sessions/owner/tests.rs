@@ -3256,3 +3256,177 @@ impl GitOwnerFixture {
 }
 
 pub(in crate::controller_keys::human_auth) mod panel;
+
+#[tokio::test]
+async fn operational_signed_delivery_completes_accepted_owner_email_without_reissuing_proof() {
+    use crate::controller_keys::human_auth::operational_mail::{
+        DeliveryStatement, OperationalEmail, SignedDelivery, SmtpConfiguration,
+    };
+    use base64::Engine;
+    use ring::signature::KeyPair;
+    use sha2::Digest;
+    use std::io::Write;
+    use std::os::unix::fs::{OpenOptionsExt, PermissionsExt};
+    let s = SessionFixture::new().await;
+    s.a.advance(crate::controller_keys::operations::now().unwrap() - s.a.now() - 1800);
+    let f = Fixture::from_session(s, ProjectId::new("project-a").unwrap()).await;
+    let a = f.account(2, false).await;
+    f.promote(&a, 0, false).await;
+    f.s.a
+        .advance(crate::controller_keys::operations::now().unwrap() - f.s.a.now());
+    let action = budget(0, 0, 2000);
+    let id =
+        f.s.a
+            .auth
+            .prepare_owner_action(
+                &a.session.handle,
+                &f.project,
+                &action,
+                &f.ctx(&a.session, Operation::Write, 7),
+            )
+            .await
+            .unwrap();
+    let (mail, secret, client) = f.prepare_email_for(&a, &id, ChallengeKind::Otp).await;
+    let challenge = mail.reference().clone();
+    struct Accepted;
+    impl MailTransport for Accepted {
+        fn ready(&self) -> bool {
+            true
+        }
+        fn send<'a>(&'a self, _: &'a MailMessage) -> MailFuture<'a> {
+            Box::pin(async { DeliveryObservation::Accepted })
+        }
+    }
+    // The accepted transport never supplies independent delivery evidence.
+    let mut f = f;
+    f.s.a.auth.mail = Arc::new(Accepted);
+    assert_eq!(
+        f.s.a.auth.dispatch_owner_email(mail).await.unwrap(),
+        MailDispatch::TransportAccepted
+    );
+    assert!(
+        f.email_prove(
+            &a,
+            &id,
+            &challenge,
+            &secret,
+            (ChallengeKind::Otp, Confirmation::Affirmative),
+            &client
+        )
+        .await
+        .is_err()
+    );
+    let directory = f.s.a.root.path().join("delivery");
+    std::fs::create_dir(&directory).unwrap();
+    std::fs::set_permissions(&directory, std::fs::Permissions::from_mode(0o700)).unwrap();
+    let rng = ring::rand::SystemRandom::new();
+    let encoded = ring::signature::Ed25519KeyPair::generate_pkcs8(&rng).unwrap();
+    let signer = ring::signature::Ed25519KeyPair::from_pkcs8(encoded.as_ref()).unwrap();
+    let mut public = std::fs::OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .mode(0o600)
+        .open(directory.join("delivery.pub"))
+        .unwrap();
+    public.write_all(signer.public_key().as_ref()).unwrap();
+    let key_sha = crate::controller_keys::operations::hex(&sha2::Sha256::digest(
+        signer.public_key().as_ref(),
+    ));
+    let bootstrap = ControllerBootstrap::open(
+        f.s.a.store.clone(),
+        &f.s.a.keys,
+        crate::controller_keys::ServiceIdentity::current(),
+        &[],
+    )
+    .await
+    .unwrap();
+    let mut adapter = Arc::new(
+        OperationalEmail::inspect(
+            &bootstrap,
+            SmtpConfiguration {
+                host: "mail.example.test".into(),
+                port: 465,
+                username: "sender".into(),
+                sender: "control@example.test".into(),
+                credential_file: directory.join("not-consumed"),
+                delivery_public_key: directory.join("delivery.pub"),
+                delivery_key_sha256: key_sha,
+                provider_id: "fixture-mail".into(),
+            },
+            "https://control.example.test",
+        )
+        .await
+        .unwrap(),
+    );
+    Arc::get_mut(&mut adapter)
+        .unwrap()
+        .fixture_qualify_delivery();
+    f.s.a.auth.delivery = adapter.clone();
+    let now = crate::controller_keys::operations::now().unwrap();
+    // This test's transport fixture accepted the exact prepared Owner message above.
+    // Only the separate signed delivery adapter may complete its dispatch.
+    sqlx::query("INSERT INTO controller_mail_operations VALUES(?,?,?,?,?,?)")
+        .bind(challenge.as_str())
+        .bind("aa".repeat(32))
+        .bind("fixture-mail")
+        .bind("owner_action")
+        .bind(now)
+        .bind(now + 600)
+        .execute(&f.s.a.store.pool)
+        .await
+        .unwrap();
+    let statement = DeliveryStatement {
+        version: 1,
+        delivery_id: "bb".repeat(32),
+        installation: bootstrap
+            .load_existing()
+            .await
+            .unwrap()
+            .coding_installation(),
+        operation_id: challenge.as_str().into(),
+        message_commitment: "aa".repeat(32),
+        provider_id: "fixture-mail".into(),
+        delivered_at: now,
+        expires_at: now + 300,
+    };
+    let mut bytes = b"rolvya/independent-mail-delivery/v1\0".to_vec();
+    bytes.extend(serde_json::to_vec(&statement).unwrap());
+    let proof = SignedDelivery {
+        statement,
+        signature: base64::engine::general_purpose::STANDARD.encode(signer.sign(&bytes).as_ref()),
+    };
+    adapter.record_delivery(&proof).await.unwrap();
+    adapter.record_delivery(&proof).await.unwrap();
+    f.s.a
+        .advance(crate::controller_keys::operations::now().unwrap() - f.s.a.now());
+    f.email_prove(
+        &a,
+        &id,
+        &challenge,
+        &secret,
+        (ChallengeKind::Otp, Confirmation::Affirmative),
+        &client,
+    )
+    .await
+    .unwrap();
+    assert!(
+        f.email_prove(
+            &a,
+            &id,
+            &challenge,
+            &secret,
+            (ChallengeKind::Otp, Confirmation::Affirmative),
+            &client
+        )
+        .await
+        .is_err()
+    );
+    assert_eq!(
+        sqlx::query_scalar::<_, i64>("SELECT count(*) FROM controller_mail_delivery")
+            .fetch_one(&f.s.a.store.pool)
+            .await
+            .unwrap(),
+        1
+    );
+    f.s.a.store.close().await;
+}

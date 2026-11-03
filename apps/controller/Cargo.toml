@@ -1,0 +1,21 @@
+[package]
+name = "rolvya-controller"
+version = "0.1.0"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+rolvya-persistence-sqlite = { path = "../../crates/persistence-sqlite" }
+tokio = { workspace = true, features = ["signal"] }
+serde_json.workspace = true
+serde.workspace = true
+rolvya-domain.workspace = true
+zeroize.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true
+
+[lints]
+workspace = true

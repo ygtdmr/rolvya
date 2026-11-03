@@ -32,6 +32,18 @@ const context = () => ({
   email: false,
   csrf: "d".repeat(64),
 });
+it("uses only configured HTTPS support destinations without credentials", async () => {
+  const fetch = vi
+    .fn()
+    .mockResolvedValueOnce(response({}, 401))
+    .mockResolvedValueOnce(
+      response({ ...context(), support: "https://support.example.test/help" }),
+    );
+  vi.stubGlobal("fetch", fetch);
+  const c = client();
+  await c.start();
+  expect(c.getSnapshot().supportUrl).toBe("https://support.example.test/help");
+});
 afterEach(() => {
   clients.forEach((c) => c.dispose());
   clients.length = 0;

@@ -294,19 +294,13 @@ pub struct GovernanceReceipt {
     pub financial_sequence: Option<i64>,
 }
 
-#[cfg_attr(
-    not(test),
-    expect(
-        dead_code,
-        reason = "local project ownership ceremony is deliberately unavailable"
-    )
-)]
 pub(in crate::controller_keys::human_auth) struct BindingContext<'a> {
     pub request: &'a Administration,
     pub project: &'a ProjectId,
     pub user: &'a str,
     pub legacy: &'a str,
     pub now: i64,
+    pub restore_checkpoint: Option<String>,
 }
 pub(in crate::controller_keys::human_auth) trait ProjectBindingAuthority:
     Send + Sync
@@ -495,6 +489,17 @@ impl HumanAuth {
         authority: &Administration,
         c: &BrowserContext,
     ) -> Result<(), AuthError> {
+        self.bind_project_with_authority(h, p, authority, c, self.project_binding.as_ref())
+            .await
+    }
+    pub(in crate::controller_keys::human_auth) async fn bind_project_with_authority(
+        &self,
+        h: &SessionHandle,
+        p: &ProjectId,
+        authority: &Administration,
+        c: &BrowserContext,
+        binding_authority: &dyn ProjectBindingAuthority,
+    ) -> Result<(), AuthError> {
         let (mut tx, f, now) = self.browser_transaction(c, Operation::Write).await?;
         let s = self.session_row(&mut tx, h, &f, now, true).await?;
         let user: &str = s.try_get("user_id")?;
@@ -510,8 +515,13 @@ impl HumanAuth {
             user,
             legacy: &legacy,
             now,
+            restore_checkpoint: sqlx::query_scalar(
+                "SELECT restore_id FROM controller_restore_holds ORDER BY rowid DESC LIMIT 1",
+            )
+            .fetch_optional(&mut *tx)
+            .await?,
         };
-        self.project_binding.verify(&context)?;
+        binding_authority.verify(&context)?;
         let tag = self.mac(
             b"project-human-binding",
             &[
@@ -563,7 +573,7 @@ impl HumanAuth {
             Checkpoint::BeforeSessionCommit,
             (&f, now),
         )?;
-        self.project_binding.verify(&BindingContext {
+        binding_authority.verify(&BindingContext {
             now: self.now()?,
             ..context
         })?;

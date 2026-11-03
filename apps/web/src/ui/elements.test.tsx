@@ -3,6 +3,7 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { Button, Tabs, TextField, Switch } from "./controls";
 import { Dialog, Menu, Tooltip } from "./overlays";
+import { ConnectivityBanner } from "./data";
 describe("shared Elements", () => {
   it("names validation, read-only, loading and disabled states", async () => {
     const action = vi.fn();
@@ -250,4 +251,21 @@ it("combobox typeahead, escape, disabled and read-only states preserve focus and
     screen.getByRole("combobox", { name: "Read-only" }),
   ).toHaveAccessibleDescription("Fixed assignment");
   expect(screen.getByRole("combobox", { name: "Loading" })).toBeDisabled();
+});
+
+it("identifies restored records independently of a live event connection", () => {
+  render(
+    <ConnectivityBanner
+      {...{
+        state: "live" as const,
+        asOf: null,
+        onRefresh: () => {},
+        recoveryRequired: true,
+      }}
+    />,
+  );
+  expect(screen.getByRole("status")).toHaveTextContent(
+    /external state requires reconciliation/i,
+  );
+  expect(screen.getByRole("status")).not.toHaveTextContent("Snapshot current");
 });

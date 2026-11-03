@@ -1,4 +1,64 @@
 use super::*;
+#[tokio::test]
+async fn restore_invalidates_old_mail_and_recovery_codes_without_removing_optional_factor() {
+    let f = Fixture::new().await;
+    let (enrollment, active) = f.factor().await;
+    let (receipt, secret, client) =
+        f.a.challenge(&f.email, ChallengeKind::Otp, ChallengePurpose::Login)
+            .await;
+    f.a.auth
+        .restrict_sessions_after_restore("private-restore-restriction")
+        .await
+        .unwrap();
+    assert_eq!(
+        sqlx::query_scalar::<_, i64>(
+            "SELECT count(*) FROM human_recovery_codes WHERE state='active'"
+        )
+        .fetch_one(&f.a.store.pool)
+        .await
+        .unwrap(),
+        0,
+        "stale recovery verifiers must not be revived"
+    );
+    assert!(matches!(
+        f.a.auth
+            .redeem_email(
+                &receipt,
+                &secret,
+                ChallengeKind::Otp,
+                ChallengePurpose::Login,
+                Confirmation::Affirmative,
+                &client
+            )
+            .await
+            .unwrap(),
+        Redemption::Denied
+    ));
+    let pending = f.pending(3).await;
+    assert!(
+        f.a.auth
+            .complete_recovery_login(
+                &pending,
+                &active.recovery.codes[0],
+                &f.context(Operation::CompleteFactor, 3, None, true),
+                &device()
+            )
+            .await
+            .is_err()
+    );
+    f.a.advance(90);
+    let pending = f.pending(4).await;
+    let t =
+        f.a.auth
+            .complete_totp_login(
+                &pending,
+                &code(&enrollment.seed, f.a.now()),
+                &f.context(Operation::CompleteFactor, 4, None, true),
+                &device(),
+            )
+            .await;
+    assert!(t.is_ok());
+}
 #[test]
 fn cookie_contract_is_host_only_secure_and_http_only() {
     let c = CookieContract::session();

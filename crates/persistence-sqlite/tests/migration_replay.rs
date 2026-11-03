@@ -49,7 +49,7 @@ async fn migrations_replay_reopen_and_consistent_snapshot_restore() {
             .fetch_one(&raw)
             .await
             .unwrap(),
-        22
+        23
     );
     assert_eq!(
         sqlx::query_scalar::<_, String>("SELECT sqlite_version()")
@@ -123,8 +123,8 @@ async fn failed_migration_rolls_back_ddl_and_data() {
     let f = Fixture::new().await;
     let raw = f.raw().await;
     let scripts = tempfile::tempdir().unwrap();
-    std::fs::write(scripts.path().join("0023_injected_failure.sql"),"CREATE TABLE should_rollback(value TEXT); INSERT INTO should_rollback VALUES ('temporary'); SELECT absent_column FROM absent_table;").unwrap();
-    // Replay real migrations, then verify failing v23 executes and rolls back atomically.
+    std::fs::write(scripts.path().join("0024_injected_failure.sql"),"CREATE TABLE should_rollback(value TEXT); INSERT INTO should_rollback VALUES ('temporary'); SELECT absent_column FROM absent_table;").unwrap();
+    // Replay real migrations, then verify failing v24 executes and rolls back atomically.
     std::fs::write(
         scripts.path().join("0001_plan_store.sql"),
         include_str!("../migrations/0001_plan_store.sql"),
@@ -237,10 +237,15 @@ async fn failed_migration_rolls_back_ddl_and_data() {
         include_str!("../migrations/0022_operational_panel_indexes.sql"),
     )
     .unwrap();
+    std::fs::write(
+        scripts.path().join("0023_controller_operations.sql"),
+        include_str!("../migrations/0023_controller_operations.sql"),
+    )
+    .unwrap();
     let migrator = Migrator::new(scripts.path()).await.unwrap();
     let error = migrator.run(&raw).await.unwrap_err();
     assert!(
-        matches!(error, sqlx::migrate::MigrateError::ExecuteMigration(_, 23)),
+        matches!(error, sqlx::migrate::MigrateError::ExecuteMigration(_, 24)),
         "must execute the injected next migration, not reject migration metadata"
     );
     assert_eq!(
@@ -407,7 +412,7 @@ async fn real_v1_upgrade_preserves_projects_and_failed_v2_leaves_v1_intact() {
                 .fetch_one(&raw)
                 .await
                 .unwrap(),
-            22
+            23
         );
         assert_eq!(
             sqlx::query_scalar::<_, i64>("SELECT count(*) FROM financial_events")
@@ -2050,6 +2055,109 @@ async fn v21_populated_upgrade_adds_bounded_operational_indexes_or_rolls_back() 
                 .await
                 .unwrap();
         }
+        raw.close().await;
+    }
+}
+
+#[tokio::test]
+async fn v22_operations_upgrade_is_forward_only_and_injected_failure_preserves_authority() {
+    for fail in [false, true] {
+        let dir = tempfile::tempdir().unwrap();
+        let scripts = tempfile::tempdir().unwrap();
+        for entry in std::fs::read_dir(concat!(env!("CARGO_MANIFEST_DIR"), "/migrations")).unwrap()
+        {
+            let entry = entry.unwrap();
+            if entry.file_name().to_str().unwrap() < "0023" {
+                std::fs::copy(entry.path(), scripts.path().join(entry.file_name())).unwrap();
+            }
+        }
+        let raw = sqlx::SqlitePool::connect(&format!(
+            "sqlite:{}?mode=rwc",
+            dir.path().join("upgrade.sqlite").display()
+        ))
+        .await
+        .unwrap();
+        Migrator::new(scripts.path())
+            .await
+            .unwrap()
+            .run(&raw)
+            .await
+            .unwrap();
+        sqlx::query("INSERT INTO projects(project_id,owner_actor) VALUES('ops-upgrade','preserved-legacy-actor')").execute(&raw).await.unwrap();
+        let original = include_str!("../migrations/0023_controller_operations.sql");
+        let contents = if fail {
+            format!("{original}\nSELECT absent FROM missing;")
+        } else {
+            original.to_owned()
+        };
+        std::fs::write(
+            scripts.path().join("0023_controller_operations.sql"),
+            contents,
+        )
+        .unwrap();
+        assert_eq!(
+            Migrator::new(scripts.path())
+                .await
+                .unwrap()
+                .run(&raw)
+                .await
+                .is_err(),
+            fail
+        );
+        assert_eq!(
+            sqlx::query_scalar::<_, i64>("SELECT count(*) FROM _sqlx_migrations")
+                .fetch_one(&raw)
+                .await
+                .unwrap(),
+            if fail { 22 } else { 23 }
+        );
+        assert_eq!(
+            sqlx::query_scalar::<_, String>(
+                "SELECT owner_actor FROM projects WHERE project_id='ops-upgrade'"
+            )
+            .fetch_one(&raw)
+            .await
+            .unwrap(),
+            "preserved-legacy-actor"
+        );
+        assert_eq!(
+            sqlx::query_scalar::<_, i64>(
+                "SELECT count(*) FROM sqlite_schema WHERE name='controller_restore_holds'"
+            )
+            .fetch_one(&raw)
+            .await
+            .unwrap(),
+            if fail { 0 } else { 1 }
+        );
+        if fail {
+            std::fs::remove_file(scripts.path().join("0023_controller_operations.sql")).unwrap();
+            std::fs::write(
+                scripts.path().join("0023_controller_operations.sql"),
+                original,
+            )
+            .unwrap();
+            Migrator::new(scripts.path())
+                .await
+                .unwrap()
+                .run(&raw)
+                .await
+                .unwrap();
+        }
+        assert!(
+            sqlx::query("INSERT INTO controller_restore_holds VALUES(?,?,?,0)")
+                .bind("a".repeat(64))
+                .bind("b".repeat(64))
+                .bind("c".repeat(64))
+                .execute(&raw)
+                .await
+                .is_ok()
+        );
+        assert!(
+            sqlx::query("DELETE FROM controller_restore_holds")
+                .execute(&raw)
+                .await
+                .is_err()
+        );
         raw.close().await;
     }
 }

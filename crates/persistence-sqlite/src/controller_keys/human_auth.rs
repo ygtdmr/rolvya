@@ -13,7 +13,9 @@ use std::{fmt, future::Future, net::IpAddr, pin::Pin, sync::Arc};
 use zeroize::Zeroizing;
 mod credentials;
 mod email;
+mod host;
 mod identity;
+pub mod operational_mail;
 pub mod sessions;
 #[cfg(test)]
 mod tests;
@@ -376,13 +378,6 @@ enum AdminAction {
     Restrict,
     Maintenance,
 }
-#[cfg_attr(
-    not(test),
-    expect(
-        dead_code,
-        reason = "trusted administrative adapters deliberately unavailable in S2-03A"
-    )
-)]
 struct AdminContext<'a> {
     request: &'a Administration,
     action: AdminAction,
@@ -397,6 +392,12 @@ enum EmailEvidence {
 }
 trait EnrollmentAuthority: Send + Sync {
     fn check(&self, c: &AdminContext<'_>) -> Result<EmailEvidence, AuthError>;
+    fn durable_evidence(&self) -> Option<(&str, &str)> {
+        None
+    }
+    fn recovery_checkpoint(&self) -> Option<&Option<String>> {
+        None
+    }
 }
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum TransportOperation {
@@ -448,6 +449,14 @@ trait MailTransport: Send + Sync {
 trait DeliveryAuthority: Send + Sync {
     fn ready(&self) -> bool;
     fn delivered(&self, challenge: &str, now: i64) -> bool;
+    fn verified_in<'a>(
+        &'a self,
+        _: &'a mut sqlx::SqliteConnection,
+        challenge: &'a str,
+        now: i64,
+    ) -> Pin<Box<dyn Future<Output = Result<bool, AuthError>> + Send + 'a>> {
+        Box::pin(async move { Ok(self.delivered(challenge, now)) })
+    }
 }
 struct Unimplemented;
 impl EnrollmentAuthority for Unimplemented {

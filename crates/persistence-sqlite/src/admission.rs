@@ -524,6 +524,9 @@ impl PlanStore {
         }
         let body = payload("admit", r)?;
         let mut tx = self.pool.begin_with("BEGIN IMMEDIATE").await?;
+        if !crate::controller_keys::operations::external_authority_available(&mut tx).await? {
+            return Err(AdmissionError::RetryBlocked);
+        }
         let t = at(clock)?;
         let owner = owner(&mut tx, &r.task.plan.project_id).await?;
         recheck(&mut tx, &plan, task).await?;

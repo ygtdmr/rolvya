@@ -13,6 +13,7 @@ pub struct PanelFinance {
     pub unknown_liabilities: u64,
     pub over_ceiling: bool,
     pub paused: bool,
+    pub recovery_required: bool,
     pub forecasts: Option<()>,
     pub categories: Vec<PanelCategory>,
     pub approvals: Vec<PanelApproval>,
@@ -51,6 +52,8 @@ impl HumanAuth {
         let f = crate::finance::snapshot(tx, p)
             .await
             .map_err(|_| AuthError::Unavailable)?;
+        let recovery_required =
+            !crate::controller_keys::operations::external_authority_available(tx).await?;
         let settled = f.settled.total().map_err(|_| AuthError::Unavailable)?;
         let reserved = f.held.total().map_err(|_| AuthError::Unavailable)?;
         let provisional = f.provisional.total().map_err(|_| AuthError::Unavailable)?;
@@ -77,14 +80,18 @@ impl HumanAuth {
             reserved: reserved.minor_units().to_string(),
             settled: settled.minor_units().to_string(),
             provisional: provisional.minor_units().to_string(),
-            available: if f.uncertain_liabilities == 0 {
+            available: if f.uncertain_liabilities == 0 && !recovery_required {
                 Some(f.headroom.minor_units().to_string())
             } else {
                 None
             },
             unknown_liabilities: f.uncertain_liabilities,
             over_ceiling: f.over_ceiling,
-            paused: f.over_ceiling || f.uncertain_liabilities > 0 || f.headroom.minor_units() == 0,
+            paused: recovery_required
+                || f.over_ceiling
+                || f.uncertain_liabilities > 0
+                || f.headroom.minor_units() == 0,
+            recovery_required,
             forecasts: None,
             categories,
             approvals: vec![],

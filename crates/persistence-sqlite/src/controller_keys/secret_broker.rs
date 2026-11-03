@@ -16,6 +16,43 @@ mod store;
 #[cfg(test)]
 pub(in crate::controller_keys) mod tests;
 pub const MAX_SECRET_BYTES: usize = 65536;
+/// Restriction-only emergency restore validation. No plaintext leaves this module,
+/// no credential is used externally, and no grant/connection state is changed.
+pub(in crate::controller_keys) async fn verify_recovered_records(
+    store: &PlanStore,
+    key: &ControllerKey,
+) -> Result<(), BrokerError> {
+    use sqlx::Row;
+    let mut c = store.pool.acquire().await?;
+    let rows=sqlx::query("SELECT v.project_id,v.connection_id,v.record_id,v.purpose,v.version,c.account_id,c.provider,c.mode FROM secret_versions v JOIN secret_connections c USING(project_id,connection_id) ORDER BY v.project_id,v.connection_id,v.record_id,v.version LIMIT 4097").fetch_all(&mut *c).await?;
+    if rows.len() > 4096 {
+        return Err(BrokerError::TooLarge);
+    }
+    for r in rows {
+        let scope = RecordScope {
+            connection: ConnectionScope {
+                project: ProjectId::new(r.try_get::<String, _>("project_id")?)
+                    .map_err(|_| BrokerError::Integrity)?,
+                connection: ConnectionId::new(r.try_get::<String, _>("connection_id")?)?,
+                account: AccountId::new(r.try_get::<String, _>("account_id")?)?,
+                provider: ProviderId::new(r.try_get::<String, _>("provider")?)?,
+                mode: match r.try_get::<&str, _>("mode")? {
+                    "api_key" => ProviderMode::ApiKey,
+                    "cli_subscription" => ProviderMode::CliSubscription,
+                    _ => return Err(BrokerError::Integrity),
+                },
+            },
+            record: RecordId::new(r.try_get::<String, _>("record_id")?)?,
+            purpose: SecretPurpose::new(r.try_get::<String, _>("purpose")?)?,
+        };
+        let version = SecretVersion::new(
+            u64::try_from(r.try_get::<i64, _>("version")?).map_err(|_| BrokerError::Integrity)?,
+        )?;
+        let envelope = store::load(&mut c, &scope, version).await?;
+        drop(crypto::open(key, &envelope)?);
+    }
+    Ok(())
+}
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum BrokerError {
     InvalidInput,

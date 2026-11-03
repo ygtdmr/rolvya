@@ -135,6 +135,7 @@ export interface Finance {
   available: string | null;
   unknownLiabilities: number;
   paused: boolean;
+  recoveryRequired?: boolean;
   overCeiling?: boolean;
   forecasts: {
     optimistic: string;
@@ -158,6 +159,7 @@ export interface Finance {
   }[];
 }
 export interface Snapshot {
+  recoveryRequired?: boolean;
   schema: 1 | 2;
   eventCursor?: string;
   pages?: Partial<Record<PageResource, string | null>>;

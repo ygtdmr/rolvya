@@ -16,6 +16,7 @@ mod tests;
 
 pub mod github_app;
 pub mod human_auth;
+pub mod operations;
 pub mod provider_accounts;
 pub mod secret_broker;
 pub mod worker_auth;

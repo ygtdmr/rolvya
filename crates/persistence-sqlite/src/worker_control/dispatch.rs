@@ -24,6 +24,9 @@ impl OutboxDispatcher {
         let task = admission::task_in(&plan, &l.task, &r.fingerprint)?;
         let assignment = task.execution.as_ref().ok_or(AdmissionError::NotEligible)?;
         let mut tx = self.store.pool.begin_with("BEGIN IMMEDIATE").await?;
+        if !crate::controller_keys::operations::external_authority_available(&mut tx).await? {
+            return Err(WorkerError::Unauthorized);
+        }
         let t = admission::at(clock)?;
         let (_, until, _) = admission::stored_admission(&mut tx, l).await?;
         let financial_event: i64 = sqlx::query_scalar(

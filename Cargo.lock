@@ -1849,6 +1849,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "rolvya-controller"
+version = "0.1.0"
+dependencies = [
+ "rolvya-domain",
+ "rolvya-persistence-sqlite",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "tokio",
+ "zeroize",
+]
+
+[[package]]
 name = "rolvya-domain"
 version = "0.1.0"
 dependencies = [

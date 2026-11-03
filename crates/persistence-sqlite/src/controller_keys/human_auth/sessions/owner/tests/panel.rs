@@ -357,6 +357,30 @@ async fn panel_viewer_reads_plan_but_never_finance_or_mutation_capability() {
     assert!(snapshot.finance.is_none());
     assert!(!snapshot.capabilities.finance);
     assert!(!snapshot.capabilities.mutations);
+    sqlx::query("INSERT INTO controller_restore_holds VALUES(?,?,?,?)")
+        .bind("a1".repeat(32))
+        .bind("b1".repeat(32))
+        .bind("c1".repeat(32))
+        .bind(f.s.a.now())
+        .execute(&f.s.a.store.pool)
+        .await
+        .unwrap();
+    let restored =
+        f.s.a
+            .auth
+            .panel_snapshot(
+                &viewer.session.handle,
+                &f.project,
+                &f.ctx(&viewer.session, Operation::Read, 2),
+            )
+            .await
+            .unwrap();
+    assert!(restored.finance.is_none());
+    assert_eq!(
+        serde_json::to_value(&restored).unwrap()["recoveryRequired"],
+        true
+    );
+
     assert!(
         f.s.a
             .auth

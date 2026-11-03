@@ -317,6 +317,9 @@ impl WorkerSecurity {
         secret: &WorkerCredential,
         now: i64,
     ) -> Result<CurrentCredential, WorkerAuthError> {
+        if !crate::controller_keys::operations::external_authority_available(c).await? {
+            return Err(WorkerAuthError::Denied);
+        }
         let lookup = self.mac(b"credential-lookup", &[secret.0.as_bytes()]);
         let row=sqlx::query("SELECT c.*,e.state,e.security_epoch,e.current_generation FROM worker_credentials c JOIN worker_enrollments e USING(enrollment_id) WHERE c.token_lookup=?")
             .bind(lookup.as_slice()).fetch_optional(&mut *c).await?.ok_or(WorkerAuthError::Denied)?;

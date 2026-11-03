@@ -1,4 +1,23 @@
 use super::*;
+// Only while current R06/R08 builders populate historical v10 records, model the
+// not-yet-existing restore guard with empty connection-local views. Main schema
+// remains exactly v10. Remove every view before testing actual migration/rollback.
+async fn historical_guard(pool: &sqlx::SqlitePool, create: bool) {
+    let mut held = Vec::new();
+    for _ in 0..4 {
+        let mut c = pool.acquire().await.unwrap();
+        sqlx::query(if create {
+            "CREATE TEMP VIEW controller_restore_holds AS SELECT NULL AS restore_id WHERE 0"
+        } else {
+            "DROP VIEW temp.controller_restore_holds"
+        })
+        .execute(&mut *c)
+        .await
+        .unwrap();
+        held.push(c);
+    }
+}
+
 #[tokio::test]
 async fn populated_v10_upgrade_and_failed_v11_preserve_human_and_worker_authority_without_auto_enrollment()
  {
@@ -38,6 +57,7 @@ async fn populated_v10_upgrade_and_failed_v11_preserve_human_and_worker_authorit
             .unwrap();
         // Test-only adapter over an actual v10 schema, so existing R01–R08 APIs
         // construct the historical plan/financial/dispatch records before upgrade.
+        historical_guard(&pool, true).await;
         let store = PlanStore { pool: pool.clone() };
         let content = common::plan();
         let authority = synthetic::Authority::default();
@@ -134,6 +154,16 @@ async fn populated_v10_upgrade_and_failed_v11_preserve_human_and_worker_authorit
             )
             .await
             .unwrap();
+        historical_guard(&pool, false).await;
+        assert_eq!(
+            sqlx::query_scalar::<_, i64>(
+                "SELECT count(*) FROM main.sqlite_schema WHERE name='controller_restore_holds'"
+            )
+            .fetch_one(&pool)
+            .await
+            .unwrap(),
+            0
+        );
         // Inert historical human rows: these are not verified sessions or binding
         // MACs. Matching human/worker ID strings must not create worker credentials.
         sqlx::query("INSERT INTO human_users VALUES(?,'active',1,0,10000)")
