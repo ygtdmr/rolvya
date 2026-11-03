@@ -54,6 +54,8 @@ export function parseSnapshot(v: unknown, project: string): Snapshot {
     !object(v) ||
     !member(v.schema, [1, 2]) ||
     v.provenance !== "controller" ||
+    (v.recoveryRequired !== undefined &&
+      typeof v.recoveryRequired !== "boolean") ||
     !integer(v.revision) ||
     !integer(v.cursor) ||
     !time(v.asOf) ||
@@ -405,10 +407,15 @@ export function parseSnapshot(v: unknown, project: string): Snapshot {
       exposure > 9223372036854775807n ||
       f.version < 1 ||
       f.overCeiling !== exposure > BigInt(f.ceiling) ||
-      (f.unknownLiabilities === 0
+      (f.recoveryRequired !== undefined &&
+        typeof f.recoveryRequired !== "boolean") ||
+      (f.unknownLiabilities === 0 && !f.recoveryRequired
         ? f.available !== remaining.toString()
         : f.available !== null) ||
-      ((f.overCeiling || f.unknownLiabilities > 0 || f.available === "0") &&
+      ((f.recoveryRequired ||
+        f.overCeiling ||
+        f.unknownLiabilities > 0 ||
+        f.available === "0") &&
         !f.paused)
     )
       throw new ReadError("invalid");

@@ -248,6 +248,9 @@ pub(crate) async fn reserve<P: SchedulerPolicy + ?Sized>(
     a: &ExecutionAssignment,
     t: i64,
 ) -> Result<(), RegistryError> {
+    if !crate::controller_keys::operations::external_authority_available(c).await? {
+        return Err(RegistryError::Denied);
+    }
     let Some(registry) = policy.provider_registry() else {
         if legacy(c, a, &r.permit).await? {
             return Ok(());
@@ -306,6 +309,9 @@ pub(crate) async fn current<P: SchedulerPolicy + ?Sized>(
     a: &ExecutionAssignment,
     t: i64,
 ) -> Result<(), RegistryError> {
+    if !crate::controller_keys::operations::external_authority_available(c).await? {
+        return Err(RegistryError::Denied);
+    }
     let Some(registry) = policy.provider_registry() else {
         if legacy(c, a, &r.permit).await? {
             return Ok(());

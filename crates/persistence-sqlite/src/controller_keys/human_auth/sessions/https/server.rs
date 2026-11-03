@@ -17,6 +17,7 @@ pub struct HumanBrowserServer {
     identity: ServerIdentity,
     pub(super) expected: String,
     pub(super) assets: BrowserAssets,
+    pub(super) support_url: Option<String>,
     pub(super) streams: Arc<Semaphore>,
     pub(super) active_producers: Arc<std::sync::atomic::AtomicUsize>,
     pub(super) open_bodies: Arc<std::sync::atomic::AtomicUsize>,
@@ -35,6 +36,34 @@ impl HumanBrowserServer {
         let auth = HumanAuth::open(bootstrap).await?;
         Self::build(auth, identity, canonical_origin, assets)
     }
+    pub(in crate::controller_keys) async fn open_operational(
+        bootstrap: &ControllerBootstrap,
+        identity: ServerIdentity,
+        canonical_origin: &str,
+        assets: BrowserAssets,
+        email: Option<super::super::super::operational_mail::SmtpConfiguration>,
+        support: Option<String>,
+    ) -> Result<Arc<Self>, AuthError> {
+        let mut auth = HumanAuth::open(bootstrap).await?;
+        if let Some(config) = email {
+            let mail = Arc::new(
+                super::super::super::operational_mail::OperationalEmail::inspect(
+                    bootstrap,
+                    config,
+                    canonical_origin,
+                )
+                .await
+                .map_err(|_| AuthError::Unavailable)?,
+            );
+            auth.mail = mail.clone();
+            auth.delivery = mail;
+        }
+        let mut server = Self::build(auth, identity, canonical_origin, assets)?;
+        Arc::get_mut(&mut server)
+            .ok_or(AuthError::Unavailable)?
+            .support_url = support;
+        Ok(server)
+    }
     fn build(
         mut auth: HumanAuth,
         identity: ServerIdentity,
@@ -51,6 +80,7 @@ impl HumanBrowserServer {
             identity,
             expected: canonical_origin.to_owned(),
             assets,
+            support_url: None,
             streams: Arc::new(Semaphore::new(16)),
             active_producers: Arc::new(std::sync::atomic::AtomicUsize::new(0)),
             open_bodies: Arc::new(std::sync::atomic::AtomicUsize::new(0)),

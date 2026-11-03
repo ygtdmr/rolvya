@@ -84,5 +84,6 @@
     "activity/governance": null,
     "activity/provider": null,
     "activity/publication": null
-  }
+  },
+  "recoveryRequired": false
 }

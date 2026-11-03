@@ -8,6 +8,8 @@ tags: [deployment, control-plane, workers]
 
 # Deployment architecture
 
+G1-10 adds the executable [controller installation and recovery path](controller-installation.md). The historical proposals below are not deployment qualification; consult that guide for implemented boundaries and remaining gates.
+
 ## Constraints
 
 Rolvya targets a lightweight remote control plane; a 2–4 GB RAM VPS was discussed, but **not benchmarked**. Computationally intensive coding agents run on remote cloud or user-supplied remote servers; the same VPS option was explored but is not preferred for concurrency. **No personal-computer Local Agent or Local Sync.** **Rust is approved as the sole backend language and SQLite as the sole authoritative database.** **Worker-initiated HTTPS (ADR 0006), GitHub App for GitHub (ADR 0008) and multi-provider remote worker adapters (ADR 0011) are Approved.** Specific cloud providers, operating system, container orchestrator, HTTPS schema/security implementation and concrete persistence configuration remain open.

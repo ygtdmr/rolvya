@@ -172,10 +172,12 @@ export function ConnectivityBanner({
   state,
   asOf,
   onRefresh,
+  recoveryRequired = false,
 }: {
   state: Availability;
   asOf: string | null;
   onRefresh: () => void;
+  recoveryRequired?: boolean;
 }) {
   const copy: Record<Availability, string> = {
     live: "Snapshot current",
@@ -194,7 +196,12 @@ export function ConnectivityBanner({
     >
       <span role="status">
         <span className="rv-signal" />
-        {copy[state]}
+        {recoveryRequired && state === "live"
+          ? "Restored records. External state requires reconciliation; new spending is blocked."
+          : copy[state]}
+        {recoveryRequired &&
+          state !== "live" &&
+          " Restored records. External state requires reconciliation; new spending is blocked."}
       </span>
       <div>
         {asOf && (

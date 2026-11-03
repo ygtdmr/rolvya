@@ -10,6 +10,10 @@ async fn browser_https_driver() {
     let assets =
         std::path::PathBuf::from(std::env::var_os("ROLVYA_BROWSER_FIXTURE_ASSETS").unwrap());
     let factor = std::env::var_os("ROLVYA_BROWSER_FIXTURE_TOTP").is_some();
+    if std::env::var_os("ROLVYA_BROWSER_FIXTURE_INSTALLATION").is_some() {
+        crate::controller_keys::operations::tests::operational_browser_driver(&dir, &assets).await;
+        return;
+    }
     let operational = std::env::var_os("ROLVYA_BROWSER_FIXTURE_OPERATIONAL").is_some();
     let (seed, _retained_git) = if operational {
         let (seed, fixture) =

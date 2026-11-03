@@ -34,6 +34,7 @@ export interface AuthState {
   message: string;
   session: HumanSession | null;
   challenge: string | null;
+  supportUrl?: string | null;
 }
 const initial: AuthState = {
   phase: "checking",
@@ -332,6 +333,7 @@ export class BrowserSession {
           : message,
       session: null,
       challenge: this.#link?.challenge ?? null,
+      supportUrl: supportUrl(value.support),
     });
   }
   start = async () => {
@@ -564,5 +566,16 @@ export class BrowserSession {
     document.removeEventListener("keydown", this.#foreground);
     this.#foregroundListening = false;
   };
+}
+function supportUrl(value: unknown): string | null {
+  if (typeof value !== "string" || value.length > 512) return null;
+  try {
+    const url = new URL(value);
+    return url.protocol === "https:" && !url.username && !url.password
+      ? url.href
+      : null;
+  } catch {
+    return null;
+  }
 }
 export const humanSession = new BrowserSession();

@@ -218,6 +218,17 @@ it("accepts versioned ledger data with unavailable forecasts without inventing z
     approvals: [],
   };
   expect(parseSnapshot(value, data.project.id).finance?.forecasts).toBeNull();
+  const recovery = structuredClone(value);
+  recovery.recoveryRequired = true;
+  const recoveredFinance = recovery.finance as Record<string, unknown>;
+  recoveredFinance.unknownLiabilities = 0;
+  recoveredFinance.recoveryRequired = true;
+  expect(
+    parseSnapshot(recovery, data.project.id).finance?.available,
+  ).toBeNull();
+  const malformedRecovery = structuredClone(recovery);
+  malformedRecovery.recoveryRequired = "true";
+  expect(() => parseSnapshot(malformedRecovery, data.project.id)).toThrow();
   const forged = structuredClone(value);
   (forged.finance as Record<string, unknown>).settled = "0";
   expect(() => parseSnapshot(forged, data.project.id)).toThrow();

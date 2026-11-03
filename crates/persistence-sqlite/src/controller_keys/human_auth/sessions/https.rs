@@ -34,6 +34,11 @@ fn origin(value: &str) -> Result<url::Url, AuthError> {
     }
     Ok(u)
 }
+pub(in crate::controller_keys::human_auth) fn validated_operational_origin(
+    value: &str,
+) -> Result<(), AuthError> {
+    origin(value).map(|_| ())
+}
 
 fn check_headers(r: &Request<Body>, expected: &str) -> Result<(), AuthError> {
     let h = r.headers();

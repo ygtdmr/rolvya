@@ -8,6 +8,8 @@ tags: [configuration, deployment, security, cost]
 
 # Configuration and operational policy
 
+G1-10 adds the executable [controller installation and recovery path](controller-installation.md). The historical proposals below are not deployment qualification; consult that guide for implemented boundaries and remaining gates.
+
 ## Purpose
 
 Describe configuration domains that a future deployment must support. This is **not** a concrete `.env` template, product API, or approved runtime defaults: **Rust, SQLite, Axum, SQLx, WAL, max four DB connections, five-second busy timeout, worker HTTPS and GitHub App are approved**; dependency versions, secret manager, provider credentials, password/email/TOTP implementation and precise wire contracts remain open.

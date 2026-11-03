@@ -8,9 +8,11 @@ tags: [secrets, security, access]
 
 # Operational secrets and access boundaries
 
+G1-10 adds the executable [controller installation and recovery path](controller-installation.md). The historical proposals below are not deployment qualification; consult that guide for implemented boundaries and remaining gates.
+
 ## Approved and proposed scope
 
-Rolvya may execute arbitrary project code on **remote** workers and access remote repositories. The user explicitly excluded Local Agent, Local Sync and personal-computer repository access. Secrets handling described here is a **proposed security contract**, not currently implemented controls.
+Rolvya may execute arbitrary project code on **remote** workers and access remote repositories. The user explicitly excluded Local Agent, Local Sync and personal-computer repository access. This document combines approved security policy with deployment gates; implemented Broker, key-custody and G1-10 recovery boundaries are recorded in the linked development/installation guides.
 
 ## Classification
 
@@ -48,7 +50,7 @@ Related: [security](../architecture/security.md), [Git integration](../architect
 
 ## Approved central credential architecture (ADR 0037, 2026-10-24)
 
-[ADR 0037](../decisions/0037-central-secret-broker-task-scoped-access.md) approves centralized protected credential storage, a trusted Secret Broker validating active project/attempt/lease/budget authority, broker-side provider calls when feasible, and minimum-scope credential access for isolated remote executors only when technically necessary. Directly injected upstream keys can be extracted from compromised workers; audit/rotation and fail-closed isolation remain necessary. Provider subscription rights are **not** guaranteed by this architectural choice and remain OQ-008. No broker is implemented or tested.
+[ADR 0037](../decisions/0037-central-secret-broker-task-scoped-access.md) approves centralized protected credential storage, a trusted Secret Broker validating active project/attempt/lease/budget authority, broker-side provider calls when feasible, and minimum-scope credential access for isolated remote executors only when technically necessary. Directly injected upstream keys can be extracted from compromised workers; audit/rotation and fail-closed isolation remain necessary. Provider subscription rights are **not** guaranteed by this architectural choice and remain OQ-008. The encrypted Broker and scoped credential proxy are implemented and tested with private fixtures; actual provider entitlement and remote isolation remain unqualified.
 
 ## Owner-approved multi-account CLI grants (ADR 0038, 2026-10-24)
 
@@ -68,4 +70,4 @@ Related: [security](../architecture/security.md), [Git integration](../architect
 
 ## Initial secret cryptography and guarded bootstrap — Approved ADR 0047
 
-[ADR 0047](../decisions/0047-secret-broker-xchacha20-key-hierarchy.md) approves **XChaCha20-Poly1305** authenticated encryption, the operating-system CSPRNG-generated **256-bit controller KEK**, a fresh **256-bit DEK for each protected secret record**, authenticated DEK wrapping under the KEK, and stable project/connection/purpose metadata binding. A new KEK may be generated only in an explicitly authorized and protected **first-time setup**, not in an ordinary restart or response to an unreadable key. Exact Rust dependency versions, nonce/record format, installer crash recovery, service account, recovery kit encryption/KDF and real security verification remain OQ-005/P0. The emergency kit and its separately retained recovery secret are approved under ADR 0046; selecting the SQLite row cipher does not automatically select the kit encryption scheme. No secret, key file or encryption service has been implemented.
+[ADR 0047](../decisions/0047-secret-broker-xchacha20-key-hierarchy.md) approves **XChaCha20-Poly1305** authenticated encryption, the operating-system CSPRNG-generated **256-bit controller KEK**, a fresh **256-bit DEK for each protected secret record**, authenticated DEK wrapping under the KEK, and stable project/connection/purpose metadata binding. A new KEK may be generated only in an explicitly authorized and protected **first-time setup**, not in an ordinary restart or response to an unreadable key. Exact Rust dependency versions, nonce/record format, installer crash recovery, service account, recovery kit encryption/KDF and real security verification remain OQ-005/P0. The emergency kit and its separately retained recovery secret are approved under ADR 0046; selecting the SQLite row cipher does not automatically select the kit encryption scheme. The protected key/Broker and separately encrypted G1-10 recovery kit are implemented. This does not establish real off-host custody or production deployment qualification.

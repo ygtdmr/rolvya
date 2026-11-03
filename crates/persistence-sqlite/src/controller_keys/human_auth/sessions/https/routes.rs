@@ -37,6 +37,12 @@ struct InteractionInput {
     intent: String,
     issued: i64,
 }
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct BindingInput {
+    approval: String,
+    confirm: bool,
+}
 fn cookies(r: &Request<Body>) -> Result<Cookies, AuthError> {
     let mut out = BTreeMap::new();
     let mut n = 0;
@@ -147,6 +153,31 @@ impl HumanBrowserServer {
             {
                 return Err(AuthError::Denied);
             }
+            if r.headers()
+                .keys()
+                .any(|k| k.as_str() == "forwarded" || k.as_str().starts_with("x-forwarded-"))
+            {
+                return Err(AuthError::Denied);
+            }
+            if path == "/health/live" {
+                return Ok(json(StatusCode::OK, &serde_json::json!({"status":"alive"})));
+            }
+            if path == "/health/ready" {
+                // Public probes must not trigger a full database integrity scan.
+                // Startup/operator verification performs that expensive check.
+                let ready = sqlx::query_scalar::<_, i64>("SELECT 1")
+                    .fetch_one(&self.auth.store.pool)
+                    .await
+                    .is_ok();
+                return Ok(json(
+                    if ready {
+                        StatusCode::OK
+                    } else {
+                        StatusCode::SERVICE_UNAVAILABLE
+                    },
+                    &serde_json::json!({"ready":ready}),
+                ));
+            }
             return Ok(self.assets.response(&path).unwrap_or_else(|| {
                 json(
                     StatusCode::NOT_FOUND,
@@ -227,7 +258,7 @@ impl HumanBrowserServer {
             if let Ok((_, csrf)) = self.flow(&c, now) {
                 return Ok(json(
                     StatusCode::OK,
-                    &serde_json::json!({"schema":1,"state":"unauthenticated","csrf":csrf,"password":policy.password_enabled(),"email":policy.email_enabled()&&self.auth.mail_ready(),"recovery":self.auth.password_recovery_status().guidance(),"support":null}),
+                    &serde_json::json!({"schema":1,"state":"unauthenticated","csrf":csrf,"password":policy.password_enabled(),"email":policy.email_enabled()&&self.auth.mail_ready(),"recovery":self.auth.password_recovery_status().guidance(),"support":self.support_url}),
                 ));
             }
             let nonce = Zeroizing::new(hex(&random::<32>()?[..]));
@@ -243,7 +274,7 @@ impl HumanBrowserServer {
             let csrf = hex(&self.auth.mac(b"browser-preauth-csrf", &[nonce.as_bytes()]));
             let mut response = json(
                 StatusCode::OK,
-                &serde_json::json!({"schema":1,"state":"unauthenticated","csrf":csrf,"password":policy.password_enabled(),"email":policy.email_enabled()&&self.auth.mail_ready(),"recovery":self.auth.password_recovery_status().guidance(),"support":null}),
+                &serde_json::json!({"schema":1,"state":"unauthenticated","csrf":csrf,"password":policy.password_enabled(),"email":policy.email_enabled()&&self.auth.mail_ready(),"recovery":self.auth.password_recovery_status().guidance(),"support":self.support_url}),
             );
             let mut cookie=header::HeaderValue::from_str(&format!("__Host-rolvya-flow={issued}.{}.{tag}; Path=/; Secure; HttpOnly; SameSite=Strict; Max-Age=600",nonce.as_str())).map_err(|_|AuthError::Denied)?;
             cookie.set_sensitive(true);
@@ -295,6 +326,7 @@ impl HumanBrowserServer {
             | "/api/control/v1/auth/logout-all"
             | "/api/control/v1/auth/activity"
             | "/api/control/v1/auth/interaction" => Operation::Write,
+            "/api/control/v1/auth/project-binding" => Operation::Write,
             _ if budget_command.is_some() => Operation::Write,
             _ => Operation::Read,
         };
@@ -376,6 +408,23 @@ impl HumanBrowserServer {
         };
         let device = DeviceLabel::new("Web browser".to_owned())?;
         let mut response = match path.as_str() {
+            "/api/control/v1/auth/project-binding" => {
+                let input: BindingInput = decode(&body)?;
+                if !input.confirm || input.approval.len() != 64 {
+                    return Err(AuthError::Denied);
+                }
+                self.auth
+                    .bind_prepared_project(
+                        h.as_ref().ok_or(AuthError::Denied)?,
+                        &input.approval,
+                        context,
+                    )
+                    .await?;
+                json(
+                    StatusCode::OK,
+                    &serde_json::json!({"schema":1,"state":"bound"}),
+                )
+            }
             "/api/control/v1/auth/password" => {
                 let input: PasswordInput = decode(&body)?;
                 let email = EmailAddress::parse(&input.email).map_err(|_| AuthError::Denied)?;

@@ -302,6 +302,9 @@ pub(crate) async fn current<P: SchedulerPolicy + ?Sized>(
     policy: &P,
     t: i64,
 ) -> Result<(), WorkerError> {
+    if !crate::controller_keys::operations::external_authority_available(c).await? {
+        return Err(WorkerError::Unauthorized);
+    }
     let l = cmd.lease();
     if admission::live(c, &l, t).await? != cmd.admission {
         return Err(StoreError::Integrity.into());

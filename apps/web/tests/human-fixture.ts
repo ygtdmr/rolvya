@@ -18,6 +18,7 @@ interface FixtureInfo {
   totp: string | null;
   project: string;
   fingerprint: string;
+  bindingApproval?: string;
 }
 interface Controller {
   info: FixtureInfo;
@@ -40,6 +41,7 @@ export const test = base.extend<{ controller: Controller }>({
       await chmod(dir, 0o700);
       const factor = testInfo.title.includes("TOTP");
       const operational = testInfo.title.includes("operational");
+      const installation = testInfo.title.includes("installation bootstrap");
       const child = spawn(
         "cargo",
         [
@@ -63,6 +65,9 @@ export const test = base.extend<{ controller: Controller }>({
             ROLVYA_BROWSER_FIXTURE_DIR: dir,
             ROLVYA_BROWSER_FIXTURE_ASSETS: resolve("dist"),
             ...(operational ? { ROLVYA_BROWSER_FIXTURE_OPERATIONAL: "1" } : {}),
+            ...(installation
+              ? { ROLVYA_BROWSER_FIXTURE_INSTALLATION: "1" }
+              : {}),
             ...(factor ? { ROLVYA_BROWSER_FIXTURE_TOTP: "1" } : {}),
           },
         },

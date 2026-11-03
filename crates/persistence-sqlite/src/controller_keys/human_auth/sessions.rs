@@ -528,3 +528,88 @@ fn metadata(r: &SqliteRow) -> Result<SessionMetadata, AuthError> {
         revoked: r.try_get::<Option<i64>, _>("revoked_at")?.is_some(),
     })
 }
+
+impl HumanAuth {
+    pub(in crate::controller_keys) async fn restrict_sessions_after_restore(
+        &self,
+        restore: &str,
+    ) -> Result<(), AuthError> {
+        let mut after = String::new();
+        loop {
+            let mut tx = self.store.pool.begin_with("BEGIN IMMEDIATE").await?;
+            let users: Vec<String> = sqlx::query_scalar(
+                "SELECT user_id FROM human_users WHERE user_id>? ORDER BY user_id LIMIT 64",
+            )
+            .bind(&after)
+            .fetch_all(&mut *tx)
+            .await?;
+            if users.is_empty() {
+                tx.commit().await?;
+                break;
+            }
+            for user in &users {
+                // Restriction must remain possible after a clock rollback. This
+                // timestamp only revokes; it can never extend a session deadline.
+                let latest: Option<i64> = sqlx::query_scalar(
+                    "SELECT max(created_at) FROM human_sessions WHERE user_id=?",
+                )
+                .bind(user)
+                .fetch_one(&mut *tx)
+                .await?;
+                let restriction_time = self.now()?.max(latest.unwrap_or(0));
+                self.revoke_user_sessions(&mut tx, user, restriction_time)
+                    .await?;
+                let factors=sqlx::query("SELECT * FROM human_factors WHERE user_id=? AND state IN ('active','pending') LIMIT 2").bind(user).fetch_all(&mut *tx).await?;
+                if factors.len() > 1 {
+                    return Err(AuthError::Unavailable);
+                }
+                for factor in factors {
+                    drop(self.factor_seed(&factor, user)?);
+                }
+                sqlx::query(
+                    "UPDATE human_factors SET state='aborted' WHERE user_id=? AND state='pending'",
+                )
+                .bind(user)
+                .execute(&mut *tx)
+                .await?;
+                let minimum_step = self
+                    .now()?
+                    .checked_div(30)
+                    .and_then(|v| v.checked_add(1))
+                    .ok_or(AuthError::Unavailable)?;
+                sqlx::query("UPDATE human_factors SET last_step=? WHERE user_id=? AND state='active' AND last_step<?").bind(minimum_step).bind(user).bind(minimum_step).execute(&mut *tx).await?;
+                sqlx::query("UPDATE human_recovery_codes SET state='revoked' WHERE state='active' AND factor_id IN (SELECT factor_id FROM human_factors WHERE user_id=?)").bind(user).execute(&mut *tx).await?;
+                sqlx::query("UPDATE human_challenges SET state=CASE state WHEN 'dispatching' THEN 'uncertain' ELSE 'revoked' END WHERE user_id=? AND state IN ('queued','dispatching','accepted','delivered')").bind(user).execute(&mut *tx).await?;
+                let stale:bool=sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM human_recovery_codes r JOIN human_factors f USING(factor_id) WHERE f.user_id=? AND r.state='active') OR EXISTS(SELECT 1 FROM human_challenges WHERE user_id=? AND state IN ('queued','dispatching','accepted','delivered')) OR EXISTS(SELECT 1 FROM human_factors WHERE user_id=? AND (state='pending' OR state='active' AND last_step<?))").bind(user).bind(user).bind(user).bind(minimum_step).fetch_one(&mut *tx).await?;
+                if stale {
+                    return Err(AuthError::Unavailable);
+                }
+                let request = RequestId::new(super::hex(&self.mac(
+                    b"restore-session-revocation",
+                    &[restore.as_bytes(), user.as_bytes()],
+                )))
+                .map_err(|_| AuthError::Unavailable)?;
+                let exists: bool = sqlx::query_scalar(
+                    "SELECT EXISTS(SELECT 1 FROM human_session_events WHERE request_id=?)",
+                )
+                .bind(request.as_str())
+                .fetch_one(&mut *tx)
+                .await?;
+                if !exists {
+                    self.session_event(
+                        &mut tx,
+                        user,
+                        None,
+                        &request,
+                        "revoked_all",
+                        restriction_time,
+                    )
+                    .await?;
+                }
+            }
+            after = users.last().ok_or(AuthError::Unavailable)?.clone();
+            tx.commit().await?;
+        }
+        Ok(())
+    }
+}

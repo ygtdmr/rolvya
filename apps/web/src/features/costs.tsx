@@ -59,9 +59,11 @@ export function Costs({
               <div>
                 <strong>New billable admission is paused</strong>
                 <p>
-                  {f.unknownLiabilities > 0
-                    ? "External liability is unresolved. Available headroom cannot be confirmed."
-                    : "The controller has paused new billable work."}{" "}
+                  {f.recoveryRequired
+                    ? "Restore reconciliation is required. Snapshot balances are historical; new spending remains blocked."
+                    : f.unknownLiabilities > 0
+                      ? "External liability is unresolved. Available headroom cannot be confirmed."
+                      : "The controller has paused new billable work."}{" "}
                   Existing accepted work and financial holds are preserved.
                 </p>
               </div>

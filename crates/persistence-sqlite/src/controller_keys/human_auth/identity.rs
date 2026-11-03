@@ -1,5 +1,32 @@
 use super::*;
 impl HumanAuth {
+    async fn enrollment_recovery_current(
+        &self,
+        c: &mut sqlx::SqliteConnection,
+    ) -> Result<(), AuthError> {
+        if let Some(expected) = self.authority.recovery_checkpoint() {
+            let actual: Option<String> = sqlx::query_scalar(
+                "SELECT restore_id FROM controller_restore_holds ORDER BY rowid DESC LIMIT 1",
+            )
+            .fetch_optional(&mut *c)
+            .await?;
+            if &actual != expected {
+                return Err(AuthError::Denied);
+            }
+        }
+        if let Some((request, expected)) = self.authority.durable_evidence() {
+            let actual: Option<String> = sqlx::query_scalar(
+                "SELECT evidence_sha256 FROM controller_operator_evidence WHERE request_id=?",
+            )
+            .bind(request)
+            .fetch_optional(c)
+            .await?;
+            if actual.as_deref() != Some(expected) {
+                return Err(AuthError::Denied);
+            }
+        }
+        Ok(())
+    }
     pub(super) fn enrollment_commitment(
         &self,
         r: &Enrollment,
@@ -42,6 +69,7 @@ impl HumanAuth {
             return Err(AuthError::Denied);
         }
         let mut tx = self.store.pool.begin_with("BEGIN IMMEDIATE").await?;
+        self.enrollment_recovery_current(&mut tx).await?;
         if let Some(old) = sqlx::query("SELECT * FROM human_enroll_requests WHERE request_id=?")
             .bind(r.administration.request_id.as_str())
             .fetch_optional(&mut *tx)
@@ -94,6 +122,7 @@ impl HumanAuth {
             None => None,
         };
         let mut tx = self.store.pool.begin_with("BEGIN IMMEDIATE").await?;
+        self.enrollment_recovery_current(&mut tx).await?;
         if self.authority.check(&AdminContext {
             now: self.now()?,
             ..context

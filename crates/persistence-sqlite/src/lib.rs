@@ -179,7 +179,7 @@ pub struct PlanStore {
 fn version(key: &PlanKey) -> Result<i64, StoreError> {
     i64::try_from(key.version.get()).map_err(|_| StoreError::VersionOutOfRange)
 }
-fn create_private(path: &Path) -> Result<Option<std::fs::File>, StoreError> {
+fn create_private(path: &Path, allow_creation: bool) -> Result<Option<std::fs::File>, StoreError> {
     if let Ok(metadata) = std::fs::symlink_metadata(path) {
         if !metadata.is_file() || metadata.file_type().is_symlink() {
             return Err(StoreError::InvalidPath);
@@ -192,6 +192,9 @@ fn create_private(path: &Path) -> Result<Option<std::fs::File>, StoreError> {
             }
         }
         return Ok(None);
+    }
+    if !allow_creation {
+        return Err(StoreError::InvalidPath);
     }
     let mut options = OpenOptions::new();
     options.write(true).create_new(true);
@@ -254,13 +257,42 @@ async fn preflight_schema(path: &Path) -> Result<(), StoreError> {
 }
 
 impl PlanStore {
+    /// Ordinary service startup never creates or upgrades a database.
+    pub async fn open_existing(path: impl AsRef<Path>) -> Result<Self, StoreError> {
+        let path = path.as_ref();
+        let metadata = std::fs::symlink_metadata(path).map_err(|_| StoreError::InvalidPath)?;
+        if !metadata.is_file() || metadata.file_type().is_symlink() {
+            return Err(StoreError::InvalidPath);
+        }
+        preflight_schema(path).await?;
+        let mut c = SqliteConnectOptions::new()
+            .filename(path)
+            .read_only(true)
+            .disable_statement_logging()
+            .connect()
+            .await?;
+        let versions: Vec<i64> = sqlx::query_scalar(
+            "SELECT version FROM _sqlx_migrations WHERE success=1 ORDER BY version",
+        )
+        .fetch_all(&mut c)
+        .await
+        .map_err(|_| StoreError::Migration)?;
+        c.close().await?;
+        if versions != MIGRATOR.iter().map(|m| m.version).collect::<Vec<_>>() {
+            return Err(StoreError::Migration);
+        }
+        Self::open_guarded(path, false).await
+    }
     /// Local controller storage only. Existing unrecognized schemas are not adopted.
     pub async fn open(path: impl AsRef<Path>) -> Result<Self, StoreError> {
-        let newly_created = create_private(path.as_ref())?
-            .and_then(|file| controller_keys::new_database_guard(path.as_ref(), file));
-        preflight_schema(path.as_ref()).await?;
+        Self::open_guarded(path.as_ref(), true).await
+    }
+    async fn open_guarded(path: &Path, allow_migrations: bool) -> Result<Self, StoreError> {
+        let newly_created = create_private(path, allow_migrations)?
+            .and_then(|file| controller_keys::new_database_guard(path, file));
+        preflight_schema(path).await?;
         let options = SqliteConnectOptions::new()
-            .filename(path.as_ref())
+            .filename(path)
             .create_if_missing(false)
             .foreign_keys(true)
             .journal_mode(SqliteJournalMode::Wal)
@@ -290,7 +322,18 @@ impl PlanStore {
             store.pool.close().await;
             return Err(StoreError::UnknownDatabase);
         }
-        if MIGRATOR.run(&store.pool).await.is_err() {
+        if !allow_migrations {
+            let versions: Vec<i64> = sqlx::query_scalar(
+                "SELECT version FROM _sqlx_migrations WHERE success=1 ORDER BY version",
+            )
+            .fetch_all(&store.pool)
+            .await
+            .map_err(|_| StoreError::Migration)?;
+            if versions != MIGRATOR.iter().map(|m| m.version).collect::<Vec<_>>() {
+                store.pool.close().await;
+                return Err(StoreError::Migration);
+            }
+        } else if MIGRATOR.run(&store.pool).await.is_err() {
             store.pool.close().await;
             return Err(StoreError::Migration);
         }
