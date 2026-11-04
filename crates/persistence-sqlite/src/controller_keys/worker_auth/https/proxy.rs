@@ -7,6 +7,15 @@ pub(super) struct ProviderProxy {
     broker: crate::controller_keys::secret_broker::SecretBroker,
     slots: tokio::sync::Semaphore,
     #[cfg(test)]
+    qualifications: std::sync::Mutex<
+        std::collections::BTreeMap<
+            String,
+            std::sync::Arc<
+                crate::controller_keys::worker_auth::aws_fargate::execution::FixtureModelAuthority,
+            >,
+        >,
+    >,
+    #[cfg(test)]
     routes: std::sync::Mutex<
         std::collections::BTreeMap<
             String,
@@ -23,6 +32,8 @@ impl ProviderProxy {
     ) -> Result<Self, ErrorCode> {
         Ok(Self {
             slots: tokio::sync::Semaphore::new(8),
+            #[cfg(test)]
+            qualifications: Default::default(),
             broker: crate::controller_keys::secret_broker::SecretBroker::open(bootstrap)
                 .await
                 .map_err(|_| ErrorCode::Unavailable)?,
@@ -231,6 +242,31 @@ impl ProxyPermit<'_> {
             .map_err(|_| ErrorCode::UnauthorizedScope)?;
         if w != self.work {
             return Err(ErrorCode::UnauthorizedScope);
+        }
+        #[cfg(test)]
+        let fixture = self.server.provider_proxy.as_ref().and_then(|p| {
+            p.qualifications
+                .lock()
+                .unwrap()
+                .get(w.identity.as_str())
+                .cloned()
+        });
+        let legacy_fixture =
+            {
+                #[cfg(test)]
+                {
+                    fixture.is_none()
+                        && self.server.provider_proxy.as_ref().is_some_and(|p| {
+                            p.routes.lock().unwrap().contains_key(w.identity.as_str())
+                        })
+                }
+                #[cfg(not(test))]
+                {
+                    false
+                }
+            };
+        if !legacy_fixture {
+            crate::controller_keys::worker_auth::aws_fargate::execution::require_model_operation_in(c,self.server.security.store.clone(),key,&w,&self.receipt.operation,now,#[cfg(test)] fixture.as_deref()).await.map_err(|_|ErrorCode::Unavailable)?;
         }
         let expiry = co
             .coding_proxy_current_in(
@@ -611,4 +647,31 @@ impl super::server::HttpsWorkerServer {
             response,
         })
     }
+}
+
+#[cfg(test)]
+pub(in crate::controller_keys) async fn fixture_require_qualification(
+    server: &super::server::HttpsWorkerServer,
+    b: &crate::controller_keys::ControllerBootstrap,
+    clock: std::sync::Arc<dyn crate::admission::Clock>,
+    w: &CodingWork,
+    execution: &crate::controller_keys::worker_auth::aws_fargate::execution::FargateExecution,
+) -> std::sync::Arc<
+    crate::controller_keys::worker_auth::aws_fargate::execution::FixtureModelAuthority,
+> {
+    let authority = std::sync::Arc::new(
+        crate::controller_keys::worker_auth::aws_fargate::execution::FixtureModelAuthority::new(
+            b, clock, w, execution,
+        )
+        .await,
+    );
+    server
+        .provider_proxy
+        .as_ref()
+        .unwrap()
+        .qualifications
+        .lock()
+        .unwrap()
+        .insert(w.identity.as_str().into(), authority.clone());
+    authority
 }

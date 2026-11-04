@@ -207,7 +207,20 @@ impl Session {
         Self::open_proxy_expiry(maximum, proxy, false).await
     }
     async fn open_proxy_expiry(maximum: Option<i64>, proxy: bool, expire_at_io: bool) -> Self {
-        let f = Fixture::new_coding_mode("agents-openai").await;
+        Self::open_mode(maximum, proxy, expire_at_io, false).await
+    }
+    async fn open_mode(
+        maximum: Option<i64>,
+        proxy: bool,
+        expire_at_io: bool,
+        qualified: bool,
+    ) -> Self {
+        let f = Fixture::new_coding_mode(if qualified {
+            "agents-openai-fargate"
+        } else {
+            "agents-openai"
+        })
+        .await;
         let leases = f.coding_admit().await;
         let mut co = f
             .bootstrap
@@ -239,6 +252,7 @@ impl Session {
             &f.bootstrap,
             Arc::new(f.policy.fixture_reuse(synthetic::Authority {
                 coding_agents: true,
+                fargate: qualified,
                 ..Default::default()
             })),
             f.clock.clone(),
@@ -944,3 +958,63 @@ async fn coding_account_home_identity_rejects_account_attempt_and_credential_sub
 
 #[path = "proxy_tests.rs"]
 mod proxy_tests;
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn qualified_model_proxy_checks_real_scope_and_revocation_before_the_next_provider_effect() {
+    let s = Session::open_mode(Some(0), true, false, true).await;
+    let coding = super::fargate::prepare_coding(&s.f, &s.lease, true).await;
+    let (endpoint, provider, count) =
+        agent::fixture::proxy_provider(s.worker.work(), Adapter::OpenAiApi).await;
+    crate::controller_keys::worker_auth::https::proxy::fixture_route(
+        &s.server,
+        s.worker.work(),
+        endpoint,
+    );
+    let authority =
+        crate::controller_keys::worker_auth::https::proxy::fixture_require_qualification(
+            &s.server,
+            &s.f.bootstrap,
+            s.f.clock.clone(),
+            s.worker.work(),
+            &coding.adapter,
+        )
+        .await;
+    let before = s.f.store.financial_snapshot(&s.f.project).await.unwrap();
+    let reply = s
+        .worker
+        .proxy_request(
+            crate::controller_keys::worker_auth::https::proxy::ProxyRequest {
+                version: 1,
+                work: s.worker.work().identity.clone(),
+                step: 1,
+                previous: vec![],
+            },
+        )
+        .await
+        .unwrap();
+    assert!(reply.response.is_ok());
+    assert_eq!(count.load(Ordering::SeqCst), 1);
+    assert_eq!(s.f.count("provider_qualification_evidence").await, 9);
+    let delivered = reply.response.unwrap();
+    authority.revoke();
+    assert!(
+        s.worker
+            .proxy_request(
+                crate::controller_keys::worker_auth::https::proxy::ProxyRequest {
+                    version: 1,
+                    work: s.worker.work().identity.clone(),
+                    step: 2,
+                    previous: vec![delivered]
+                }
+            )
+            .await
+            .is_err()
+    );
+    assert_eq!(count.load(Ordering::SeqCst), 1);
+    assert_eq!(s.f.count("coding_agent_observations").await, 1);
+    let after = s.f.store.financial_snapshot(&s.f.project).await.unwrap();
+    assert_eq!(before.held, after.held);
+    assert_eq!(before.ceiling, after.ceiling);
+    provider.abort();
+    s.close().await;
+}

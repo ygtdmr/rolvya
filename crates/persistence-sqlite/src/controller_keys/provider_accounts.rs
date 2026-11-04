@@ -677,3 +677,37 @@ pub(crate) async fn coding_model_binding(
         credential_version: g.credential.version,
     })
 }
+
+impl ProviderRegistry {
+    /// Host inspection of a declaration against current signed connection/grant
+    /// metadata. This does not verify account ownership, refresh credentials,
+    /// consume Broker secrets or install an entitlement.
+    pub async fn inspect_qualification_declaration(
+        &self,
+        project: &ProjectId,
+        id: &ConnectionId,
+        model: &str,
+        observation: &super::qualification::AccountObservation,
+    ) -> Result<String, RegistryError> {
+        let mut c = self.store.pool.begin().await?;
+        let record = store::connection(&mut c, &self.key, id).await?;
+        let grant = store::grant(&mut c, &self.key, id, project).await?;
+        if record.revoked
+            || grant.revoked
+            || !record.models.iter().any(|m| m == model)
+            || !grant.models.iter().any(|m| m == model)
+        {
+            return Err(RegistryError::Denied);
+        }
+        let binding = coding_model_binding(&mut c, &self.key, project, id.as_str()).await?;
+        let commitment = observation
+            .inspect(
+                &binding,
+                model,
+                crate::finance::now().map_err(|_| RegistryError::Unavailable)?,
+            )
+            .map_err(|_| RegistryError::Denied)?;
+        c.commit().await?;
+        Ok(commitment)
+    }
+}

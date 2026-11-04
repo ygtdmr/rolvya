@@ -147,6 +147,9 @@ impl LaunchCommand {
     pub fn profile(&self) -> &ExecutionProfile {
         &self.profile
     }
+    pub(crate) fn assignment(&self) -> &rolvya_domain::plan::ExecutionAssignment {
+        &self.assignment
+    }
     pub fn operation_key(&self) -> OperationKey {
         OperationKey {
             project: self.binding.task.plan.project_id.clone(),

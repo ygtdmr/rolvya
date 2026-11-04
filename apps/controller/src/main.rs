@@ -148,6 +148,68 @@ async fn run() -> Result<(), OperationError> {
             );
             Ok(())
         }
+        ("inspect-qualification", 2) => {
+            let body: QualificationInspection = serde_json::from_slice(&input(131072)?)
+                .map_err(|_| OperationError::InvalidConfiguration)?;
+            println!(
+                "{}",
+                serde_json::to_string(&op.inspect_qualification(&body).await?)
+                    .map_err(|_| OperationError::Integrity)?
+            );
+            Ok(())
+        }
+        ("inspect-account-qualification", 2) => {
+            let body: AccountInspection = serde_json::from_slice(&input(16384)?)
+                .map_err(|_| OperationError::InvalidConfiguration)?;
+            let digest = op.inspect_account_qualification(&body).await?;
+            println!(
+                "{{\"level\":\"configuration_inspected\",\"sha256\":\"{digest}\",\"execution_allowed\":false}}"
+            );
+            Ok(())
+        }
+        ("qualification-report", 2) => {
+            let body:rolvya_persistence_sqlite::controller_keys::qualification::QualificationScope=serde_json::from_slice(&input(8192)?).map_err(|_|OperationError::InvalidConfiguration)?;
+            println!(
+                "{}",
+                serde_json::to_string(&op.qualification_report(&body).await?)
+                    .map_err(|_| OperationError::Integrity)?
+            );
+            Ok(())
+        }
+        ("verify-qualification", 2) => {
+            let body: rolvya_persistence_sqlite::controller_keys::qualification::SignedEvidence =
+                serde_json::from_slice(&input(16384)?)
+                    .map_err(|_| OperationError::InvalidConfiguration)?;
+            op.verify_qualification(&body).await?;
+            println!("qualification evidence committed; execution remains separately gated");
+            Ok(())
+        }
+        ("revoke-qualification", 2) => {
+            let body: QualificationRevocation = serde_json::from_slice(&input(4096)?)
+                .map_err(|_| OperationError::InvalidConfiguration)?;
+            op.revoke_qualification(&body).await?;
+            println!("qualification revoked; financial holds preserved");
+            Ok(())
+        }
+        ("estimate-exposure", 2) => {
+            let body: ExposureInspection = serde_json::from_slice(&input(65536)?)
+                .map_err(|_| OperationError::InvalidConfiguration)?;
+            println!(
+                "{}",
+                serde_json::to_string(&op.estimate_exposure(&body)?)
+                    .map_err(|_| OperationError::Integrity)?
+            );
+            Ok(())
+        }
+        ("inspect-provider-operations", 2) => {
+            let query:rolvya_persistence_sqlite::controller_keys::worker_auth::aws_fargate::execution::ReconciliationQuery=serde_json::from_slice(&input(4096)?).map_err(|_|OperationError::InvalidConfiguration)?;
+            println!(
+                "{}",
+                serde_json::to_string(&op.inspect_provider_operations(&query).await?)
+                    .map_err(|_| OperationError::Integrity)?
+            );
+            Ok(())
+        }
         ("readiness", 2) => {
             println!(
                 "{}",

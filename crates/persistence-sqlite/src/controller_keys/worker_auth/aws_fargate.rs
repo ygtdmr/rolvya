@@ -58,6 +58,7 @@ pub enum AwsIdentityError {
     KeyUnavailable,
     Integrity,
     LiveLaunchDisabled,
+    QualificationRequired,
     ResourceLimit,
 }
 impl std::fmt::Display for AwsIdentityError {

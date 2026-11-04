@@ -85,5 +85,23 @@
     "activity/provider": null,
     "activity/publication": null
   },
-  "recoveryRequired": false
+  "recoveryRequired": false,
+  "qualification": {
+    "configurationInspected": 0,
+    "simulated": 0,
+    "untrusted": 0,
+    "independentlyQualified": 0,
+    "paidExecutionAllowed": false,
+    "blockers": [
+      "aws_identity",
+      "effective_iam",
+      "network_isolation",
+      "workload_isolation",
+      "bootstrap_exclusivity",
+      "provider_entitlement",
+      "cost_enforcement",
+      "verifier_isolation",
+      "reconciliation"
+    ]
+  }
 }

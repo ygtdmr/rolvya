@@ -234,3 +234,5 @@ Documentation must eventually cover:
 Use explicit labels: **Approved**, **Proposed**, **Open**, **Implemented**, **Verified** (do not conflate approval with implementation). Record last-reviewed date and related ADR/issue where appropriate. One authoritative document per topic; link instead of duplicating normative requirements.
 
 - [Connected Control panel implementation and browser gates](development/connected-control-panel.md)
+
+- [Provider qualification and activation boundaries](development/provider-production-qualification.md) — G1-11 implemented offline evidence and exact-scope gates; real qualification remains unavailable.

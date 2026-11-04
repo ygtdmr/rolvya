@@ -1,9 +1,11 @@
 //! Private harmless offline processes; not remote sandbox/attestation evidence.
 use super::*;
+use crate::RequestId;
 use crate::controller_keys::worker_auth::{
     https::{tests::CodingNetwork, verifier::*},
     *,
 };
+use crate::finance::{FinancialCommand, FinancialRequest, LiabilityId, ReconciliationState};
 use crate::orchestration::coding::execution::*;
 use ring::signature::{Ed25519KeyPair, KeyPair};
 use std::{
@@ -336,20 +338,29 @@ async fn coding_work_end_to_end_proxy(
     )>,
     proxy: bool,
 ) {
+    coding_work_end_to_end_qualified(fargate, agents, proxy, false).await;
+}
+async fn coding_work_end_to_end_qualified(
+    fargate: bool,
+    agents: Option<(
+        crate::controller_keys::worker_auth::https::agent::Adapter,
+        crate::controller_keys::worker_auth::https::agent::Adapter,
+    )>,
+    proxy: bool,
+    qualified: bool,
+) {
     let f = if let Some((adapter, _)) = agents {
-        Fixture::new_coding_mode(
-            if agents.unwrap().1
-                == crate::controller_keys::worker_auth::https::agent::Adapter::AnthropicApi
-            {
-                "agents-cross-api"
-            } else if adapter
-                == crate::controller_keys::worker_auth::https::agent::Adapter::OpenAiApi
-            {
-                "agents-openai"
-            } else {
-                "agents-anthropic"
-            },
-        )
+        Fixture::new_coding_mode(if qualified {
+            "agents-cross-api-fargate"
+        } else if agents.unwrap().1
+            == crate::controller_keys::worker_auth::https::agent::Adapter::AnthropicApi
+        {
+            "agents-cross-api"
+        } else if adapter == crate::controller_keys::worker_auth::https::agent::Adapter::OpenAiApi {
+            "agents-openai"
+        } else {
+            "agents-anthropic"
+        })
         .await
     } else if fargate {
         Fixture::new_coding_fargate().await
@@ -379,6 +390,13 @@ async fn coding_work_end_to_end_proxy(
     )
     .await;
     let mut provider_tasks = Vec::new();
+    let mut qualified_coding = std::collections::BTreeMap::new();
+    if qualified {
+        for lease in &leases {
+            let coding = super::fargate::prepare_coding(&f, lease, true).await;
+            qualified_coding.insert(lease.attempt_id.as_str().to_owned(), coding);
+        }
+    }
     if proxy {
         net.enable_proxy(&f.bootstrap).await;
         for (lease, adapter) in leases.iter().zip([agents.unwrap().0, agents.unwrap().1]) {
@@ -409,6 +427,16 @@ async fn coding_work_end_to_end_proxy(
                 &work,
                 endpoint,
             );
+            if qualified {
+                crate::controller_keys::worker_auth::https::proxy::fixture_require_qualification(
+                    &net.server,
+                    &f.bootstrap,
+                    f.clock.clone(),
+                    &work,
+                    &qualified_coding[lease.attempt_id.as_str()].adapter,
+                )
+                .await;
+            }
             provider_tasks.push(task);
         }
     }
@@ -463,6 +491,13 @@ async fn coding_work_end_to_end_proxy(
         let accounts:Vec<String>=sqlx::query_scalar("SELECT DISTINCT account FROM provider_connections WHERE connection_id IN ('openai-api-a','codex-c','claude-a','claude-b')").fetch_all(&f.store.pool).await.unwrap();
         assert_eq!(accounts.len(), 2);
     }
+    if qualified {
+        let count:i64=sqlx::query_scalar("SELECT count(*) FROM provider_qualification_evidence WHERE json_extract(record,'$.statement.scope.operation')='model_call'").fetch_one(&f.store.pool).await.unwrap();
+        assert!(
+            count >= 18,
+            "both API workers must exercise the new qualification guard"
+        );
+    }
     assert_eq!(f.count("task_acceptances").await, 0);
     assert!(f.remote.prepare_coding(&f.co, &leases[0]).await.is_err());
     let mut keys = Vec::new();
@@ -470,7 +505,23 @@ async fn coding_work_end_to_end_proxy(
     let mut aws_executions = Vec::new();
     for (i, l) in leases.iter().enumerate() {
         if fargate {
-            let mut execution = super::fargate::prepare(&f, l).await;
+            let mut execution = if qualified {
+                super::fargate::prepare_from_coding(
+                    &f,
+                    l,
+                    qualified_coding.remove(l.attempt_id.as_str()).unwrap(),
+                )
+                .await
+            } else {
+                super::fargate::prepare(&f, l).await
+            };
+            if qualified {
+                execution
+                    .adapter
+                    .fixture_install_qualification(&f.bootstrap, l, true)
+                    .await
+                    .unwrap();
+            }
             execution
                 .adapter
                 .launch_verifier(l, f.clock.as_ref())
@@ -690,6 +741,65 @@ async fn coding_work_end_to_end_proxy(
         .await
         .unwrap();
     assert_eq!(main, f.world.base.as_str());
+    if qualified {
+        // Separately trusted fixture billing uses the existing R04 journal.
+        // It is neither AWS pricing nor evidence of a real provider invoice.
+        for (index, lease) in leases.iter().enumerate() {
+            let liability = LiabilityId::new(lease.attempt_id.as_str()).unwrap();
+            let current = f
+                .store
+                .financial_liability(&f.project, &liability)
+                .await
+                .unwrap();
+            let charge = rolvya_domain::money::CostBreakdown {
+                ai_api: synthetic::money(0),
+                compute: synthetic::money(1),
+                storage: synthetic::money(1),
+                transfer: synthetic::money(0),
+            };
+            let request = FinancialRequest {
+                project: f.project.clone(),
+                request_id: RequestId::new(format!("qualified-fixture-invoice-{index}")).unwrap(),
+                actor: common::owner(),
+                reason: "Independent private fixture invoice; no real charge".into(),
+                command: FinancialCommand::Reconcile {
+                    liability,
+                    expected_revision: current.revision,
+                    settled: rolvya_domain::money::CostBreakdown {
+                        ai_api: current.settled.ai_api,
+                        compute: current.settled.compute.checked_add(charge.compute).unwrap(),
+                        storage: current.settled.storage.checked_add(charge.storage).unwrap(),
+                        transfer: current.settled.transfer,
+                    },
+                    remaining_hold: rolvya_domain::money::CostBreakdown {
+                        ai_api: current.held.ai_api,
+                        compute: current.held.compute.checked_sub(charge.compute).unwrap(),
+                        storage: current.held.storage.checked_sub(charge.storage).unwrap(),
+                        transfer: current.held.transfer,
+                    },
+                    remaining_provisional: current.provisional,
+                    state: ReconciliationState::Bounded,
+                    evidence: synthetic::e(&format!("qualified-fixture-invoice-{index}")),
+                },
+            };
+            let a = f
+                .store
+                .apply_financial(&request, &synthetic::Finance)
+                .await
+                .unwrap();
+            let b = f
+                .store
+                .apply_financial(&request, &synthetic::Finance)
+                .await
+                .unwrap();
+            assert_eq!(a, b);
+        }
+        let reconciled = f.store.financial_snapshot(&f.project).await.unwrap();
+        assert_eq!(reconciled.ceiling, before.ceiling);
+        assert!(reconciled.held.total().unwrap().minor_units() > 0);
+        assert_eq!(reconciled.settled.compute.minor_units(), 2);
+        assert_eq!(reconciled.settled.storage.minor_units(), 2);
+    }
     for task in provider_tasks {
         task.abort();
     }
@@ -1745,4 +1855,16 @@ async fn fargate_verifier_timeout_terminates_ordinary_descendant_group() {
         !active,
         "a timed-out verifier command left an ordinary descendant executing"
     );
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn qualified_simulation_api_proxy_independent_fargate_r09_and_git() {
+    use crate::controller_keys::worker_auth::https::agent::Adapter;
+    coding_work_end_to_end_qualified(
+        true,
+        Some((Adapter::OpenAiApi, Adapter::AnthropicApi)),
+        true,
+        true,
+    )
+    .await;
 }

@@ -1,0 +1,51 @@
+# G1-11 provider qualification and activation boundaries
+
+Base: PR [#42](https://github.com/ygtdmr/rolvya/pull/42), squash `4f3c525a192596cbc285207cd52b24008094710b`, whose tree exactly matches submitted `22df8eaac032d6c19c9e6d8be07772da79dddd1d`. This is offline implementation, not AWS/account qualification or authorization to spend.
+
+`controller_keys::qualification` adds strict configuration inspection, account declaration validation against the existing signed registry, provider-specific checked exposure calculation, authenticated evidence/provenance, expiry, restriction-only revocation and operation-specific checks. Forward **0024** adds immutable evidence and revocation tables only. Published 0001–0023, financial positions, attempts, R08/R09 and credential issuance remain authoritative and unchanged. No dependency is added.
+
+## Evidence and current authority
+
+Configuration-inspected, simulated, externally-observed and independently-qualified evidence have distinct levels. An operation authorization is a separate current transaction, never an evidence-level field. Installation-keyed HMAC protects records; domain-separated Ed25519 signatures authenticate independently issued statements. Scope commits installation/project, infrastructure and credential versions, immutable workload, execution/plan/task context, model connection/grant/credential versions, original financial exposure, budget revision, operation identity, attempt and fence. Observation and expiry are bounded; identical replay cannot extend them. Unknown issuers and fixture provenance cannot become production authority after restart. There is deliberately **no production issuer enrollment, caller-selected verification key or enabled flag**. A reviewed collector must independently establish the issuer and effective evidence before a future change can install it; host JSON or a signature alone is insufficient.
+
+The Fargate current-authority chain checks qualification before its existing submitting marker and immediately before RunTask, then rechecks after the response. The model proxy checks qualification before exact Broker consumption and at its existing current-authority boundaries. R06/R08, current human/infrastructure consent, provider registry, lease, fence, original holds and permanent restore guards remain additional requirements. Uncertainty after an external effect is retained by the existing journals; no new launch or call-execution journal is introduced. No networking occurs inside writer transactions.
+
+## Inspection and costs
+
+The supported IAM declaration subset requires separate coding/verifier task roles, definitions, image digests and bootstrap resources; exact secret read resources; account-constrained ECS trust; exact PassRole resources/service and cluster-scoped RunTask. Expanded policies, unsupported constructs, wrong principals and unrelated resource access are rejected. This is exact structural validation, not a general AWS policy evaluator. Resource policies, SCPs, permission boundaries, role sessions, KMS and effective cross-attempt denial require separately authorized provider checks. Existing protected bootstrap policy readback and one-use TLS-exporter possession remain mandatory.
+
+Network declarations require the registered VPC/subnet/group inventory, no inbound/public-IP path and exact HTTPS endpoint group rules. This deliberately limited subset does not certify routing, DNS resolver rules, NACLs, S3 image-layer access, endpoint policies, metadata confinement or effective exfiltration resistance. Fargate configuration/SDK inspection still enforces its existing image, non-root/read-only/volume/capability/resource restrictions. Task-role credentials remain accessible inside their task trust boundary; ordinary process separation is not hostile-code isolation.
+
+Exposure calculation reuses the existing Fargate envelope for **both coding and independent verification**, including Linux minimum billing and conservative startup/termination. OpenAI cached/uncached input and output including reasoning remain distinct from Anthropic input/cache reads/5-minute and 1-hour cache writes/output including thinking. All rates and extra charges require explicit inputs; missing values, stale region evidence, different currencies, uncovered categories and overflow deny calculation/coverage. The output is explicitly an estimate with `independentlyEnforced=false`. It cannot authorize a request, release a hold, manufacture provider stopping guarantees or increase a ceiling. Real prices, retention/network/secret/log fees, delayed bills and effective stopping bounds remain unqualified.
+
+## Operator and panel surfaces
+
+The existing protected controller-host tool accepts bounded strict JSON on stdin:
+
+- `inspect-qualification CONFIG`: inspect and commit a supported declaration against an exact scope.
+- `qualification-report CONFIG`: inspect authentic evidence, missing domains, expiry/revocation, budget revision and restore/financial holds.
+- `verify-qualification CONFIG`: validate signed evidence; this production build rejects unknown issuers and cannot adopt private fixtures.
+- `revoke-qualification CONFIG`: restrict one exact evidence record; cannot clear a financial or restore hold.
+- `inspect-account-qualification CONFIG`: check an account declaration against current registry metadata; does not install entitlement or access credentials.
+- `estimate-exposure CONFIG`: calculate an explicit four-category estimate; never grants spend.
+- `inspect-provider-operations CONFIG`: accept a strict project/after/limit query and read a keyset page of at most 50 authenticated existing AWS/financial journal states, with observation time separate from unavailable external event time. A next cursor prevents silent truncation. It performs no provider request, settlement or retry.
+
+Human panel snapshots expose a bounded redacted Owner-only summary. The existing SSE revision includes qualification/revocation journals; clients revalidate REST. Connections uses shared Elements and distinguishes inspected/simulated/untrusted records from current authority. Viewer/Editor receive no qualification metadata. No infrastructure, provider, spending or restore command is exposed in the browser. The four-file build/CSP contract remains mandatory.
+
+## Production-deny inventory and remaining work
+
+The following independent controls remain closed: `FargateExecution::activation`; effective `RestrictedDistribution`; protected task-loader establishment; production Fargate worker/verifier identity; `RemoteExecution` and `RemoteCoding`; real account `EntitlementVerifier`; provider-call enforcement terms; and live GitHub publication. The G1-10 service still starts no paid scheduler. A permanent restore hold has no unlock command. Qualification reports always state `paidExecutionAllowed=false`; even a simulated complete domain set cannot activate a production constructor.
+
+Missing external work is explicit: authorized real account/role/provider observations; qualified independent evidence issuers; effective IAM and negative task-role tests; VPC/DNS/route/endpoint containment; immutable hostile-code runtime and verifier-key isolation; real account-specific API/CLI rights, supported versions and quotas; enforceable all-category spending bounds; current inventory, invoices and cleanup reconciliation. Public documentation and unit tests cannot establish these facts. No live credentials, provider API request, paid task, hosted login, mail, public deployment or user-repository publication is performed.
+
+Offline verification exercises real SQLite, official ECS request/response fixtures, encrypted Broker/provider TLS, independent verifier subprocesses, R09 and exact-byte Git fixtures. New SIGKILL tests cover evidence/revocation transaction boundaries; process death is not physical power-loss proof. Exact commands, unique counts, limitations, reviews and final-head CI belong to the PR handoff. Existing dependency findings and protected smoke re-verification remain separate unresolved release gates.
+
+## Official sources checked 2026-11-04 (Europe/Istanbul)
+
+- [ECS idempotency](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/ECS_Idempotency.html): cluster and parameter scope; lesser of 24 hours and task lifetime plus one hour. Absence during eventual consistency never permits a blind relaunch.
+- [Task IAM roles](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/task-iam-roles.html), [PassRole](https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_use_passrole.html), [ECS authorization](https://docs.aws.amazon.com/service-authorization/latest/reference/list_ecs.html), [Fargate parameters](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/task_definition_parameters.html), [networking](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/fargate-task-networking.html), [Secrets Manager access](https://docs.aws.amazon.com/secretsmanager/latest/userguide/auth-and-access.html).
+- [Fargate pricing](https://aws.amazon.com/fargate/pricing/) and [AWS Budgets](https://docs.aws.amazon.com/cost-management/latest/userguide/budgets-managing-costs.html): declared units/monitoring do not prove an instantaneous maximum charge. No region rate is embedded.
+- [OpenAI authentication](https://developers.openai.com/api/reference/overview), [pricing](https://developers.openai.com/api/docs/pricing), [Codex authentication](https://developers.openai.com/codex/auth/) (currently redirects to ChatGPT documentation).
+- [Anthropic API](https://platform.claude.com/docs/en/api/overview), [pricing](https://platform.claude.com/docs/en/about-claude/pricing), [CLI authentication](https://code.claude.com/docs/en/authentication), [hosted integration conditions](https://code.claude.com/docs/en/legal-and-compliance). Current hosted conditions and each account's agreement require separate review; no subscription workaround or API fallback is implemented.
+
+These dated primary sources inform interfaces only; they are not customer-account permissions or permanent policy guarantees. Next dependency: separately authorized operational qualification of the exact deployment/evidence issuers and financially bounded provider accounts, with all paid effects still denied until proven and approved.

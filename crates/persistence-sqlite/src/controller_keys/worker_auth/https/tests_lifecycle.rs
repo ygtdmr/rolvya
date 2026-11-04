@@ -1063,3 +1063,120 @@ async fn competing_dispatch_during_sdk_inspection_blocks_without_effect_and_keep
             .unknown_exposure
     );
 }
+
+#[tokio::test]
+async fn missing_qualification_blocks_existing_dispatch_without_an_sdk_effect() {
+    let mut f = FixtureRun::new().await;
+    f.adapter
+        .fixture_install_qualification(&f.f.bootstrap, &f.expected.lease(), false)
+        .await
+        .unwrap();
+    let before =
+        f.f.store
+            .financial_snapshot(&f.expected.binding.task.plan.project_id)
+            .await
+            .unwrap();
+    assert_ne!(f.dispatch().await, DispatchState::Active);
+    assert_eq!(f.world.count().await, 0);
+    assert!(f.world.requests.lock().unwrap().is_empty());
+    let after =
+        f.f.store
+            .financial_snapshot(&f.expected.binding.task.plan.project_id)
+            .await
+            .unwrap();
+    assert_eq!(before.held, after.held);
+    assert_eq!(before.ceiling, after.ceiling);
+}
+#[tokio::test]
+async fn qualification_expiry_during_sdk_readback_prevents_runtask_and_retains_hold() {
+    let mut f = FixtureRun::new().await;
+    f.adapter
+        .fixture_install_qualification(&f.f.bootstrap, &f.expected.lease(), true)
+        .await
+        .unwrap();
+    let barrier = Arc::new((tokio::sync::Notify::new(), tokio::sync::Notify::new()));
+    *f.world.pause_definition.lock().unwrap() = Some(barrier.clone());
+    let before =
+        f.f.store
+            .financial_snapshot(&f.expected.binding.task.plan.project_id)
+            .await
+            .unwrap();
+    let (state, ()) = tokio::join!(f.dispatch(), async {
+        barrier.0.notified().await;
+        f.f.clock.advance_to(synthetic::T + 60).unwrap();
+        barrier.1.notify_one();
+    });
+    assert_ne!(state, DispatchState::Active);
+    assert_eq!(f.world.count().await, 0);
+    assert!(
+        f.world
+            .requests
+            .lock()
+            .unwrap()
+            .iter()
+            .all(|r| r.get("clientToken").is_none())
+    );
+    let after =
+        f.f.store
+            .financial_snapshot(&f.expected.binding.task.plan.project_id)
+            .await
+            .unwrap();
+    assert_eq!(before.held, after.held);
+}
+#[tokio::test]
+async fn confirmed_stopped_execution_is_not_financial_reconciliation_or_relaunch_permission() {
+    let mut f = FixtureRun::new().await;
+    f.adapter
+        .fixture_install_qualification(&f.f.bootstrap, &f.expected.lease(), true)
+        .await
+        .unwrap();
+    assert_eq!(f.dispatch().await, DispatchState::Active);
+    *f.world.status.lock().unwrap() = "STOPPED".into();
+    f.adapter.reconcile(&f.expected.lease()).await.unwrap();
+    let key = f.f.bootstrap.load_existing().await.unwrap();
+    let mut c = f.f.store.pool.begin().await.unwrap();
+    let report = run::inspect_journal(
+        &mut c,
+        &key,
+        &f.expected.binding.task.plan.project_id,
+        None,
+        50,
+    )
+    .await
+    .unwrap();
+    c.commit().await.unwrap();
+    assert_eq!(report.items.len(), 1);
+    assert_eq!(
+        report.items[0].execution,
+        run::ReconciledExecution::ConfirmedStopped
+    );
+    assert_eq!(report.items[0].finance, run::ReconciledFinance::Unresolved);
+    assert!(!report.items[0].relaunch_allowed);
+    assert_eq!(f.world.count().await, 1);
+}
+#[tokio::test]
+async fn review_qualification_binds_the_exact_bootstrap_resource() {
+    let mut f = FixtureRun::new().await;
+    f.adapter
+        .fixture_install_qualification(&f.f.bootstrap, &f.expected.lease(), true)
+        .await
+        .unwrap();
+    let mut changed = f.request.clone();
+    changed.bootstrap.secret = SecretArn::parse(
+        "arn:aws:secretsmanager:eu-central-1:123456789012:secret:other-attempt-AbCdEf",
+    )
+    .unwrap();
+    let mut c = f.f.store.pool.begin().await.unwrap();
+    let (cmd, _, _) = worker_control::command(&mut c, &f.expected.lease())
+        .await
+        .unwrap();
+    assert!(
+        f.adapter
+            .qualification_in(&mut c, &changed, &cmd, 1, synthetic::T)
+            .await
+            .is_err(),
+        "another bootstrap secret cannot reuse the original qualification"
+    );
+    c.commit().await.unwrap();
+    assert_eq!(f.world.count().await, 0);
+}

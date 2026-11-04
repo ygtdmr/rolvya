@@ -10,7 +10,11 @@ mod backup;
 mod config;
 pub(crate) mod files;
 pub(crate) mod operator;
+mod qualification;
 mod recovery;
+pub use qualification::{
+    AccountInspection, ExposureInspection, QualificationInspection, QualificationRevocation,
+};
 mod service;
 pub use backup::{
     BackupClass, BackupDestination, BackupManifest, BackupReceipt, FilesystemDestination,

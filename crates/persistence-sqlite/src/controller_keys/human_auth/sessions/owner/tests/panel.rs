@@ -354,6 +354,7 @@ async fn panel_viewer_reads_plan_but_never_finance_or_mutation_capability() {
             .await
             .unwrap();
     assert_eq!(snapshot.role, ProjectRole::Viewer);
+    assert!(snapshot.qualification.is_none());
     assert!(snapshot.finance.is_none());
     assert!(!snapshot.capabilities.finance);
     assert!(!snapshot.capabilities.mutations);

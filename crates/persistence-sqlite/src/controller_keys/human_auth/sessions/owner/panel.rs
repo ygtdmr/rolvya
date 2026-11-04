@@ -78,6 +78,7 @@ pub struct PanelSnapshot {
     pub finance: Option<PanelFinance>,
     pub attempts: Vec<PanelAttempt>,
     pub connections: Vec<PanelConnection>,
+    pub qualification: Option<crate::controller_keys::qualification::QualificationSummary>,
     pub results: Vec<PanelResult>,
     pub activity: Vec<PanelActivity>,
     pub capabilities: PanelCapabilities,
@@ -96,9 +97,9 @@ impl HumanAuth {
         tx: &mut Transaction<'_, Sqlite>,
         p: &ProjectId,
     ) -> Result<i64, AuthError> {
-        let row=sqlx::query("SELECT (SELECT coalesce(max(sequence),0) FROM scheduler_events WHERE project_id=?1),(SELECT coalesce(max(sequence),0) FROM human_governance_events WHERE project_id=?1),(SELECT coalesce(max(sequence),0) FROM activation_events WHERE project_id=?1),(SELECT coalesce(max(sequence),0) FROM worker_events WHERE project_id=?1),(SELECT coalesce(max(sequence),0) FROM financial_events WHERE project_id=?1),(SELECT coalesce(max(sequence),0) FROM provider_security_events WHERE project_id=?1),(SELECT coalesce(max(sequence),0) FROM secret_events WHERE project_id=?1),(SELECT coalesce(max(rowid),0) FROM git_publication_events WHERE project_id=?1),(SELECT coalesce(max(rowid),0) FROM coding_verifications WHERE project_id=?1),(SELECT coalesce(max(rowid),0) FROM coding_rejections WHERE project_id=?1),(SELECT coalesce(max(rowid),0) FROM aws_execution_events WHERE project_id=?1)").bind(p.as_str()).fetch_one(&mut **tx).await?;
+        let row=sqlx::query("SELECT (SELECT coalesce(max(sequence),0) FROM scheduler_events WHERE project_id=?1),(SELECT coalesce(max(sequence),0) FROM human_governance_events WHERE project_id=?1),(SELECT coalesce(max(sequence),0) FROM activation_events WHERE project_id=?1),(SELECT coalesce(max(sequence),0) FROM worker_events WHERE project_id=?1),(SELECT coalesce(max(sequence),0) FROM financial_events WHERE project_id=?1),(SELECT coalesce(max(sequence),0) FROM provider_security_events WHERE project_id=?1),(SELECT coalesce(max(sequence),0) FROM secret_events WHERE project_id=?1),(SELECT coalesce(max(rowid),0) FROM git_publication_events WHERE project_id=?1),(SELECT coalesce(max(rowid),0) FROM coding_verifications WHERE project_id=?1),(SELECT coalesce(max(rowid),0) FROM coding_rejections WHERE project_id=?1),(SELECT coalesce(max(rowid),0) FROM aws_execution_events WHERE project_id=?1),(SELECT coalesce(max(rowid),0) FROM provider_qualification_evidence WHERE project_id=?1),(SELECT coalesce(max(rowid),0) FROM provider_qualification_revocations WHERE project_id=?1)").bind(p.as_str()).fetch_one(&mut **tx).await?;
         let mut revision = 0i64;
-        for column in 0..11 {
+        for column in 0..13 {
             revision = revision
                 .checked_add(row.try_get::<i64, _>(column)?)
                 .ok_or(AuthError::Unavailable)?;
@@ -422,6 +423,21 @@ impl HumanAuth {
             finance,
             attempts: attempts.items,
             connections,
+            qualification: if scope.membership.role == ProjectRole::Owner {
+                Some(
+                    crate::controller_keys::qualification::panel_summary(
+                        &mut tx,
+                        self.store.clone(),
+                        &self.key,
+                        p,
+                        now,
+                    )
+                    .await
+                    .map_err(|_| AuthError::Unavailable)?,
+                )
+            } else {
+                None
+            },
             results: results.items,
             activity,
             capabilities: PanelCapabilities {

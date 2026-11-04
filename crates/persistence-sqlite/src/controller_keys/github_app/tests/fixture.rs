@@ -663,7 +663,7 @@ impl Fixture {
                     t.execution.as_mut().unwrap().connection_ref = match (mode, t.id.as_str()) {
                         ("agents-anthropic", "task-a") => "claude-a",
                         ("agents-anthropic", _) => "claude-b",
-                        ("agents-cross-api", "task-b") => "claude-a",
+                        ("agents-cross-api" | "agents-cross-api-fargate", "task-b") => "claude-a",
                         (_, "task-a") => "openai-api-a",
                         ("agents-pair", _) => "openai-api-b",
                         _ => "codex-c",
@@ -688,7 +688,7 @@ impl Fixture {
         }
         plan.tasks = vec![group, a, b, c];
         let authority = synthetic::Authority {
-            fargate: mode == "fargate",
+            fargate: mode == "fargate" || mode.ends_with("-fargate"),
             coding_agents: mode.starts_with("agents") || mode == "panel",
             ..Default::default()
         };
@@ -735,7 +735,7 @@ impl Fixture {
         let registry = provider_accounts::fixture_registry_for(
             &bootstrap,
             synthetic::T,
-            if mode == "fargate" {
+            if mode == "fargate" || mode.ends_with("-fargate") {
                 "aws-ecs-fargate"
             } else {
                 "synthetic"
