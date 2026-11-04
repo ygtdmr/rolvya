@@ -3,9 +3,19 @@
 //! Production launch/stop stay hard-disabled until separately verified activation.
 mod cost;
 mod model;
+mod qualification;
+mod reconciliation;
+pub(crate) use reconciliation::inspect_journal;
+pub use reconciliation::{
+    JournalCursor, JournalPurpose, ReconciledExecution, ReconciledFinance, ReconciliationPage,
+    ReconciliationQuery, ReconciliationStatus,
+};
 mod sdk;
 mod store;
 mod task_loader;
+#[cfg(test)]
+pub(in crate::controller_keys) use qualification::FixtureModelAuthority;
+pub(in crate::controller_keys) use qualification::require_model_operation_in;
 pub mod verifier;
 use super::{AwsIdentityError as E, store::AccountRecord, *};
 use crate::controller_keys::ControllerBootstrap;
@@ -50,6 +60,8 @@ pub struct FargateExecution {
     verifier_configuration: Option<verifier::VerifierConfiguration>,
     #[cfg(test)]
     fixture: Option<Arc<fixture::World>>,
+    #[cfg(test)]
+    qualification: Option<crate::controller_keys::qualification::QualificationStore>,
     #[cfg(test)]
     hook: Box<dyn Fn(Checkpoint) -> Result<(), E> + Send + Sync>,
 }
@@ -110,6 +122,8 @@ impl FargateExecution {
             verifier_configuration: None,
             #[cfg(test)]
             fixture: None,
+            #[cfg(test)]
+            qualification: None,
             #[cfg(test)]
             hook: Box::new(|_| Ok(())),
         })
@@ -224,7 +238,6 @@ impl FargateExecution {
             r.client_token = r.expected_token()?;
         }
         r.validate(now)?;
-        self.activation(&r, now)?;
         self.authority(&mut tx, &r, &cmd, now).await?;
         let text = encode(&r)?;
         let mac = super::consent::mac(
@@ -279,7 +292,6 @@ impl FargateExecution {
         now: i64,
     ) -> Result<AccountRecord, E> {
         r.validate(now)?;
-        self.activation(r, now)?;
         if r.binding != *cmd.binding()
             || r.command_digest.as_str() != cmd.digest().map_err(worker_error)?
             || r.maximum != cmd.reserved()
@@ -314,6 +326,9 @@ impl FargateExecution {
         self.identity
             .credential_reference(c, &a.project, &a.workload, &a.credential)
             .await?;
+        self.qualification_in(c, r, cmd, a.credential.version, now)
+            .await?;
+        self.activation(r, now)?;
         #[cfg(test)]
         if self
             .fixture

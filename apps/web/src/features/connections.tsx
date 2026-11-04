@@ -1,5 +1,5 @@
 import { useState } from "react";
-import type { Snapshot } from "../api/model";
+import { qualificationLabels, type Snapshot } from "../api/model";
 import { Button, Select } from "../ui/controls";
 import { Badge, EmptyState, PageHeader } from "../ui/data";
 import { Dialog } from "../ui/overlays";
@@ -25,6 +25,29 @@ export function Connections({ snapshot }: { snapshot: Snapshot }) {
           </Button>
         }
       />
+      {snapshot.role === "owner" &&
+        snapshot.capabilities.connections &&
+        snapshot.qualification && (
+          <section className="rv-panel" aria-label="Provider qualification">
+            <h2>Production execution blocked</h2>
+            <p className="rv-help">
+              {snapshot.qualification.configurationInspected} static inspections
+              · {snapshot.qualification.simulated} simulated domain checks ·{" "}
+              {snapshot.qualification.independentlyQualified} independently
+              qualified domains. These records do not authorize spending.
+            </p>
+            <ul>
+              {snapshot.qualification.blockers.map((domain) => (
+                <li key={domain}>{qualificationLabels[domain]}</li>
+              ))}
+            </ul>
+            <p className="rv-note">
+              Real account, isolation and spending evidence requires separately
+              authorized operational verification. Estimates and configuration
+              declarations are not enforceable limits.
+            </p>
+          </section>
+        )}
       <div className="rv-filter-bar">
         <Select
           label="Connection mode"

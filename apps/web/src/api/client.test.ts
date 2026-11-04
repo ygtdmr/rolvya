@@ -247,3 +247,16 @@ it("scoped version-two SSE IDs remain invalidations and reject substituted frame
   expect(order.accept(frame(9), "9." + "b".repeat(64))).toBe("gap");
   expect(() => order.accept(frame(10), "9." + "b".repeat(64))).toThrow();
 });
+it("rejects forged paid qualification and private qualification in Viewer snapshots", () => {
+  for (const kind of ["paid", "viewer", "domain"] as const) {
+    const value = structuredClone(controllerContract) as unknown as Record<
+      string,
+      unknown
+    >;
+    const qualification = value.qualification as Record<string, unknown>;
+    if (kind === "paid") qualification.paidExecutionAllowed = true;
+    else if (kind === "viewer") value.role = "viewer";
+    else qualification.blockers = ["worker_claimed_success"];
+    expect(() => parseSnapshot(value, "project-a")).toThrow();
+  }
+});

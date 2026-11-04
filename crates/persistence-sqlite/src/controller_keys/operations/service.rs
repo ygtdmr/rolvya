@@ -21,6 +21,7 @@ pub struct Readiness {
     pub provider_entitlement_verified: bool,
     pub financial_hard_gate_ready: bool,
     pub billable_execution_allowed: bool,
+    pub qualification_blockers: Vec<crate::controller_keys::qualification::Domain>,
 }
 pub struct ControllerService {
     operator: HostOperator,
@@ -197,6 +198,7 @@ async fn readiness(op: &HostOperator) -> Result<Readiness, OperationError> {
         provider_entitlement_verified: false,
         financial_hard_gate_ready: true,
         billable_execution_allowed: false,
+        qualification_blockers: crate::controller_keys::qualification::REQUIRED.to_vec(),
     })
 }
 fn persistent_storage(config: &DeploymentConfig) -> Result<bool, OperationError> {

@@ -158,7 +158,28 @@ export interface Finance {
     at: string;
   }[];
 }
+export const qualificationLabels = {
+  aws_identity: "AWS account identity",
+  effective_iam: "Effective IAM permissions",
+  network_isolation: "Effective network isolation",
+  workload_isolation: "Remote workload isolation",
+  bootstrap_exclusivity: "Exclusive bootstrap access",
+  provider_entitlement: "Account-specific provider entitlement",
+  cost_enforcement: "Enforceable financial exposure",
+  verifier_isolation: "Independent verifier isolation",
+  reconciliation: "External provider reconciliation",
+} as const;
+export type QualificationDomain = keyof typeof qualificationLabels;
+export interface QualificationSummary {
+  configurationInspected: number;
+  simulated: number;
+  untrusted: number;
+  independentlyQualified: 0;
+  paidExecutionAllowed: false;
+  blockers: QualificationDomain[];
+}
 export interface Snapshot {
+  qualification?: QualificationSummary | null;
   recoveryRequired?: boolean;
   schema: 1 | 2;
   eventCursor?: string;

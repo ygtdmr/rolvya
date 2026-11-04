@@ -34,18 +34,31 @@ fn envelope(now: i64, verifier: bool) -> run::ExposureEnvelope {
     }
 }
 pub(super) async fn prepare(f: &Fixture, l: &LeaseRef) -> fv::fixture::Execution {
+    let coding = prepare_coding(f, l, false).await;
+    prepare_from_coding(f, l, coding).await
+}
+pub(super) async fn prepare_coding(
+    f: &Fixture,
+    l: &LeaseRef,
+    proxy_profile: bool,
+) -> fv::fixture::Execution {
     let now = f.clock.now().unwrap();
     let mut tx = f.store.pool.begin().await.unwrap();
     let (cmd, _, _) = worker_control::command(&mut tx, l).await.unwrap();
     tx.commit().await.unwrap();
     let policy = Arc::new(f.policy.fixture_reuse(synthetic::Authority {
         fargate: true,
+        coding_agents: cmd.assignment().connection_ref != "synthetic-connection",
         ..Default::default()
     }));
     // The coding execution remains the existing no-cost R08 synthetic worker.
     // Its committed AWS configuration/cost envelope reserves its share; ONLY
     // the independent verifier's RunTask SDK protocol is exercised below.
     let mut coding_workload = aws::fixture_workload();
+    if proxy_profile {
+        coding_workload.coding_isolation = Some(aws::CodingIsolation::CredentialProxyV1);
+        coding_workload.command = vec!["rolvya-coding-worker".into(), "--provider-proxy".into()];
+    }
     let suffix = if l.task.task_id.as_str() == "task-a" {
         "a"
     } else {
@@ -80,6 +93,28 @@ pub(super) async fn prepare(f: &Fixture, l: &LeaseRef) -> fv::fixture::Execution
         )
         .await
         .unwrap();
+    coding
+}
+pub(super) async fn prepare_from_coding(
+    f: &Fixture,
+    l: &LeaseRef,
+    coding: fv::fixture::Execution,
+) -> fv::fixture::Execution {
+    let now = f.clock.now().unwrap();
+    let mut tx = f.store.pool.begin().await.unwrap();
+    let (cmd, _, _) = worker_control::command(&mut tx, l).await.unwrap();
+    tx.commit().await.unwrap();
+    let policy = Arc::new(f.policy.fixture_reuse(synthetic::Authority {
+        fargate: true,
+        coding_agents: cmd.assignment().connection_ref != "synthetic-connection",
+        ..Default::default()
+    }));
+    let suffix = if l.task.task_id.as_str() == "task-a" {
+        "a"
+    } else {
+        "b"
+    };
+    let coding_workload = coding.expected.workload.clone();
     let p = &f.contexts[&l.task.task_id].verification;
     let config = VerifierConfiguration {
         executables: p
@@ -94,6 +129,7 @@ pub(super) async fn prepare(f: &Fixture, l: &LeaseRef) -> fv::fixture::Execution
             .collect(),
     };
     let mut w = coding_workload;
+    w.coding_isolation = None;
     w.task_definition = aws::TaskDefinitionArn::parse(&format!(
         "arn:aws:ecs:eu-central-1:123456789012:task-definition/verifier-{suffix}:1"
     ))

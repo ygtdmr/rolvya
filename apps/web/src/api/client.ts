@@ -1,5 +1,6 @@
 import {
   isId,
+  qualificationLabels,
   statusLabels,
   type ProjectSummary,
   type ReadSource,
@@ -56,6 +57,25 @@ export function parseSnapshot(v: unknown, project: string): Snapshot {
     v.provenance !== "controller" ||
     (v.recoveryRequired !== undefined &&
       typeof v.recoveryRequired !== "boolean") ||
+    (v.qualification !== undefined &&
+      v.qualification !== null &&
+      (!object(v.qualification) ||
+        v.role !== "owner" ||
+        !integer(v.qualification.configurationInspected) ||
+        v.qualification.configurationInspected > 4096 ||
+        !integer(v.qualification.simulated) ||
+        v.qualification.simulated > 4096 ||
+        !integer(v.qualification.untrusted) ||
+        v.qualification.untrusted > 4096 ||
+        v.qualification.independentlyQualified !== 0 ||
+        v.qualification.paidExecutionAllowed !== false ||
+        !list(
+          v.qualification.blockers,
+          9,
+          (d) => typeof d === "string" && Object.hasOwn(qualificationLabels, d),
+        ) ||
+        new Set(v.qualification.blockers as unknown[]).size !==
+          (v.qualification.blockers as unknown[]).length)) ||
     !integer(v.revision) ||
     !integer(v.cursor) ||
     !time(v.asOf) ||
