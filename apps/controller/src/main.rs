@@ -42,6 +42,9 @@ struct BindingInput {
     human: String,
     legacy: String,
 }
+fn account_inspection_receipt() -> &'static str {
+    r#"{"level":"configuration_inspected","execution_allowed":false}"#
+}
 #[tokio::main]
 async fn main() {
     if let Err(error) = run().await {
@@ -161,10 +164,8 @@ async fn run() -> Result<(), OperationError> {
         ("inspect-account-qualification", 2) => {
             let body: AccountInspection = serde_json::from_slice(&input(16384)?)
                 .map_err(|_| OperationError::InvalidConfiguration)?;
-            let digest = op.inspect_account_qualification(&body).await?;
-            println!(
-                "{{\"level\":\"configuration_inspected\",\"sha256\":\"{digest}\",\"execution_allowed\":false}}"
-            );
+            op.inspect_account_qualification(&body).await?;
+            println!("{}", account_inspection_receipt());
             Ok(())
         }
         ("qualification-report", 2) => {
@@ -253,4 +254,21 @@ async fn run() -> Result<(), OperationError> {
     };
     op.close().await;
     result
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn account_inspection_diagnostics_expose_only_static_validation_status() {
+        let diagnostic = super::account_inspection_receipt();
+        let value: serde_json::Value = serde_json::from_str(diagnostic).unwrap();
+        let fields = value.as_object().unwrap();
+        assert_eq!(
+            fields.len(),
+            2,
+            "Account inspection must not export account-derived fingerprints or credential metadata"
+        );
+        assert_eq!(fields["level"], "configuration_inspected");
+        assert_eq!(fields["execution_allowed"], false);
+    }
 }

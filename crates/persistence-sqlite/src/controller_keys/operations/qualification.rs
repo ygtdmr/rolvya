@@ -135,13 +135,16 @@ impl HostOperator {
     pub async fn inspect_account_qualification(
         &self,
         r: &AccountInspection,
-    ) -> Result<String, OperationError> {
+    ) -> Result<(), OperationError> {
         self.config.validate_host()?;
         crate::controller_keys::provider_accounts::ProviderRegistry::open(&self.bootstrap)
             .await
             .map_err(|_| OperationError::Unauthorized)?
             .inspect_qualification_declaration(&r.project, &r.connection, &r.model, &r.observation)
             .await
-            .map_err(|_| OperationError::Unauthorized)
+            .map_err(|_| OperationError::Unauthorized)?;
+        // Account-derived commitments remain inside the trusted registry. Host
+        // diagnostics acknowledge validation without exporting private metadata.
+        Ok(())
     }
 }

@@ -26,7 +26,7 @@ The existing protected controller-host tool accepts bounded strict JSON on stdin
 - `qualification-report CONFIG`: inspect authentic evidence, missing domains, expiry/revocation, budget revision and restore/financial holds.
 - `verify-qualification CONFIG`: validate signed evidence; this production build rejects unknown issuers and cannot adopt private fixtures.
 - `revoke-qualification CONFIG`: restrict one exact evidence record; cannot clear a financial or restore hold.
-- `inspect-account-qualification CONFIG`: check an account declaration against current registry metadata; does not install entitlement or access credentials.
+- `inspect-account-qualification CONFIG`: check an account declaration against current registry metadata; does not install entitlement or access credentials. The host adapter returns no account-derived value; stdout contains only fixed validation status, without account fingerprints or credential metadata.
 - `estimate-exposure CONFIG`: calculate an explicit four-category estimate; never grants spend.
 - `inspect-provider-operations CONFIG`: accept a strict project/after/limit query and read a keyset page of at most 50 authenticated existing AWS/financial journal states, with observation time separate from unavailable external event time. A next cursor prevents silent truncation. It performs no provider request, settlement or retry.
 
