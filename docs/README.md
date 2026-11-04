@@ -236,3 +236,4 @@ Use explicit labels: **Approved**, **Proposed**, **Open**, **Implemented**, **Ve
 - [Connected Control panel implementation and browser gates](development/connected-control-panel.md)
 
 - [Provider qualification and activation boundaries](development/provider-production-qualification.md) — G1-11 implemented offline evidence and exact-scope gates; real qualification remains unavailable.
+- [Release candidate validation](development/release-candidate-validation.md) — G1-12 build tooling, artifact/SBOM inspection, installed operator-prefix evidence and explicit incomplete offline/system acceptance.

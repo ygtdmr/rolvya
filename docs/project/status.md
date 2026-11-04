@@ -2,6 +2,12 @@
 
 Current authoritative decision cross-check: 2026-10-26 (see current ADRs; earlier sections are chronological historical checkpoints).
 
+## G1-12 release candidate assessment (2026-11-04, implementation in progress)
+
+Verified PR #43 merged at `a85a32397ab3b6aa43db6f9d021e9519e584f1ed`, with submitted head `1b9f89aa13dfbbd821fb2f267fcc96dadaf3a095` and identical tree. Branch `codex/release-candidate-validation` extends the existing packager with a build-host Rust inventory/verifier, complete hashed distribution, SPDX/license notices, deterministic archive inspection, exhaustive 37-requirement/184-criterion source assessment and separate release-level decisions. Published migrations 0001–0024 remain unchanged. See [release tooling and honest blockers](../development/release-candidate-validation.md).
+
+The installed operator-prefix fixture uses the optimized packaged executable for guarded setup, separately signed synthetic enrollment, backup, independent key kit, isolated restoration and held readiness. It does not replace full installed HTTPS/planning/worker/verifier/Git acceptance. Mandatory runtime composition, activity archive/migration and retained-version key rotation remain implementation gaps in addition to external qualification gates; this change does not claim an Offline-Verified RC. Production and paid execution remain disabled, and permanent restore holds remain intact. Final test, reproducibility, security and exact-head CI evidence will be recorded after execution; no unexecuted check is claimed here.
+
 ## G1-11 provider qualification foundation (2026-11-04)
 
 Verified PR #42 merged at `4f3c525a192596cbc285207cd52b24008094710b`, with the exact submitted tree. Branch `codex/provider-production-qualification` adds typed configuration/account inspection, authenticated expiring qualification evidence and restriction-only revocation, exact-operation checks in existing Fargate and model-proxy authority, checked provider-specific exposure estimates, host-only qualification/reconciliation commands and redacted Owner panel blockers. Forward **0024** preserves 0001–0023. See [implemented boundaries and remaining operational evidence](../development/provider-production-qualification.md).
