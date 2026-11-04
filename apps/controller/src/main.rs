@@ -42,9 +42,7 @@ struct BindingInput {
     human: String,
     legacy: String,
 }
-fn account_inspection_receipt() -> &'static str {
-    r#"{"level":"configuration_inspected","execution_allowed":false}"#
-}
+const INSPECTED_STATUS: &str = r#"{"level":"configuration_inspected","execution_allowed":false}"#;
 #[tokio::main]
 async fn main() {
     if let Err(error) = run().await {
@@ -165,7 +163,7 @@ async fn run() -> Result<(), OperationError> {
             let body: AccountInspection = serde_json::from_slice(&input(16384)?)
                 .map_err(|_| OperationError::InvalidConfiguration)?;
             op.inspect_account_qualification(&body).await?;
-            println!("{}", account_inspection_receipt());
+            println!("{INSPECTED_STATUS}");
             Ok(())
         }
         ("qualification-report", 2) => {
@@ -260,8 +258,7 @@ async fn run() -> Result<(), OperationError> {
 mod tests {
     #[test]
     fn account_inspection_diagnostics_expose_only_static_validation_status() {
-        let diagnostic = super::account_inspection_receipt();
-        let value: serde_json::Value = serde_json::from_str(diagnostic).unwrap();
+        let value: serde_json::Value = serde_json::from_str(super::INSPECTED_STATUS).unwrap();
         let fields = value.as_object().unwrap();
         assert_eq!(
             fields.len(),
