@@ -35,6 +35,13 @@ pub(crate) const DOMAINS: [&str; 20] = [
     "browser-accessibility",
     "production-operations",
 ];
+const LIVE_DOMAINS: [&str; 5] = [
+    "aws-isolation",
+    "external-charging-bounds",
+    "email-delivery",
+    "tls-pki",
+    "off-host-recovery",
+];
 
 pub(crate) fn write(root: &Path, name: &str, bytes: &[u8]) -> Result<()> {
     if !crate::files::canonical(name) {
@@ -72,19 +79,13 @@ pub(crate) fn decision(commit: &str) -> gate::Decision {
             required_evidence: EvidenceKind::Build,
             required_for_build: true,
             required_for_offline: false,
+            required_for_production: true,
             source_commit: commit.into(),
             reference: "SOURCE.json; MANIFEST.json; SBOM.spdx.json".into(),
         });
     }
     for id in DOMAINS {
-        let external = matches!(
-            id,
-            "aws-isolation"
-                | "external-charging-bounds"
-                | "email-delivery"
-                | "tls-pki"
-                | "off-host-recovery"
-        );
+        let external = LIVE_DOMAINS.contains(&id);
         checks.push(Check {
             id: id.into(),
             outcome: if external {
@@ -93,14 +94,19 @@ pub(crate) fn decision(commit: &str) -> gate::Decision {
                 Outcome::Unverified
             },
             evidence: EvidenceKind::SourceInspection,
-            required_evidence: EvidenceKind::InstalledBinary,
+            required_evidence: if external {EvidenceKind::ExternallyQualified}else{EvidenceKind::InstalledBinary},
             required_for_build: false,
-            required_for_offline: true,
+            required_for_offline: !external,
+            required_for_production: true,
             source_commit: commit.into(),
-            reference: format!(
-                "COVERAGE.json; docs/development/release-candidate-validation.md#{id}"
-            ),
+            reference: "COVERAGE.json; docs/development/release-candidate-validation.md#remaining-release-domains".into(),
         });
+        if external {
+            checks.push(Check{id:format!("{id}.offline-protocol"),outcome:Outcome::Unverified,
+                evidence:EvidenceKind::SourceInspection,required_evidence:EvidenceKind::InstalledBinary,
+                required_for_build:false,required_for_offline:true,required_for_production:false,
+                source_commit:commit.into(),reference:"COVERAGE.json; docs/development/release-candidate-validation.md#installed-acceptance-and-release-decisions".into()});
+        }
     }
     gate::assess(commit, checks)
 }
@@ -227,7 +233,7 @@ pub(crate) fn seal(root: &Path, dist: &Path) -> Result<String> {
         "EVIDENCE.json",
         &json!({"version":1,"sourceCommit":commit,"binarySha256":binary_sha,"decision":report,"installedSmoke":denials,
         "outcomeVocabulary":[Outcome::Pass,Outcome::Fail,Outcome::Blocked,Outcome::NotApplicable,Outcome::Unverified],
-        "evidenceVocabulary":[EvidenceKind::SourceInspection,EvidenceKind::Build,EvidenceKind::Component,EvidenceKind::ProtocolFixture,EvidenceKind::InstalledBinary],
+        "evidenceVocabulary":[EvidenceKind::SourceInspection,EvidenceKind::Build,EvidenceKind::Component,EvidenceKind::ProtocolFixture,EvidenceKind::InstalledBinary,EvidenceKind::ExternallyQualified],
         "note":"Negative CLI smoke proves unsafe input denial, not a successful installed HTTPS/authentication/orchestration journey. Full-suite/CI outcomes are reported separately and must match this source head."}),
     )?;
     let rustc = process::output(root, "rustc", &["--version", "--verbose"])?;
@@ -280,7 +286,7 @@ mod tests {
     #[test]
     fn assessment_contains_every_domain_and_never_equates_missing_evidence_with_success() {
         let r = decision(&"a".repeat(40));
-        assert_eq!(r.checks.len(), 24);
+        assert_eq!(r.checks.len(), 29);
         assert!(r.build_candidate_qualified);
         assert!(
             !r.offline_release_candidate_qualified
@@ -289,8 +295,54 @@ mod tests {
         );
         for id in DOMAINS {
             let c = r.checks.iter().find(|c| c.id == id).unwrap();
-            assert!(c.required_for_offline);
+            assert_eq!(c.required_for_offline, !LIVE_DOMAINS.contains(&id));
+            assert!(c.required_for_production);
             assert_ne!(c.outcome, Outcome::Pass);
         }
+    }
+    #[test]
+    fn missing_live_provider_evidence_is_separate_from_offline_system_acceptance() {
+        let report = decision(&"a".repeat(40));
+        for id in [
+            "aws-isolation",
+            "external-charging-bounds",
+            "email-delivery",
+            "tls-pki",
+            "off-host-recovery",
+        ] {
+            let live = report.checks.iter().find(|c| c.id == id).unwrap();
+            assert!(
+                !live.required_for_offline,
+                "live gate {id} cannot require a paid/external operation for offline acceptance"
+            );
+            assert_eq!(live.outcome, Outcome::Blocked);
+            let offline = report
+                .checks
+                .iter()
+                .find(|c| c.id == format!("{id}.offline-protocol"))
+                .unwrap();
+            assert!(offline.required_for_offline);
+        }
+    }
+    #[test]
+    fn all_offline_evidence_could_qualify_offline_while_live_authority_stays_denied() {
+        let commit = "a".repeat(40);
+        let mut checks = decision(&commit).checks;
+        // Test-only scenario: a future installed simulator harness completes all
+        // required offline assertions, without supplying any live provider proof.
+        for check in checks.iter_mut().filter(|c| c.required_for_offline) {
+            check.outcome = Outcome::Pass;
+            check.evidence = check.required_evidence;
+        }
+        let report = gate::assess(&commit, checks);
+        assert!(report.build_candidate_qualified && report.offline_release_candidate_qualified);
+        assert!(!report.production_release_qualified && !report.paid_execution_authorized);
+        assert!(
+            report
+                .checks
+                .iter()
+                .filter(|c| LIVE_DOMAINS.contains(&c.id.as_str()))
+                .all(|c| c.outcome == Outcome::Blocked)
+        );
     }
 }

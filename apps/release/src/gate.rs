@@ -19,6 +19,7 @@ pub(crate) enum EvidenceKind {
     Component,
     ProtocolFixture,
     InstalledBinary,
+    ExternallyQualified,
 }
 
 #[derive(Clone, Debug, Serialize)]
@@ -30,6 +31,7 @@ pub(crate) struct Check {
     pub required_evidence: EvidenceKind,
     pub required_for_build: bool,
     pub required_for_offline: bool,
+    pub required_for_production: bool,
     pub source_commit: String,
     pub reference: String,
 }
@@ -92,6 +94,7 @@ mod tests {
             required_evidence: kind,
             required_for_build: true,
             required_for_offline: true,
+            required_for_production: true,
             source_commit: COMMIT.into(),
             reference: "executed-test-receipt".into(),
         }

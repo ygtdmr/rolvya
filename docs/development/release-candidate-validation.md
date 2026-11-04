@@ -39,7 +39,7 @@ This prefix does **not** prove real password login over installed HTTPS, authent
 
 The release job runs after existing repository, secret, Rust and frontend gates, builds/inspects the actual archive, executes the prefix, rebuilds into a fresh Cargo target and compares every distributed byte. It uploads only a build candidate and redacted reports to CI artifacts. A green **assessment job** means assessment completed; it is not offline release qualification. No tag, GitHub Release, production deployment or merge is created.
 
-`buildCandidateQualified` can describe a successfully sealed build. `offlineReleaseCandidateQualified` remains false while mandatory evidence is absent. `productionReleaseQualified` and `paidExecutionAuthorized` remain false; no imported report or configuration override can grant execution authority.
+`buildCandidateQualified` can describe a successfully sealed build. `offlineReleaseCandidateQualified` remains false while mandatory evidence is absent. Live AWS/charging/email/PKI/off-host evidence has separate production requirements and explicit offline-protocol counterpart checks. Missing real provider proof alone cannot make a fully demonstrated offline simulator journey fail; the current missing installed journey still does. `productionReleaseQualified` and `paidExecutionAuthorized` remain false; no imported report or configuration override can grant execution authority.
 
 ## Remaining release domains
 
