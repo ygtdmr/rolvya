@@ -19,6 +19,9 @@ while IFS= read -r variable; do
       echo 'unreviewed native/compiler build override' >&2; exit 2 ;;
   esac
 done < <(compgen -e)
+for configuration in .cargo/config .cargo/config.toml "${CARGO_HOME:-$HOME/.cargo}/config" "${CARGO_HOME:-$HOME/.cargo}/config.toml" apps/web/.env apps/web/.env.local apps/web/.env.production apps/web/.env.production.local; do
+  [[ ! -e "$configuration" && ! -L "$configuration" ]] || { echo 'unreviewed local build configuration' >&2; exit 2; }
+done
 build_target="${CARGO_TARGET_DIR:-$PWD/target}"
 [[ "$build_target" == /* ]] || { echo 'absolute build target required' >&2; exit 2; }
 cargo build --release --locked -p rolvya-controller -p rolvya-release

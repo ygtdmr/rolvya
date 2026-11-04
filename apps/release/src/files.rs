@@ -47,6 +47,12 @@ pub(crate) struct Tree {
     root: File,
 }
 impl Tree {
+    pub fn built_controller_hash(&self) -> Result<String> {
+        // Cargo publishes one executable through two hardlinks in target/release.
+        // This exception applies only to hashing that fixed fresh build output;
+        // packaged payload inspection still requires exactly one link.
+        Ok(digest(&self.read_inner("rolvya-controller", LIMIT, 2)?))
+    }
     pub fn open(path: &Path) -> Result<Self> {
         if !path.is_absolute() {
             return Err("absolute directory required".into());
@@ -93,9 +99,15 @@ impl Tree {
     }
 
     pub fn read(&self, path: &str, limit: u64) -> Result<Vec<u8>> {
+        self.read_inner(path, limit, 1)
+    }
+    fn read_inner(&self, path: &str, limit: u64, allowed_links: u64) -> Result<Vec<u8>> {
         let file = self.file(path)?;
         let before = file.metadata().map_err(|_| "file metadata unavailable")?;
-        if !before.is_file() || before.nlink() != 1 || before.len() > limit {
+        if !before.is_file()
+            || !(1..=allowed_links).contains(&before.nlink())
+            || before.len() > limit
+        {
             return Err("unsafe or oversized file".into());
         }
         let mut bytes = Vec::new();
@@ -110,7 +122,7 @@ impl Tree {
             || before.mtime_nsec() != after.mtime_nsec()
             || before.ctime() != after.ctime()
             || before.ctime_nsec() != after.ctime_nsec()
-            || after.nlink() != 1
+            || after.nlink() != before.nlink()
         {
             return Err("file changed during inspection".into());
         }
@@ -227,6 +239,20 @@ mod tests {
             assert!(!canonical(path));
         }
         assert!(canonical("web/app.a_B-1.js"));
+    }
+    #[test]
+    fn cargo_hardlinked_build_output_is_distinct_from_distribution_payload() {
+        let d = tempfile::tempdir().unwrap();
+        let f = d.path().join("rolvya-controller");
+        fs::write(&f, b"fresh build").unwrap();
+        fs::hard_link(&f, d.path().join("compiler-artifact")).unwrap();
+        let tree = Tree::open(d.path()).unwrap();
+        assert_eq!(
+            tree.built_controller_hash().unwrap(),
+            digest(b"fresh build")
+        );
+        assert!(tree.read("rolvya-controller", LIMIT).is_err());
+        assert!(tree.inventory().is_err());
     }
 
     #[test]

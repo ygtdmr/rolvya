@@ -126,9 +126,8 @@ pub(crate) fn seal(root: &Path, dist: &Path) -> Result<String> {
     let target = std::env::var("CARGO_TARGET_DIR")
         .map(std::path::PathBuf::from)
         .unwrap_or_else(|_| root.join("target"));
-    let expected =
-        Tree::open(&target.join("release"))?.read("rolvya-controller", crate::files::LIMIT)?;
-    if digest(&expected) != binary_sha {
+    let expected = Tree::open(&target.join("release"))?.built_controller_hash()?;
+    if expected != binary_sha {
         return Err("installed binary differs from built binary".into());
     }
     let built_web = Tree::open(&root.join("apps/web/dist"))?;
