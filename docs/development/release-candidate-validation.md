@@ -6,6 +6,10 @@ status: Implemented build tooling; complete offline system acceptance remains bl
 
 G1-12 adds a build-host Rust tool, `apps/release`, around the existing controller packager. It is not deployed as a controller or credential authority. No migration or runtime authorization changes are included.
 
+Final verification also reproduced a SQLx 0.8.6 pool-close race: a connection returning after the initial idle scan could survive an awaited close. `PlanStore::close` now drains those finite late returners after closing acquisition. A deterministic real-SQLite barrier test fails with the former implementation and verifies zero remaining pooled connections, committed bytes and integrity with the correction. This is graceful pool shutdown, not a guarantee that SQLite WAL files are empty or removable. Metadata tests use a separate unopened inode for deliberately invalid sidecars and preserve real database close/reopen checks.
+
+Email browser tests retrieve only an exact, new, independently delivered synthetic login message through private test-process IPC. They retain actual Rust/TLS/UI authentication and assert the first confirmation/session/projects/snapshot requests independently, with redacted status diagnostics. The fixture does not introduce a production mail authority, bypass explicit Magic Link confirmation or weaken cookies, CSP or Service Worker tests.
+
 ## Commands and provenance
 
 From clean reviewed source, with Rust 1.99.1, Node 24 and npm 11.9.0:

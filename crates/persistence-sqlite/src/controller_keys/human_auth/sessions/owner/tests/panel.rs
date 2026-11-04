@@ -6,7 +6,8 @@ use rolvya_domain::{
     plan::*,
 };
 use sqlx::Connection;
-pub(in crate::controller_keys) type MailProbe = Arc<dyn Fn(&str) -> Option<String> + Send + Sync>;
+pub(in crate::controller_keys) type MailProbe =
+    crate::controller_keys::human_auth::tests::BrowserMailProbe;
 pub(in crate::controller_keys) struct BrowserSeed {
     pub auth: HumanAuth,
     pub root: tempfile::TempDir,

@@ -1,4 +1,5 @@
 use super::*;
+use std::collections::BTreeSet;
 #[test]
 fn email_validation_preserves_local_case_and_normalizes_domain() {
     assert_eq!(
@@ -83,9 +84,10 @@ impl TransportAuthority for SyntheticTransport {
         Ok(peer.clone())
     }
 }
+type CapturedMail = (String, EmailAddress, ChallengeKind, ChallengePurpose);
 #[derive(Default)]
 struct SyntheticMail {
-    messages: Mutex<BTreeMap<String, (String, EmailAddress)>>,
+    messages: Mutex<BTreeMap<String, CapturedMail>>,
     verified: Mutex<BTreeMap<String, bool>>,
     mode: AtomicI64,
 }
@@ -97,7 +99,12 @@ impl MailTransport for SyntheticMail {
         Box::pin(async move {
             self.messages.lock().unwrap().insert(
                 m.challenge.clone(),
-                (m.token.0.to_string(), m.recipient.clone()),
+                (
+                    m.token.0.to_string(),
+                    m.recipient.clone(),
+                    m.kind,
+                    m.purpose,
+                ),
             );
             match self.mode.load(Ordering::SeqCst) {
                 0 => {
@@ -168,14 +175,133 @@ fn request() -> RequestId {
 fn password() -> Password {
     Password::new(hex(&random::<32>().unwrap()[..]).into_bytes()).unwrap()
 }
-type BrowserMailProbe = Arc<dyn Fn(&str) -> Option<String> + Send + Sync>;
+type TokenProbe = Arc<dyn Fn(&str) -> Option<String> + Send + Sync>;
+type LoginDeliveryProbe =
+    Arc<dyn Fn(&EmailAddress, ChallengeKind) -> Option<(String, String)> + Send + Sync>;
+pub(in crate::controller_keys) struct BrowserMailProbe {
+    pub(in crate::controller_keys) by_reference: TokenProbe,
+    pub(in crate::controller_keys) next_login: LoginDeliveryProbe,
+}
+fn browser_mail_probe(mail: Arc<SyntheticMail>) -> BrowserMailProbe {
+    // Ignore enrollment/Owner mail already emitted before the browser journey.
+    let seen = Mutex::new(
+        mail.messages
+            .lock()
+            .unwrap()
+            .keys()
+            .cloned()
+            .collect::<BTreeSet<_>>(),
+    );
+    let by_reference_mail = mail.clone();
+    BrowserMailProbe {
+        by_reference: Arc::new(move |id| {
+            if by_reference_mail.verified.lock().unwrap().get(id) != Some(&true) {
+                return None;
+            }
+            by_reference_mail
+                .messages
+                .lock()
+                .unwrap()
+                .get(id)
+                .map(|x| x.0.clone())
+        }),
+        next_login: Arc::new(move |recipient, kind| {
+            let mut seen = seen.lock().unwrap();
+            let messages = mail.messages.lock().unwrap();
+            let verified = mail.verified.lock().unwrap();
+            let mut matches = messages.iter().filter(|(id, m)| {
+                !seen.contains(*id)
+                    && &m.1 == recipient
+                    && m.2 == kind
+                    && m.3 == ChallengePurpose::Login
+                    && verified.get(*id) == Some(&true)
+            });
+            let (reference, message) = matches.next()?;
+            if matches.next().is_some() {
+                return None;
+            }
+            let result = (reference.clone(), message.0.clone());
+            seen.insert(reference.clone());
+            Some(result)
+        }),
+    }
+}
+#[tokio::test]
+async fn private_browser_mail_probe_requires_one_fresh_verified_exact_login_delivery() {
+    let mail = Arc::new(SyntheticMail::default());
+    let probe = browser_mail_probe(mail.clone());
+    let recipient = EmailAddress::parse("recipient@example.invalid").unwrap();
+    let wrong = EmailAddress::parse("other@example.invalid").unwrap();
+    assert!((probe.next_login)(&recipient, ChallengeKind::Otp).is_none());
+    for (id, to, kind, purpose) in [
+        (
+            1,
+            recipient.clone(),
+            ChallengeKind::MagicLink,
+            ChallengePurpose::Login,
+        ),
+        (2, wrong, ChallengeKind::Otp, ChallengePurpose::Login),
+        (
+            3,
+            recipient.clone(),
+            ChallengeKind::Otp,
+            ChallengePurpose::VerifyEmail,
+        ),
+    ] {
+        mail.send(&MailMessage {
+            challenge: format!("{id:032x}"),
+            recipient: to,
+            kind,
+            purpose,
+            token: ChallengeSecret(Zeroizing::new("01234567".into())),
+        })
+        .await;
+    }
+    assert!((probe.next_login)(&recipient, ChallengeKind::Otp).is_none());
+    let valid = MailMessage {
+        challenge: format!("{:032x}", 4),
+        recipient: recipient.clone(),
+        kind: ChallengeKind::Otp,
+        purpose: ChallengePurpose::Login,
+        token: ChallengeSecret(Zeroizing::new("01234567".into())),
+    };
+    mail.mode.store(1, Ordering::SeqCst);
+    mail.send(&valid).await;
+    assert!((probe.next_login)(&recipient, ChallengeKind::Otp).is_none());
+    assert!((probe.by_reference)(&valid.challenge).is_none());
+    mail.mode.store(0, Ordering::SeqCst);
+    mail.send(&valid).await;
+    assert_eq!(
+        (probe.next_login)(&recipient, ChallengeKind::Otp)
+            .unwrap()
+            .0,
+        valid.challenge
+    );
+    assert!(
+        (probe.next_login)(&recipient, ChallengeKind::Otp).is_none(),
+        "delivery cursor cannot replay the previous result"
+    );
+    for id in [5, 6] {
+        mail.send(&MailMessage {
+            challenge: format!("{id:032x}"),
+            recipient: recipient.clone(),
+            kind: ChallengeKind::Otp,
+            purpose: ChallengePurpose::Login,
+            token: ChallengeSecret(Zeroizing::new("01234567".into())),
+        })
+        .await;
+    }
+    assert!(
+        (probe.next_login)(&recipient, ChallengeKind::Otp).is_none(),
+        "ambiguous delivery cannot be resolved by random reference order"
+    );
+}
 impl Fixture {
     pub(super) fn browser_clock(&self) -> Arc<AtomicI64> {
         self.clock.0.clone()
     }
     pub(super) fn browser_mail_probe(&self) -> BrowserMailProbe {
-        let mail = self.mail.clone();
-        Arc::new(move |id| mail.messages.lock().unwrap().get(id).map(|x| x.0.clone()))
+        browser_mail_probe(self.mail.clone())
     }
     pub(super) async fn new() -> Self {
         let root = temporary();
