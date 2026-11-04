@@ -161,10 +161,69 @@ jobs:
           include-hidden-files: true
           retention-days: 14
 
+  release:
+    name: Release candidate assessment
+    needs: [repository, secrets, rust, web]
+    if: needs.repository.outputs.rust == 'true' && needs.repository.outputs.web == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '24.19.0'
+      - name: Install the exact repository package manager
+        run: |
+          npm install --global --prefix "$RUNNER_TEMP/rolvya-npm" --ignore-scripts --no-audit --no-fund npm@11.9.0
+          echo "$RUNNER_TEMP/rolvya-npm/bin" >> "$GITHUB_PATH"
+      - name: Verify pinned package manager
+        run: test "$(npm --version)" = 11.9.0
+      - name: Install pinned release toolchain
+        env:
+          RUST_VERSION: ${{ needs.repository.outputs.rust_toolchain }}
+        run: rustup toolchain install "$RUST_VERSION" --profile minimal
+      - name: Build, seal and inspect actual optimized distribution
+        run: |
+          bash scripts/package-controller.sh "$RUNNER_TEMP/candidate"
+          sha="$(cat "$RUNNER_TEMP/candidate/MANIFEST.sha256")"
+          target/release/rolvya-release verify "$RUNNER_TEMP/candidate" "$sha"
+          target/release/rolvya-release archive "$PWD" "$RUNNER_TEMP/candidate" "$sha" "$RUNNER_TEMP/rolvya-candidate.tar.gz"
+          target/release/rolvya-release verify-archive "$RUNNER_TEMP/candidate" "$sha" "$RUNNER_TEMP/rolvya-candidate.tar.gz"
+          target/release/rolvya-release installed-prefix "$RUNNER_TEMP/candidate" "$sha" > "$RUNNER_TEMP/installed-operator-prefix.json"
+      - name: Independently rebuild and compare every distributed byte
+        env:
+          CARGO_TARGET_DIR: ${{ runner.temp }}/independent-target
+          CARGO_INCREMENTAL: '0'
+        run: |
+          bash scripts/package-controller.sh "$RUNNER_TEMP/independent-candidate"
+          diff --recursive --no-dereference "$RUNNER_TEMP/candidate" "$RUNNER_TEMP/independent-candidate"
+      - name: Assert offline and production gates remain denied
+        run: |
+          sha="$(cat "$RUNNER_TEMP/candidate/MANIFEST.sha256")"
+          if target/release/rolvya-release require-offline "$RUNNER_TEMP/candidate" "$sha"; then
+            echo 'Missing mandatory installed-system evidence was incorrectly waived' >&2
+            exit 1
+          fi
+          cat "$RUNNER_TEMP/candidate/EVIDENCE.json" >> "$GITHUB_STEP_SUMMARY"
+          echo 'Assessment completed; this is a build candidate, not an offline-qualified or production-qualified release.' >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: rolvya-build-candidate
+          path: |
+            ${{ runner.temp }}/rolvya-candidate.tar.gz
+            ${{ runner.temp }}/candidate/MANIFEST.sha256
+            ${{ runner.temp }}/candidate/EVIDENCE.json
+            ${{ runner.temp }}/candidate/COVERAGE.json
+            ${{ runner.temp }}/installed-operator-prefix.json
+          retention-days: 14
+
   required:
     name: Required checks
     if: always()
-    needs: [repository, secrets, rust, web]
+    needs: [repository, secrets, rust, web, release]
     runs-on: ubuntu-24.04
     timeout-minutes: 2
     steps:
@@ -174,6 +233,7 @@ jobs:
           SECRETS: ${{ needs.secrets.result }}
           RUST: ${{ needs.rust.result }}
           WEB: ${{ needs.web.result }}
+          RELEASE: ${{ needs.release.result }}
           HAS_RUST: ${{ needs.repository.outputs.rust }}
           HAS_WEB: ${{ needs.repository.outputs.web }}
         run: |
@@ -184,5 +244,7 @@ jobs:
           for language in ('RUST', 'WEB'):
               expected = 'success' if os.environ['HAS_' + language] == 'true' else 'skipped'
               assert os.environ[language] == expected, language + ' checks did not pass'
+          expected_release = 'success' if os.environ['HAS_RUST'] == os.environ['HAS_WEB'] == 'true' else 'skipped'
+          assert os.environ['RELEASE'] == expected_release, 'Release assessment did not complete'
           print('Every applicable check passed; absent application stacks were explicitly skipped.')
           PY

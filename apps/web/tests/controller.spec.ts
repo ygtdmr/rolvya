@@ -1,8 +1,81 @@
 import { test, expect, privateInput } from "./human-fixture";
 import AxeBuilder from "@axe-core/playwright";
+import type { Page, Request, Response } from "@playwright/test";
 // No auth traces/automatic screenshots: they retain passwords/cookies/CSRF.
 // Genuine CSP and accessibility assertions remain active.
 test.use({ ignoreHTTPSErrors: true, trace: "off", screenshot: "off" });
+function observeEmailAcceptance(page: Page, project: string) {
+  const stages = [
+    {
+      name: "confirm",
+      method: "POST",
+      path: "/api/control/v1/auth/email/confirm",
+    },
+    { name: "session", method: "GET", path: "/api/control/v1/auth/session" },
+    { name: "projects", method: "GET", path: "/api/control/v1/projects" },
+    {
+      name: "snapshot",
+      method: "GET",
+      path: `/api/control/v1/projects/${encodeURIComponent(project)}/snapshot`,
+    },
+  ];
+  const started = Date.now();
+  const seen = new Map<
+    string,
+    { stage: string; status: number; elapsedMs: number }
+  >();
+  const requests = new Map<string, Request>();
+  const requested = (request: Request) => {
+    const path = new URL(request.url()).pathname;
+    const stage = stages.find(
+      (s) => s.path === path && s.method === request.method(),
+    );
+    if (stage && !requests.has(stage.name)) requests.set(stage.name, request);
+  };
+  const listener = (response: Response) => {
+    const path = new URL(response.url()).pathname;
+    const stage = stages.find(
+      (s) => s.path === path && s.method === response.request().method(),
+    );
+    if (
+      stage &&
+      requests.get(stage.name) === response.request() &&
+      !seen.has(stage.name)
+    )
+      seen.set(stage.name, {
+        stage: stage.name,
+        status: response.status(),
+        elapsedMs: Date.now() - started,
+      });
+  };
+  page.on("request", requested);
+  page.on("response", listener);
+  return {
+    async complete() {
+      for (const stage of stages) {
+        // Each actual client request is bounded at10s. Await real protocol
+        // progress rather than racing that deadline with an8s text assertion.
+        // Diagnostics retain statuses/timing only, never bodies or cookies.
+        await expect
+          .poll(
+            () => ({
+              status: seen.get(stage.name)?.status ?? null,
+              observed: [...seen.values()],
+            }),
+            {
+              timeout: 12_000,
+              message: `Email ${stage.name} must complete through real Rust authority`,
+            },
+          )
+          .toMatchObject({ status: 200 });
+      }
+    },
+    stop: () => {
+      page.off("request", requested);
+      page.off("response", listener);
+    },
+  };
+}
 test("installation bootstrap uses independently evidenced enrollment and exact host-approved binding", async ({
   page,
   controller,
@@ -340,21 +413,19 @@ test("verified private email OTP uses the actual challenge and browser confirmat
   await page
     .getByRole("option", { name: "One-time email code", exact: true })
     .click();
-  // Consume immediately on headers; navigation may otherwise evict the CDP body.
-  const delivered = page
-    .waitForResponse(
-      (r) => r.url().endsWith("/auth/email") && r.request().method() === "POST",
-    )
-    .then((response) => response.json());
   await page
     .getByRole("button", { name: "Continue with email", exact: true })
     .click();
-  const reference = String((await delivered).challenge);
-  await privateInput(
-    page.getByLabel("Email code"),
-    await controller.deliveredMessage(reference),
-  );
-  await page.getByRole("button", { name: "Verify and sign in" }).click();
+  await expect(page.getByLabel("Email code")).toBeVisible();
+  const delivered = await controller.deliveredMessage("otp");
+  await privateInput(page.getByLabel("Email code"), delivered.token);
+  const acceptance = observeEmailAcceptance(page, controller.info.project);
+  try {
+    await page.getByRole("button", { name: "Verify and sign in" }).click();
+    await acceptance.complete();
+  } finally {
+    acceptance.stop();
+  }
   await expect(
     page.getByText("Bounded panel task", { exact: true }).first(),
   ).toBeVisible();
@@ -366,17 +437,13 @@ test("Magic Link opening cannot authenticate until explicit same-browser confirm
   await page.goto(controller.info.url);
   await page.getByRole("button", { name: "Other sign-in methods" }).click();
   await page.getByLabel("Email address").fill(controller.info.email);
-  // Consume immediately on headers; navigation may otherwise evict the CDP body.
-  const delivered = page
-    .waitForResponse(
-      (r) => r.url().endsWith("/auth/email") && r.request().method() === "POST",
-    )
-    .then((response) => response.json());
   await page
     .getByRole("button", { name: "Continue with email", exact: true })
     .click();
-  const reference = String((await delivered).challenge);
-  const token = await controller.deliveredMessage(reference);
+  await expect(
+    page.getByRole("heading", { name: "Continue with email" }),
+  ).toBeVisible();
+  const { reference, token } = await controller.deliveredMessage("magic_link");
   // No trace or URL-bearing diagnostics are retained for this private fixture.
   try {
     await page.goto(
@@ -395,9 +462,15 @@ test("Magic Link opening cannot authenticate until explicit same-browser confirm
       async () => (await fetch("/api/control/v1/projects")).status,
     ),
   ).toBe(401);
-  await page
-    .getByRole("button", { name: "Confirm sign-in", exact: true })
-    .click();
+  const acceptance = observeEmailAcceptance(page, controller.info.project);
+  try {
+    await page
+      .getByRole("button", { name: "Confirm sign-in", exact: true })
+      .click();
+    await acceptance.complete();
+  } finally {
+    acceptance.stop();
+  }
   await expect(
     page.getByText("Bounded panel task", { exact: true }).first(),
   ).toBeVisible();

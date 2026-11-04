@@ -107,11 +107,20 @@ async fn browser_https_driver() {
             "advance" => {
                 r.seed.clock.fetch_add(3600, Ordering::SeqCst);
             }
-            value if value.starts_with("mail:") => {
-                let reference = &value[5..];
-                assert!(reference.len() == 32 && reference.bytes().all(|b| b.is_ascii_hexdigit()));
-                let token = Zeroizing::new(
-                    (r.seed.mail)(reference).expect("private message not delivered"),
+            value @ ("mail:otp" | "mail:magic_link") => {
+                let kind = if value == "mail:otp" {
+                    ChallengeKind::Otp
+                } else {
+                    ChallengeKind::MagicLink
+                };
+                let (reference, token) = (r.seed.mail.next_login)(&r.seed.email, kind)
+                    .expect("one exact new independently delivered login message required");
+                let token = Zeroizing::new(token);
+                let envelope = Zeroizing::new(
+                    serde_json::to_vec(
+                        &serde_json::json!({"reference":reference,"token":token.as_str()}),
+                    )
+                    .unwrap(),
                 );
                 let mut file = std::fs::OpenOptions::new()
                     .write(true)
@@ -120,7 +129,7 @@ async fn browser_https_driver() {
                     .mode(0o600)
                     .open(dir.join("message"))
                     .unwrap();
-                std::io::Write::write_all(&mut file, token.as_bytes()).unwrap();
+                std::io::Write::write_all(&mut file, &envelope).unwrap();
             }
             _ => panic!("unsupported private fixture command"),
         }

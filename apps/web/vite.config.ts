@@ -1,11 +1,13 @@
 import { defineConfig, type Plugin } from "vite";
 import react from "@vitejs/plugin-react";
 import { transform } from "lightningcss";
-import { readFileSync } from "node:fs";
+import { readFileSync, mkdirSync, writeFileSync } from "node:fs";
 import { createHash } from "node:crypto";
 import { resolve } from "node:path";
 // @ts-expect-error Build-only JS module has a checked runtime contract.
 import { licenseBanner } from "./scripts/licenses.mjs";
+// @ts-expect-error Build-only JS module has adversarial path tests.
+import { renderedPackages } from "./scripts/build-modules.mjs";
 const hash = (value: string, algorithm = "sha256") =>
   createHash(algorithm).update(value).digest("base64");
 export default defineConfig(({ mode, command }) => {
@@ -86,6 +88,22 @@ export default defineConfig(({ mode, command }) => {
           throw Error("Exactly one application chunk is required");
         const code = app[0].code,
           name = app[0].fileName;
+        // Build-only provenance, outside the four-file deployment directory.
+        // Track rendered modules rather than classifying every npm lock entry as shipped.
+        const packages = renderedPackages(app[0].modules, base);
+        mkdirSync(resolve(base, ".artifacts"), { recursive: true });
+        writeFileSync(
+          resolve(
+            base,
+            `.artifacts/bundle-${demo ? "demo" : "production"}.json`,
+          ),
+          JSON.stringify({
+            version: 1,
+            application: name,
+            sha256: createHash("sha256").update(code).digest("hex"),
+            packages,
+          }) + "\n",
+        );
         const html = bundle["index.html"];
         if (html?.type !== "asset")
           throw Error("Missing HTML asset: " + Object.keys(bundle).join(","));

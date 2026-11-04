@@ -485,19 +485,32 @@ async fn existing_database_hardlink_is_rejected_before_sqlite_opens_it() {
     let alias = f.root.path().join("aliased.sqlite");
     std::fs::hard_link(&f.config.database, &alias).unwrap();
     assert!(
-        HostOperator::open(f.config.clone()).await.is_err(),
+        matches!(
+            HostOperator::open(f.config.clone()).await,
+            Err(OperationError::UnsafeFilesystem)
+        ),
         "an extra DB inode alias violates private deployment storage"
     );
     std::fs::remove_file(&alias).unwrap();
+    // Metadata checks do not open SQLite. Use a separate private inode: even a
+    // closed database may retain authoritative WAL bytes; replacing its actual
+    // sidecars would test deliberate data loss rather than metadata rejection.
+    let metadata_file = f.config.database.parent().unwrap().join("metadata.sqlite");
+    write_private(&metadata_file, b"metadata-only, never opened by SQLite");
     for suffix in ["-wal", "-shm"] {
-        let sidecar = std::path::PathBuf::from(format!("{}{suffix}", f.config.database.display()));
-        let _ = std::fs::remove_file(&sidecar);
+        let sidecar = std::path::PathBuf::from(format!("{}{suffix}", metadata_file.display()));
         write_private(&sidecar, b"metadata-only rejected before SQLite");
         std::fs::hard_link(&sidecar, &alias).unwrap();
-        assert!(files::database_identity(&f.config.database).is_err());
+        assert_eq!(
+            files::database_identity(&metadata_file),
+            Err(OperationError::UnsafeFilesystem)
+        );
         std::fs::remove_file(&alias).unwrap();
         std::fs::set_permissions(&sidecar, std::fs::Permissions::from_mode(0o644)).unwrap();
-        assert!(files::database_identity(&f.config.database).is_err());
+        assert_eq!(
+            files::database_identity(&metadata_file),
+            Err(OperationError::UnsafeFilesystem)
+        );
         std::fs::remove_file(&sidecar).unwrap();
     }
     for _ in 0..5 {

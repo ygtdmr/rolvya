@@ -398,7 +398,7 @@ async fn same_browser_email_confirmation_survives_context_reload_and_is_single_u
         .await;
     assert_eq!(status, 200);
     let reference = pending["challenge"].as_str().unwrap();
-    let token = (r.seed.mail)(reference).unwrap();
+    let token = (r.seed.mail.by_reference)(reference).unwrap();
     let csrf = b.initialize().await;
     let confirmation =
         serde_json::json!({"challenge":reference,"secret":token,"kind":"otp","confirm":true});

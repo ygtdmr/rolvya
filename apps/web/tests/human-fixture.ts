@@ -24,7 +24,9 @@ interface Controller {
   info: FixtureInfo;
   command: (command: "emit" | "revoke" | "advance" | "role") => Promise<void>;
   freshFactor: () => Promise<string>;
-  deliveredMessage: (reference: string) => Promise<string>;
+  deliveredMessage: (
+    kind: "otp" | "magic_link",
+  ) => Promise<{ reference: string; token: string }>;
   signIn: (
     page: Page,
     viewer?: boolean,
@@ -120,11 +122,28 @@ export const test = base.extend<{ controller: Controller }>({
             await command("factor");
             return await readFile(resolve(dir, "message"), "utf8");
           },
-          deliveredMessage: async (reference) => {
-            if (!/^[a-f0-9]{32}$/.test(reference))
-              throw new Error("Invalid private challenge reference.");
-            await command("mail:" + reference);
-            return await readFile(resolve(dir, "message"), "utf8");
+          deliveredMessage: async (kind) => {
+            await command("mail:" + kind);
+            let value: unknown;
+            try {
+              value = JSON.parse(
+                await readFile(resolve(dir, "message"), "utf8"),
+              );
+            } catch {
+              throw Error("Invalid private independently delivered message.");
+            }
+            if (
+              !value ||
+              typeof value !== "object" ||
+              !("reference" in value) ||
+              !("token" in value) ||
+              typeof value.reference !== "string" ||
+              !/^[a-f0-9]{32}$/.test(value.reference) ||
+              typeof value.token !== "string" ||
+              !(kind === "otp" ? /^\d{8}$/ : /^[a-f0-9]{64}$/).test(value.token)
+            )
+              throw Error("Invalid private independently delivered message.");
+            return { reference: value.reference, token: value.token };
           },
           signIn: async (page, viewer = false, expectProject = true) => {
             await page.goto(info.url + "/#/projects/" + info.project);

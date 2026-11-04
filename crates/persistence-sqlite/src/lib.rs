@@ -347,6 +347,13 @@ impl PlanStore {
     }
     pub async fn close(&self) {
         self.pool.close().await;
+        // SQLx 0.8.6 can finish its final permit wait after a return-to-pool
+        // future publishes a late idle connection. The pool is already closed,
+        // so no new acquisitions can grow it; drain those finite returners and
+        // await their graceful SQLite worker shutdown as well.
+        while self.pool.size() != 0 {
+            self.pool.close().await;
+        }
     }
     pub async fn check_integrity(&self) -> Result<(), StoreError> {
         let rows: Vec<String> = sqlx::query_scalar("PRAGMA integrity_check")

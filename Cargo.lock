@@ -1922,6 +1922,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "rolvya-release"
+version = "0.1.0"
+dependencies = [
+ "base64 0.22.1",
+ "ring",
+ "rustix",
+ "serde",
+ "serde_json",
+ "sha2",
+ "tempfile",
+ "zeroize",
+]
+
+[[package]]
 name = "rsa"
 version = "0.9.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
