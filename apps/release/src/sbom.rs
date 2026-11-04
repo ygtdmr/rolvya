@@ -212,22 +212,32 @@ pub(crate) fn generate(
         let checksum = if first_party {
             commit.to_owned()
         } else {
-            let record: Value = serde_json::from_slice(
-                &Tree::open(directory)?.read(".cargo-checksum.json", 2 * 1024 * 1024)?,
-            )
-            .map_err(|_| "invalid Cargo checksum")?;
-            let hash = record["package"]
-                .as_str()
-                .ok_or("missing registry integrity")?;
-            if hash.len() != 64 {
-                return Err("invalid registry integrity".into());
+            // Cargo registry extraction does not promise a .cargo-checksum.json
+            // file (that belongs to vendored sources). Hash the actual cached
+            // archive verified by the preceding locked Cargo build instead.
+            if p["source"].as_str() != Some("registry+https://github.com/rust-lang/crates.io-index")
+            {
+                return Err("unreviewed registry source".into());
             }
-            hash.to_owned()
+            let registry = directory
+                .ancestors()
+                .nth(3)
+                .ok_or("missing registry cache")?;
+            let cache = registry.join("cache").join(
+                directory
+                    .parent()
+                    .and_then(Path::file_name)
+                    .ok_or("missing registry identity")?,
+            );
+            digest(&Tree::open(&cache)?.read(&format!("{name}-{version}.crate"), 16 * 1024 * 1024)?)
         };
         inventory.push(json!({"SPDXID":id,"name":name,"versionInfo":version,"downloadLocation":if first_party {format!("git+https://github.com/ygtdmr/rolvya@{commit}")} else {format!("https://crates.io/api/v1/crates/{name}/{version}/download")},
             "filesAnalyzed":false,"licenseConcluded":"NOASSERTION","licenseDeclared":license,"copyrightText":"NOASSERTION",
             "comment":format!("{}; source integrity {}", if normal.contains(&(name.clone(),version.clone())) {"controller normal dependency closure (may include compile-time procedural macros)"} else {"controller build-only dependency closure"},checksum),
             "externalRefs":[{"referenceCategory":"PACKAGE-MANAGER","referenceType":"purl","referenceLocator":format!("pkg:cargo/{name}@{version}")}]}));
+        if !first_party && let Some(item) = inventory.last_mut() {
+            item["checksums"] = json!([{"algorithm":"SHA256","checksumValue":checksum}]);
+        }
         relationships.push(json!({"spdxElementId":"SPDXRef-controller","relationshipType":"DEPENDS_ON","relatedSpdxElement":id}));
         found.insert((name.clone(), version.clone()));
     }
