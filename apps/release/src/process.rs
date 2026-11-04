@@ -23,6 +23,7 @@ pub(crate) fn output(root: &Path, program: &str, args: &[&str]) -> Result<String
 }
 
 pub(crate) fn clean(root: &Path) -> Result<String> {
+    local_configurations(root)?;
     for (name, _) in std::env::vars_os() {
         let name = name.to_string_lossy();
         if unsafe_build_variable(&name)
@@ -71,7 +72,14 @@ pub(crate) fn unsafe_build_variable(name: &str) -> bool {
     if name == "CARGO_TARGET_DIR" {
         return false;
     }
-    name.starts_with("LIBSQLITE3_")
+    name.starts_with("HOST_")
+        || name.starts_with("TARGET_")
+        || name.starts_with("SQLITE_")
+        || name == "CRATE_CC_NO_DEFAULTS"
+        || name.starts_with("CARGO_CFG_")
+        || name.starts_with("DEP_")
+        || name == "OUT_DIR"
+        || name.starts_with("LIBSQLITE3_")
         || name.starts_with("SQLITE3_")
         || [
             "CC",
@@ -104,6 +112,19 @@ pub(crate) fn unsafe_build_variable(name: &str) -> bool {
         ]
         .iter()
         .any(|p| name.starts_with(p))
+}
+
+fn local_configurations(root: &Path) -> Result<()> {
+    for ancestor in root.ancestors() {
+        for name in [".cargo/config", ".cargo/config.toml"] {
+            match std::fs::symlink_metadata(ancestor.join(name)) {
+                Ok(_) => return Err("unreviewed Cargo ancestor configuration".into()),
+                Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
+                Err(_) => return Err("Cargo configuration inspection unavailable".into()),
+            }
+        }
+    }
+    Ok(())
 }
 
 pub(crate) fn expected_exit(code: Option<i32>, success: bool) -> bool {
@@ -165,5 +186,28 @@ mod tests {
             assert!(unsafe_build_variable(name), "{name}");
         }
         assert!(!unsafe_build_variable("CARGO_TARGET_DIR"));
+        for name in [
+            "HOST_CFLAGS",
+            "TARGET_CFLAGS",
+            "HOST_CC",
+            "TARGET_CC",
+            "SQLITE_MAX_VARIABLE_NUMBER",
+            "CRATE_CC_NO_DEFAULTS",
+        ] {
+            assert!(unsafe_build_variable(name), "{name}");
+        }
+    }
+    #[test]
+    fn cargo_ancestor_configuration_is_not_an_invisible_build_input() {
+        let root = tempfile::tempdir().unwrap();
+        let project = root.path().join("project");
+        std::fs::create_dir(&project).unwrap();
+        std::fs::create_dir(root.path().join(".cargo")).unwrap();
+        std::fs::write(
+            root.path().join(".cargo/config.toml"),
+            b"[build]\nrustflags=['-Copt-level=0']\n",
+        )
+        .unwrap();
+        assert!(local_configurations(&project).is_err());
     }
 }

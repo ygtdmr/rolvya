@@ -6,6 +6,7 @@ mod coverage;
 mod files;
 mod gate;
 mod installed;
+mod lock;
 mod manifest;
 mod process;
 mod sbom;

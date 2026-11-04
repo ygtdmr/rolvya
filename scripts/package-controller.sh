@@ -15,10 +15,18 @@ done
 while IFS= read -r variable; do
   case "$variable" in
     CARGO_TARGET_DIR) ;;
-    LIBSQLITE3_*|SQLITE3_*|CARGO_PROFILE_*|CARGO_TARGET_*|CARGO_BUILD_RUST*|CARGO_BUILD_TARGET*|CC|CC_*|CXX|CXX_*|CFLAGS|CFLAGS_*|CXXFLAGS|CXXFLAGS_*|CPPFLAGS|AR|AR_*|LDFLAGS|LDFLAGS_*|RANLIB|PKG_CONFIG|PKG_CONFIG_PATH|PKG_CONFIG_LIBDIR)
+    HOST_*|TARGET_*|SQLITE_*|CRATE_CC_NO_DEFAULTS|CARGO_CFG_*|DEP_*|OUT_DIR|LIBSQLITE3_*|SQLITE3_*|CARGO_PROFILE_*|CARGO_TARGET_*|CARGO_BUILD_RUST*|CARGO_BUILD_TARGET*|CC|CC_*|CXX|CXX_*|CFLAGS|CFLAGS_*|CXXFLAGS|CXXFLAGS_*|CPPFLAGS|AR|AR_*|LDFLAGS|LDFLAGS_*|RANLIB|PKG_CONFIG|PKG_CONFIG_PATH|PKG_CONFIG_LIBDIR)
       echo 'unreviewed native/compiler build override' >&2; exit 2 ;;
   esac
 done < <(compgen -e)
+ancestor="$PWD"
+while true; do
+  for name in .cargo/config .cargo/config.toml; do
+    [[ ! -e "$ancestor/$name" && ! -L "$ancestor/$name" ]] || { echo 'unreviewed Cargo ancestor configuration' >&2; exit 2; }
+  done
+  [[ "$ancestor" != / ]] || break
+  ancestor="$(dirname -- "$ancestor")"
+done
 for configuration in .cargo/config .cargo/config.toml "${CARGO_HOME:-$HOME/.cargo}/config" "${CARGO_HOME:-$HOME/.cargo}/config.toml" apps/web/.env apps/web/.env.local apps/web/.env.production apps/web/.env.production.local; do
   [[ ! -e "$configuration" && ! -L "$configuration" ]] || { echo 'unreviewed local build configuration' >&2; exit 2; }
 done

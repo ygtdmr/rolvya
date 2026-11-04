@@ -162,6 +162,10 @@ pub(crate) fn generate(
     )?)
     .map_err(|_| "invalid Cargo metadata")?;
     let all = closure(root, "normal,build")?;
+    let lock_bytes = Tree::open(root)?.read("Cargo.lock", 1024 * 1024)?;
+    let locked = crate::lock::checksums(
+        std::str::from_utf8(&lock_bytes).map_err(|_| "invalid Cargo lock encoding")?,
+    )?;
     let normal = closure(root, "normal")?;
     let packages = metadata["packages"]
         .as_array()
@@ -229,7 +233,14 @@ pub(crate) fn generate(
                     .and_then(Path::file_name)
                     .ok_or("missing registry identity")?,
             );
-            digest(&Tree::open(&cache)?.read(&format!("{name}-{version}.crate"), 16 * 1024 * 1024)?)
+            let source = p["source"].as_str().ok_or("missing registry source")?;
+            let expected = locked
+                .get(&(name.clone(), version.clone(), source.to_owned()))
+                .ok_or("registry archive absent from lock")?;
+            crate::lock::require(
+                expected,
+                &Tree::open(&cache)?.read(&format!("{name}-{version}.crate"), 16 * 1024 * 1024)?,
+            )?
         };
         inventory.push(json!({"SPDXID":id,"name":name,"versionInfo":version,"downloadLocation":if first_party {format!("git+https://github.com/ygtdmr/rolvya@{commit}")} else {format!("https://crates.io/api/v1/crates/{name}/{version}/download")},
             "filesAnalyzed":false,"licenseConcluded":"NOASSERTION","licenseDeclared":license,"copyrightText":"NOASSERTION",
