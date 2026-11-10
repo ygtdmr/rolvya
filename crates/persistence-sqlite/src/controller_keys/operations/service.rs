@@ -3,7 +3,23 @@ use super::super::{
     worker_auth::https::tls::ServerIdentity,
 };
 use super::*;
+use crate::orchestration::runtime::{
+    ClosedRuntime, RuntimeAuthority, RuntimeClock, RuntimeConfig, RuntimeExit, RuntimeMode,
+    RuntimeSupervisor,
+};
 use std::{future::Future, time::Duration};
+/// Starts the control loop on the service's stop signal; returns its mode and task.
+type RuntimeLauncher = Box<
+    dyn FnOnce(
+            tokio::sync::watch::Receiver<bool>,
+        ) -> (RuntimeMode, tokio::task::JoinHandle<RuntimeExit>)
+        + Send,
+>;
+fn launcher<R: RuntimeAuthority, C: RuntimeClock>(
+    supervisor: RuntimeSupervisor<R, C>,
+) -> RuntimeLauncher {
+    Box::new(move |stop| (supervisor.mode(), tokio::spawn(supervisor.run(stop))))
+}
 #[derive(Serialize)]
 pub struct Readiness {
     pub version: u32,
@@ -21,11 +37,15 @@ pub struct Readiness {
     pub provider_entitlement_verified: bool,
     pub financial_hard_gate_ready: bool,
     pub billable_execution_allowed: bool,
+    /// Durable heartbeat of the installed control loop, read independently.
+    pub control_loop_running: bool,
+    pub control_loop_mode: Option<String>,
     pub qualification_blockers: Vec<crate::controller_keys::qualification::Domain>,
 }
 pub struct ControllerService {
     operator: HostOperator,
     server: std::sync::Arc<HumanBrowserServer>,
+    runtime: RuntimeLauncher,
 }
 impl ControllerService {
     /// Ordinary startup loads an existing current schema/key; no setup or migrations.
@@ -43,12 +63,14 @@ impl ControllerService {
         drop(key);
         let assets = validated_assets(&operator.config).await?;
         let identity = tls_identity(&operator.config)?;
-        Self::build(operator, identity, assets).await
+        Self::build(operator, identity, assets, None).await
     }
+    /// Production composes only [`ClosedRuntime`]: the loop runs, admits nothing.
     async fn build(
         operator: HostOperator,
         identity: ServerIdentity,
         assets: BrowserAssets,
+        runtime: Option<RuntimeLauncher>,
     ) -> Result<Self, OperationError> {
         let report = readiness(&operator).await?;
         if !report.authentication_available {
@@ -68,9 +90,26 @@ impl ControllerService {
         )
         .await
         .map_err(|_| OperationError::Unavailable)?;
-        Ok(Self { operator, server })
+        let runtime = match runtime {
+            Some(runtime) => runtime,
+            None => launcher(
+                RuntimeSupervisor::new(
+                    operator.store.clone(),
+                    ClosedRuntime,
+                    crate::admission::SystemClock,
+                    RuntimeConfig::default(),
+                )
+                .map_err(|_| OperationError::InvalidConfiguration)?,
+            ),
+        };
+        Ok(Self {
+            operator,
+            server,
+            runtime,
+        })
     }
-    /// Listener and direct TLS serve only the human panel. No paid scheduler is started.
+    /// Serves the human panel, backups and the closed control loop. No paid
+    /// scheduler or provider constructor is started.
     pub async fn serve(
         self,
         shutdown: impl Future<Output = ()> + Send,
@@ -89,6 +128,14 @@ impl ControllerService {
             "{{\"event\":\"human_https_listener_bound\",\"billable_execution_allowed\":false}}"
         );
         let (stop, mut stopped) = tokio::sync::watch::channel(false);
+        let (mode, mut runtime) = (self.runtime)(stop.subscribe());
+        println!(
+            "{{\"event\":\"control_loop_started\",\"mode\":\"{}\",\"billable_execution_allowed\":false}}",
+            match mode {
+                RuntimeMode::Closed => "closed",
+                RuntimeMode::Synthetic => "synthetic",
+            }
+        );
         let operator = std::sync::Arc::new(self.operator);
         let backups = operator.clone();
         let background = tokio::spawn(async move {
@@ -131,7 +178,20 @@ impl ControllerService {
         {
             background.abort();
             let _ = background.await;
+            runtime.abort();
+            let _ = runtime.await;
             return Err(OperationError::RecoveryRequired);
+        }
+        // Each pass is transactional, so aborting a stuck loop loses no authority;
+        // the stale heartbeat then reads as not running.
+        match tokio::time::timeout(Duration::from_secs(15), &mut runtime).await {
+            Ok(Ok(RuntimeExit::Stopped)) => {}
+            Ok(_) => eprintln!("controller control loop liveness unavailable"),
+            Err(_) => {
+                runtime.abort();
+                let _ = runtime.await;
+                return Err(OperationError::RecoveryRequired);
+            }
         }
         operator.store.check_integrity().await?;
         operator.store.close().await;
@@ -143,7 +203,7 @@ impl ControllerService {
         identity: ServerIdentity,
         assets: BrowserAssets,
     ) -> Result<Self, OperationError> {
-        Self::build(operator, identity, assets).await
+        Self::build(operator, identity, assets, None).await
     }
 }
 impl HostOperator {
@@ -182,6 +242,7 @@ async fn readiness(op: &HostOperator) -> Result<Readiness, OperationError> {
     )
     .fetch_one(&op.store.pool)
     .await?;
+    let liveness = op.store.runtime_liveness(now()?).await?;
     Ok(Readiness {
         version: 1,
         configuration_valid: true,
@@ -198,6 +259,8 @@ async fn readiness(op: &HostOperator) -> Result<Readiness, OperationError> {
         provider_entitlement_verified: false,
         financial_hard_gate_ready: true,
         billable_execution_allowed: false,
+        control_loop_running: liveness.control_loop_running,
+        control_loop_mode: liveness.mode,
         qualification_blockers: crate::controller_keys::qualification::REQUIRED.to_vec(),
     })
 }

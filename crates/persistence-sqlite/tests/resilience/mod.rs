@@ -14,6 +14,7 @@ mod crashes;
 mod faults;
 mod inventory;
 mod oracle;
+mod runtime;
 mod storage;
 use faults::*;
 use oracle::*;

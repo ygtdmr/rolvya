@@ -169,6 +169,24 @@ async fn install_restart_direct_tls_real_password_scoped_binding_and_safe_shutdo
     let public = browser.request(reqwest::Method::GET, "/", None, None).await;
     assert_eq!(public.status(), 200);
     assert!(public.headers().contains_key("content-security-policy"));
+    // RC-02: the installed loop runs beside the panel in closed mode and admits
+    // nothing, even though this project has an activated plan.
+    let unix = || {
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_secs() as i64
+    };
+    let mut live = store.runtime_liveness(unix()).await.unwrap();
+    for _ in 0..50 {
+        if live.control_loop_running {
+            break;
+        }
+        tokio::time::sleep(Duration::from_millis(100)).await;
+        live = store.runtime_liveness(unix()).await.unwrap();
+    }
+    assert!(live.control_loop_running);
+    assert_eq!(live.mode.as_deref(), Some("closed"));
     let startup_ms = startup.elapsed().as_millis();
     assert_eq!(
         browser
@@ -357,6 +375,21 @@ async fn install_restart_direct_tls_real_password_scoped_binding_and_safe_shutdo
         .unwrap()
         .unwrap()
         .unwrap();
+    let stopped_store = crate::PlanStore::open_existing(&f.config.database)
+        .await
+        .unwrap();
+    let live = stopped_store.runtime_liveness(unix()).await.unwrap();
+    assert!(
+        !live.control_loop_running,
+        "graceful stop must clear liveness"
+    );
+    assert_eq!(live.mode.as_deref(), Some("closed"));
+    let attempts: i64 = sqlx::query_scalar("SELECT count(*) FROM task_attempts")
+        .fetch_one(&stopped_store.pool)
+        .await
+        .unwrap();
+    assert_eq!(attempts, 0, "closed runtime must never admit work");
+    stopped_store.close().await;
     println!(
         "ops measurement: setup-through-read={}ms password={}ms snapshot={}us shutdown={}ms",
         start.elapsed().as_millis(),

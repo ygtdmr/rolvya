@@ -51,7 +51,7 @@ The release job runs after existing repository, secret, Rust and frontend gates,
 | --- | --- |
 | Rust/controller | Final-head repository/Rust/CI outcomes must accompany the candidate; source inspection alone is insufficient. |
 | Immutable DAG | Frozen validation, atomic admission and R09 fixtures exist; installed main-planner-to-dispatch journey is incomplete. |
-| Worker lifecycle | Production service starts human HTTPS and backups, not the scheduler/worker control loop. |
+| Worker lifecycle | RC-02: the production service also runs the R06/R08/R09 control loop in **closed** mode (admits nothing) with durable liveness, graceful stop and SIGKILL-tested restart; see [installed runtime](installed-runtime.md). Offline execution authority (RC-04) and installed end-to-end acceptance (RC-05) remain. |
 | Independent verification | Separate verifier/report/R09 fixtures exist; installed remote execution composition and live isolation remain unqualified. |
 | Git publication | Private GitHub protocol fixtures exist; installed workflow and real App/protected-repository evidence remain absent. |
 | Human authentication | Genuine library TLS/browser fixtures exist; installed positive TLS login/binding journey remains unverified. |
