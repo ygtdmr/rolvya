@@ -237,3 +237,4 @@ Use explicit labels: **Approved**, **Proposed**, **Open**, **Implemented**, **Ve
 
 - [Provider qualification and activation boundaries](development/provider-production-qualification.md) — G1-11 implemented offline evidence and exact-scope gates; real qualification remains unavailable.
 - [Release candidate validation](development/release-candidate-validation.md) — G1-12 build tooling, artifact/SBOM inspection, installed operator-prefix evidence and explicit incomplete offline/system acceptance.
+- [Dependency advisory hygiene](development/dependency-advisories.md) — RC-01 full-lock RustSec/Dependabot/npm audit state, scoped exceptions and removal conditions.
