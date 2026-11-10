@@ -2,6 +2,10 @@
 
 Current authoritative decision cross-check: 2026-10-26 (see current ADRs; earlier sections are chronological historical checkpoints).
 
+## Claude Code agent integration (2026-11-10)
+
+Added root `CLAUDE.md`, which imports `AGENTS.md` unchanged and adapts Codex-specific mechanics: `$graphify` → `/graphify`, the `codex/` branch prefix pinned by the integration policy, and handoff requirements. `.claude/skills/` contains relative symlinks to the canonical `.agents/skills/*` and `.codex/skills/graphify`, so no skill content is duplicated. No Claude Code hook mirroring `.codex/hooks.json` is configured. This is development tooling only; no Rolvya application features, workflow or integration-policy changes. Verified: every symlink resolves to its `SKILL.md`. Not verified: a fresh Claude Code session's skill discovery.
+
 ## G1-12 build candidate foundation (2026-11-04; full offline RC blocked)
 
 Verified PR #43 merged at `a85a32397ab3b6aa43db6f9d021e9519e584f1ed`, with submitted head `1b9f89aa13dfbbd821fb2f267fcc96dadaf3a095` and identical tree. Branch `codex/release-candidate-validation` extends the existing packager with a build-host Rust inventory/verifier, complete hashed distribution, SPDX/license notices, deterministic archive inspection, exhaustive 37-requirement/184-criterion source assessment and separate release-level decisions. Published migrations 0001–0024 remain unchanged. See [release tooling and honest blockers](../development/release-candidate-validation.md).

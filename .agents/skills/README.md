@@ -2,6 +2,8 @@
 
 These repository-scoped Codex skills add focused working procedures; they do not change Rolvya product architecture or install executables. The existing Graphify integration is under `.codex/skills/graphify/`; do not replace it.
 
+Claude Code discovers the same skills through relative symlinks in `.claude/skills/` (including `graphify` → `.codex/skills/graphify`). Edit only the canonical directories here or under `.codex/`; see [CLAUDE.md](../../CLAUDE.md).
+
 ## Rolvya-native skills
 
 - `rolvya-rust-foundation` — Rust domain foundations and immutable task planning.
