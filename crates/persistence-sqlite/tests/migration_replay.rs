@@ -49,7 +49,7 @@ async fn migrations_replay_reopen_and_consistent_snapshot_restore() {
             .fetch_one(&raw)
             .await
             .unwrap(),
-        24
+        25
     );
     assert_eq!(
         sqlx::query_scalar::<_, String>("SELECT sqlite_version()")
@@ -123,8 +123,8 @@ async fn failed_migration_rolls_back_ddl_and_data() {
     let f = Fixture::new().await;
     let raw = f.raw().await;
     let scripts = tempfile::tempdir().unwrap();
-    std::fs::write(scripts.path().join("0025_injected_failure.sql"),"CREATE TABLE should_rollback(value TEXT); INSERT INTO should_rollback VALUES ('temporary'); SELECT absent_column FROM absent_table;").unwrap();
-    // Replay real migrations, then verify failing v25 executes and rolls back atomically.
+    std::fs::write(scripts.path().join("0026_injected_failure.sql"),"CREATE TABLE should_rollback(value TEXT); INSERT INTO should_rollback VALUES ('temporary'); SELECT absent_column FROM absent_table;").unwrap();
+    // Replay real migrations, then verify failing v26 executes and rolls back atomically.
     std::fs::write(
         scripts.path().join("0001_plan_store.sql"),
         include_str!("../migrations/0001_plan_store.sql"),
@@ -247,10 +247,15 @@ async fn failed_migration_rolls_back_ddl_and_data() {
         include_str!("../migrations/0024_provider_qualification.sql"),
     )
     .unwrap();
+    std::fs::write(
+        scripts.path().join("0025_controller_runtime.sql"),
+        include_str!("../migrations/0025_controller_runtime.sql"),
+    )
+    .unwrap();
     let migrator = Migrator::new(scripts.path()).await.unwrap();
     let error = migrator.run(&raw).await.unwrap_err();
     assert!(
-        matches!(error, sqlx::migrate::MigrateError::ExecuteMigration(_, 25)),
+        matches!(error, sqlx::migrate::MigrateError::ExecuteMigration(_, 26)),
         "must execute the injected next migration, not reject migration metadata"
     );
     assert_eq!(
@@ -417,7 +422,7 @@ async fn real_v1_upgrade_preserves_projects_and_failed_v2_leaves_v1_intact() {
                 .fetch_one(&raw)
                 .await
                 .unwrap(),
-            24
+            25
         );
         assert_eq!(
             sqlx::query_scalar::<_, i64>("SELECT count(*) FROM financial_events")
@@ -2174,9 +2179,9 @@ async fn v23_qualification_upgrade_replays_populated_plan_and_rolls_back_failed_
         let receipt = f.activate().await.unwrap();
         f.store.close().await;
         let raw = f.raw().await;
-        // The new evidence tables are empty. Remove only v24 additions to make
-        // the exact published v23 schema with existing plan/activation records.
-        sqlx::query("DROP TABLE provider_qualification_revocations; DROP TABLE provider_qualification_evidence; DELETE FROM _sqlx_migrations WHERE version=24;").execute(&raw).await.unwrap();
+        // The new evidence tables are empty. Remove only v24 (and later v25)
+        // additions to make the exact published v23 schema with existing records.
+        sqlx::query("DROP TABLE controller_runtime_heartbeat; DELETE FROM _sqlx_migrations WHERE version=25; DROP TABLE provider_qualification_revocations; DROP TABLE provider_qualification_evidence; DELETE FROM _sqlx_migrations WHERE version=24;").execute(&raw).await.unwrap();
         let scripts = tempfile::tempdir().unwrap();
         for entry in std::fs::read_dir(concat!(env!("CARGO_MANIFEST_DIR"), "/migrations")).unwrap()
         {
@@ -2205,7 +2210,7 @@ async fn v23_qualification_upgrade_replays_populated_plan_and_rolls_back_failed_
                 .fetch_one(&raw)
                 .await
                 .unwrap(),
-            if fail { 23 } else { 24 }
+            if fail { 23 } else { 25 }
         );
         assert_eq!(
             sqlx::query_scalar::<_, i64>("SELECT count(*) FROM tasks")
@@ -2252,6 +2257,106 @@ async fn v23_qualification_upgrade_replays_populated_plan_and_rolls_back_failed_
                 .unwrap(),
             receipt
         );
+        reopened.check_integrity().await.unwrap();
+    }
+}
+
+#[tokio::test]
+async fn v24_runtime_heartbeat_upgrade_preserves_plans_and_rolls_back_failed_schema() {
+    for fail in [false, true] {
+        let f = Fixture::new().await;
+        let receipt = f.activate().await.unwrap();
+        f.store.close().await;
+        let raw = f.raw().await;
+        // Recreate the exact published v24 schema with an activated plan.
+        sqlx::query("DROP TABLE controller_runtime_heartbeat; DELETE FROM _sqlx_migrations WHERE version=25;").execute(&raw).await.unwrap();
+        let scripts = tempfile::tempdir().unwrap();
+        for entry in std::fs::read_dir(concat!(env!("CARGO_MANIFEST_DIR"), "/migrations")).unwrap()
+        {
+            let entry = entry.unwrap();
+            std::fs::copy(entry.path(), scripts.path().join(entry.file_name())).unwrap();
+        }
+        let original = include_str!("../migrations/0025_controller_runtime.sql");
+        if fail {
+            std::fs::write(
+                scripts.path().join("0025_controller_runtime.sql"),
+                format!("{original}\nSELECT absent FROM missing;"),
+            )
+            .unwrap();
+        }
+        assert_eq!(
+            Migrator::new(scripts.path())
+                .await
+                .unwrap()
+                .run(&raw)
+                .await
+                .is_err(),
+            fail
+        );
+        let heartbeat_tables = || {
+            sqlx::query_scalar::<_, i64>(
+                "SELECT count(*) FROM sqlite_schema WHERE name='controller_runtime_heartbeat'",
+            )
+        };
+        assert_eq!(
+            sqlx::query_scalar::<_, i64>("SELECT count(*) FROM _sqlx_migrations")
+                .fetch_one(&raw)
+                .await
+                .unwrap(),
+            if fail { 24 } else { 25 }
+        );
+        assert_eq!(
+            heartbeat_tables().fetch_one(&raw).await.unwrap(),
+            if fail { 0 } else { 1 }
+        );
+        if fail {
+            std::fs::write(scripts.path().join("0025_controller_runtime.sql"), original).unwrap();
+            Migrator::new(scripts.path())
+                .await
+                .unwrap()
+                .run(&raw)
+                .await
+                .unwrap();
+            assert_eq!(heartbeat_tables().fetch_one(&raw).await.unwrap(), 1);
+        }
+        // Liveness evidence is a constrained singleton, never an authority table.
+        for bad in [
+            "INSERT INTO controller_runtime_heartbeat VALUES(2,'0123456789abcdef0123456789abcdef','closed','running',0,0,0,0,NULL)",
+            "INSERT INTO controller_runtime_heartbeat VALUES(1,'NOT-HEX-0123456789abcdef01234567','closed','running',0,0,0,0,NULL)",
+            "INSERT INTO controller_runtime_heartbeat VALUES(1,'0123456789abcdef0123456789abcdef','paid','running',0,0,0,0,NULL)",
+            "INSERT INTO controller_runtime_heartbeat VALUES(1,'0123456789abcdef0123456789abcdef','closed','running',5,4,0,0,NULL)",
+            "INSERT INTO controller_runtime_heartbeat VALUES(1,'0123456789abcdef0123456789abcdef','closed','running',0,0,1,2,NULL)",
+            "INSERT INTO controller_runtime_heartbeat VALUES(1,'0123456789abcdef0123456789abcdef','closed','running',0,0,0,0,'secret')",
+        ] {
+            assert!(sqlx::query(bad).execute(&raw).await.is_err(), "{bad}");
+        }
+        raw.close().await;
+        let reopened = PlanStore::open_existing(&f.path).await.unwrap();
+        assert_eq!(
+            reopened
+                .load(&f.content.key, &SyntheticPolicy, Limits::default())
+                .await
+                .unwrap()
+                .revision,
+            f.revision
+        );
+        assert_eq!(
+            reopened
+                .activate(
+                    &f.revision,
+                    &request(),
+                    &owner(),
+                    &OwnerPolicy,
+                    &SyntheticPolicy,
+                    Limits::default()
+                )
+                .await
+                .unwrap(),
+            receipt
+        );
+        let live = reopened.runtime_liveness(0).await.unwrap();
+        assert!(!live.control_loop_running);
+        assert_eq!(live.mode, None);
         reopened.check_integrity().await.unwrap();
     }
 }

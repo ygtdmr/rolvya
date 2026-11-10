@@ -5,6 +5,7 @@ pub(crate) use panel::panel_artifact_in;
 pub mod coding;
 mod coordinator;
 mod observability;
+pub mod runtime;
 use crate::{
     admission::{self, *},
     finance::*,
@@ -147,7 +148,7 @@ impl Default for PassLimits {
     }
 }
 impl PassLimits {
-    fn check(self) -> Result<(), OrchestrationError> {
+    pub(crate) fn check(self) -> Result<(), OrchestrationError> {
         if self.admissions > 100 || self.events > 256 || self.validations > 100 || self.groups > 100
         {
             Err(OrchestrationError::LimitExceeded)
@@ -196,7 +197,7 @@ pub struct PassReport {
     pub snapshot: RunSnapshot,
 }
 impl PassReport {
-    fn progress(&self) -> bool {
+    pub(crate) fn progress(&self) -> bool {
         !self.admitted.is_empty()
             || self.delivered > 0
             || !self.validated.is_empty()
