@@ -9,3 +9,6 @@ __pycache__/
 /apps/web/.artifacts/
 /apps/web/test-results/
 /apps/web/playwright-report/
+
+.obsidian/
+.DS_Store
