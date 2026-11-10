@@ -33,7 +33,7 @@ The package contains only the optimized controller, four production web files, c
 
 The SBOM traverses the locked Linux controller normal/build closure, separately describing build-only dependencies. A normal closure can include compile-time procedural macros; membership does not claim every crate is linked into the executable. Rendered browser modules retain their exact npm installation directories and versions; type-only and test tooling are not labeled deployed code. Cached registry archive SHA-256 values are checked against the exact Cargo-generated v4 lock checksum before inclusion; extracted-source reuse cannot waive that check. Unsupported lock formatting fails closed. Deployed-file SHA-256 values and SPDX relationships are included. The pinned upstream SPDX schema is validated with the already locked AJV build dependency. Unknown license expressions and missing notices fail packaging. Nested vendored notices are retained.
 
-The full-lock RustSec advisory for `rsa 0.9.10` remains separate from inaccessible Dependabot alert #1. Absence of RSA/MySQL from the shipped Linux normal/build closure is not full-lock remediation. No advisory suppression or unrelated dependency upgrade is included. External font/icon resources are not bundled; their separate provenance remains in [frontend notices](../../apps/web/THIRD_PARTY_NOTICES.md).
+RC-01 ([#45](https://github.com/ygtdmr/rolvya/issues/45)) identifies Dependabot alert #1 as GHSA-8ffr-xgwf-xj56 in `aws-smithy-json` and locks the patched 0.62.7. The full-lock `rsa 0.9.10` (RUSTSEC-2023-0071) entry is a reviewed lock-only exception, absent from every normal/build/dev graph on every target. The newly published bundled-SQLite advisory RUSTSEC-2026-0459 has no reachable patched SQLx release and is a **Proposed** scoped exception pending Owner security review. Evidence, scope and removal conditions: [dependency advisory hygiene](dependency-advisories.md). External font/icon resources are not bundled; their separate provenance remains in [frontend notices](../../apps/web/THIRD_PARTY_NOTICES.md).
 
 ## Installed acceptance and release decisions
 
@@ -64,7 +64,7 @@ The release job runs after existing repository, secret, Rust and frontend gates,
 | Email delivery | Synthetic signed delivery fixtures are not genuine operational delivery or an identity issuer. |
 | TLS/PKI | Production server requires public PKI and qualified persistent storage. Private CA constructors remain test-only; overlay/tmpfs is not certified controller storage. |
 | Off-host recovery | Local fixture destinations do not prove independent off-host custody or retained-key rotation. |
-| Dependency advisories | Dependabot #1 is unidentified/inaccessible; RSA lockfile advisory remains unresolved and distinct. |
+| Dependency advisories | Dependabot #1 (`aws-smithy-json`) is patched; `rsa` is a lock-only reviewed exception; bundled SQLite RUSTSEC-2026-0459 is a Proposed exception pending Owner security review and an upstream SQLx release. CI does not yet run `cargo audit`. See [dependency advisories](dependency-advisories.md). |
 | CI/CodeQL | Only exact-head completed analyses count; skipped/missing jobs do not pass. |
 | Artifact reproducibility | Independent clean-target rebuild and complete byte comparison are required, not two cache hits. |
 | Browser/accessibility | Four-file CSP/PWA/browser gates remain; final icons, physical devices and manual screen-reader certification are outstanding. |

@@ -1,0 +1,23 @@
+# cargo-audit configuration for the full Rolvya Cargo.lock.
+#
+# Every entry below is a scoped, reviewed exception, not a suppression of
+# unknown risk. Rationale, evidence commands and the removal condition for each
+# entry are recorded in docs/development/dependency-advisories.md. An entry may
+# only be added or widened together with that document, in a PR that receives
+# human Owner security review.
+
+[advisories]
+ignore = [
+    # rsa 0.9.10 (Marvin timing side channel). Lock-only: reachable solely via
+    # sqlx-mysql, which no workspace feature enables; absent from every
+    # normal/build/dev graph on every target. Remove when sqlx no longer locks
+    # sqlx-mysql or rsa >= 0.10 is locked.
+    "RUSTSEC-2023-0071",
+    # libsqlite3-sys 0.30.1 bundles SQLite 3.46.0 (CVE-2026-119375, WAL page
+    # size uninitialized read). No released sqlx accepts libsqlite3-sys >= 0.39.
+    # Exposure requires a less trusted party to write the controller's private
+    # database/-wal pair. PROPOSED exception pending Owner security review.
+    # Remove as soon as a sqlx release supports libsqlite3-sys >= 0.39.
+    "RUSTSEC-2026-0459",
+]
+informational_warnings = ["unmaintained", "unsound"]
